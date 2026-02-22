@@ -79,17 +79,18 @@ kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 
 ## What You Get
 
-- **StatefulSet** with durable PVC-backed storage at `/home/node/.openclaw`
-- **Health probes** (startup, liveness, readiness) baked in
-- **GitOps-friendly config**: declare desired `openclaw.json` and the chart handles merge or overwrite via initContainer
-- **Optional**
-  - **WebSocket-ready Ingress** with configurable TLS
-  - **Split workspace volume** via a separate PVC (`persistence.splitVolumes`)
-  - **Chromium sidecar** for browser automation (CDP on `127.0.0.1:9222`, never exposed)
-  - **LiteLLM proxy subchart** for per-agent virtual keys, budget caps, model fallback routing, and semantic caching
-  - **NetworkPolicy** scaffolding for locking down traffic
-  - **Diagnostics CronJob** for periodic `openclaw doctor` runs
-  - **Tailscale integration** — expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`)
+| Feature | Description |
+|---------|-------------|
+| **StatefulSet** | Durable PVC-backed storage at `/home/node/.openclaw` |
+| **Health probes** | Startup, liveness, and readiness probes baked in |
+| **GitOps-friendly config** | Declare desired `openclaw.json`; chart handles merge or overwrite via initContainer |
+| **WebSocket-ready Ingress** | Configurable TLS |
+| **Split workspace volume** | Separate PVC for workspace via `persistence.splitVolumes` |
+| **Chromium sidecar** | Browser automation with CDP on `127.0.0.1:9222`, never exposed |
+| **LiteLLM proxy subchart** | Per-agent virtual keys, budget caps, model fallback routing, and semantic caching |
+| **NetworkPolicy** | Scaffolding for locking down traffic |
+| **Diagnostics CronJob** | Periodic `openclaw doctor` runs |
+| **Tailscale integration** | Expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`) |
 
 
 ## Install
