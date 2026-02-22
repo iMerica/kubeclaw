@@ -7,13 +7,19 @@ entries:
         fingerprint: <GPG_FINGERPRINT>
         url: https://kubeclaw.dev/gpg.asc
     apiVersion: v2
-    appVersion: 0.0.4
-    created: "2026-02-22T06:13:06.357327265Z"
+    appVersion: 0.0.6
+    created: "2026-02-22T08:08:58.793613216Z"
+    dependencies:
+    - alias: litellm
+      condition: litellm.enabled
+      name: litellm-helm
+      repository: oci://ghcr.io/berriai
+      version: 1.81.13
     description: 'Helm chart for deploying a single OpenClaw AI automation Gateway
       on Kubernetes. Provides a stateful single-replica Gateway with durable PVC-backed
       storage, WebSocket-capable Ingress, health probes, optional Chromium sidecar,
       and GitOps-friendly desired-config management via initContainer. '
-    digest: 8d22459f7798eae88146d9ea80e089ca913797181c38e49185fe68982f8b93e0
+    digest: 8ac535ca2ecf7a038da589ffe0dd7e3e8dcc754fcf2fdbb5dec563400dc72624
     home: https://github.com/iMerica/kubeclaw
     keywords:
     - kubeclaw
@@ -30,6 +36,6 @@ entries:
     - https://github.com/iMerica/kubeclaw
     type: application
     urls:
-    - https://iMerica.github.io/kubeclaw/kubeclaw-0.0.4.tgz
-    version: 0.0.4
-generated: "2026-02-22T06:13:06.356385879Z"
+    - https://iMerica.github.io/kubeclaw/kubeclaw-0.0.6.tgz
+    version: 0.0.6
+generated: "2026-02-22T08:08:58.780433219Z"
