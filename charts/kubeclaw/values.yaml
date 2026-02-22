@@ -10,8 +10,10 @@
 image:
   # REQUIRED: Docker image repository for the OpenClaw Gateway.
   repository: ghcr.io/openclaw/openclaw
-  # REQUIRED: Image tag. Pin to a specific release in production.
-  tag: "main"
+  # REQUIRED: Release tag tested for this chart release.
+  tag: "2026.2.21"
+  # REQUIRED: Immutable image digest to prevent tag drift.
+  digest: "sha256:ce271192cd70250d16fc5911903d9953467a40faf8b34e87cbd042e6b49b6036"
   # Pull policy: Always | IfNotPresent | Never
   pullPolicy: IfNotPresent
 

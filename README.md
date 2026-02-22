@@ -49,10 +49,6 @@ echo "Open this URL in your browser: $URL"
 kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 ```
 
-> **Important**: Use the authenticated URL with token from the dashboard command. Opening plain localhost:18789 will show "unauthorized" errors.
-
-> **Troubleshooting**: Check logs with `kubectl -n kubeclaw logs -f statefulset/kubeclaw`
-
 ## What You Get
 
 - **StatefulSet** with durable PVC-backed storage at `/home/node/.openclaw`
@@ -96,7 +92,8 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 |-----|---------|-------------|
 | `secret.data.OPENCLAW_GATEWAY_TOKEN` | *none* | **Required.** Gateway auth token |
 | `image.repository` | `ghcr.io/openclaw/openclaw` | Gateway container image |
-| `image.tag` | `latest` | Image tag (pin in production) |
+| `image.tag` | `2026.2.21` | Release tag validated for this chart version |
+| `image.digest` | `sha256:ce271192cd70250d16fc5911903d9953467a40faf8b34e87cbd042e6b49b6036` | Immutable digest used with the tag to prevent drift |
 | `ingress.enabled` | `false` | Enable Ingress with WebSocket timeouts |
 | `ingress.host` | `""` | Ingress hostname |
 | `persistence.size` | `5Gi` | PVC size for Gateway state |
@@ -108,6 +105,8 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 | `diagnostics.enabled` | `false` | Enable diagnostics CronJob |
 
 Full reference and advanced examples: [kubeclaw.ai/docs](https://kubeclaw.ai/docs)
+
+Image pinning policy: each chart release is validated against a candidate image, then the chart defaults are updated to the exact `image.tag` + `image.digest` before publishing.
 
 ## Verify
 

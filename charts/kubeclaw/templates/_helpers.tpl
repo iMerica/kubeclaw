@@ -115,5 +115,5 @@ checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sh
 Image string helper.
 */}}
 {{- define "kubeclaw.image" -}}
-{{- printf "%s:%s" .Values.image.repository .Values.image.tag }}
+{{- printf "%s:%s@%s" .Values.image.repository .Values.image.tag .Values.image.digest }}
 {{- end }}

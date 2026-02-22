@@ -10,7 +10,7 @@
     },
     "image": {
       "type": "object",
-      "required": ["repository", "tag"],
+      "required": ["repository", "tag", "digest"],
       "properties": {
         "repository": {
           "type": "string",
@@ -20,7 +20,13 @@
         "tag": {
           "type": "string",
           "minLength": 1,
-          "description": "Docker image tag. Pin to a specific release in production."
+          "description": "Docker image tag tested for this chart release."
+        },
+        "digest": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "Immutable Docker image digest to prevent tag drift."
         },
         "pullPolicy": {
           "type": "string",
