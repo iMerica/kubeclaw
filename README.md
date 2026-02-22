@@ -72,23 +72,11 @@ kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 
 ## Install
 
-### Via OCI (recommended)
+### Via OCI
 
 ```sh
 helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --version 0.1.0 \
-  --namespace kubeclaw \
-  --create-namespace \
-  --set secret.data.OPENCLAW_GATEWAY_TOKEN=change-me
-```
-
-### Via Helm Repo
-
-```sh
-helm repo add kubeclaw https://iMerica.github.io/kubeclaw
-helm repo update
-
-helm install kubeclaw kubeclaw/kubeclaw \
   --namespace kubeclaw \
   --create-namespace \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=change-me
@@ -133,30 +121,12 @@ helm template kubeclaw charts/kubeclaw \
 helm template kubeclaw charts/kubeclaw --set replicaCount=2
 ```
 
-## Troubleshooting
-
-### "unauthorized: gateway token missing" error
-
-This means the Control UI opened without the authentication token. Generate a fresh tokenized URL:
-
-```sh
-kubectl -n kubeclaw exec statefulset/kubeclaw -- \
-  node dist/index.js dashboard --no-open
-```
-
-Use the generated URL (with token) instead of plain localhost:18789.
-
-### Still getting unauthorized?
-
-1. Clear browser state: Open DevTools → Application → Local Storage → delete `openclaw.control.settings.v1`
-2. Restart the Gateway: `kubectl -n kubeclaw rollout restart statefulset/kubeclaw`
-3. Generate a new tokenized URL (tokens are tied to gateway instance)
-
 ## Docs
 
 | | |
 |---|---|
 | [Install Guide](docs/oss/README.md) | Step-by-step setup |
+| [Troubleshooting](docs/oss/README.md#troubleshooting) | Common issues and fixes |
 | [Restore Runbook](docs/runbooks/restore.md) | Backup & recovery procedures |
 | [Full Documentation](https://kubeclaw.ai/docs) | Complete reference at kubeclaw.ai |
 
