@@ -1,5 +1,5 @@
 remote: origin
-target-branch: main
+target-branch: master
 chart-dirs:
   - charts
 chart-repos:
