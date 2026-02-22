@@ -79,14 +79,19 @@ persistence:
 # A checksum annotation ensures rollout is triggered when config changes.
 # ------------------------------------------------------------------------------
 config:
-  # Set to a JSON5 string to enable config management. Leave empty to disable.
-  # Example:
+  # JSON5 config to write to openclaw.json on startup.
+  # Default sets gateway.mode=local so the Gateway starts without interactive setup.
+  # Set to "" to disable config management entirely.
+  # Example with additional settings:
   #   desired: |
   #     {
-  #       "gateway": { "host": "0.0.0.0" },
+  #       "gateway": { "mode": "local", "host": "0.0.0.0" },
   #       "tools": { "exec": { "enabled": true } }
   #     }
-  desired: ""
+  desired: |
+    {
+      "gateway": { "mode": "local" }
+    }
   # merge: apply JSON merge-patch (objects merge recursively, arrays replace,
   #        null deletes keys). Preserves runtime-edited values not in desired.
   # overwrite: replace the entire config file with desired (equivalent to
