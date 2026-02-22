@@ -21,6 +21,9 @@
 <a href="https://helm.sh"><img src="https://img.shields.io/badge/Helm-3.12%2B-0f1689?logo=helm&logoColor=white" alt="Helm 3.12+"></a>
 <a href="https://github.com/kubeclaw/kubeclaw/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue" alt="License"></a>
 <a href="https://ghcr.io/kubeclaw/openclaw"><img src="https://img.shields.io/badge/OCI-ghcr.io-purple?logo=github" alt="OCI Registry"></a>
+<a href="https://github.com/aquasecurity/trivy"><img src="https://img.shields.io/badge/Trivy-scanned-1904DA?logo=aquasec&logoColor=white" alt="Trivy"></a>
+<a href="https://github.com/yannh/kubeconform"><img src="https://img.shields.io/badge/kubeconform-validated-4CAF50" alt="kubeconform"></a>
+<a href="https://github.com/stackrox/kube-linter"><img src="https://img.shields.io/badge/kube--linter-passing-ee0000" alt="kube-linter"></a>
 </p>
 
 ---
