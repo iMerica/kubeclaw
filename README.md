@@ -30,21 +30,35 @@
 ## Quick Start
 
 ```sh
-# Required: gateway token + at least one model provider key
+# Required: gateway token + provider key + matching model selection
 export TOKEN=$(openssl rand -hex 32)
-export OPENAI_API_KEY="sk-..."         # or use OPENROUTER_API_KEY instead
 
-# Install (OpenAI example)
+# Install (Anthropic example — default model is anthropic/claude-opus-4-6)
+export ANTHROPIC_API_KEY="sk-ant-..."
 helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --namespace kubeclaw --create-namespace \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN="$TOKEN" \
-  --set secret.data.OPENAI_API_KEY="$OPENAI_API_KEY"
+  --set secret.data.ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
 
-# OpenRouter alternative:
-# helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
-#   --namespace kubeclaw --create-namespace \
-#   --set secret.data.OPENCLAW_GATEWAY_TOKEN="$TOKEN" \
-#   --set secret.data.OPENROUTER_API_KEY="$OPENROUTER_API_KEY"
+# Install (OpenAI example — must also set the model, provider key alone is not enough)
+# Use a values file for config.desired; --set cannot handle nested JSON braces.
+export OPENAI_API_KEY="sk-..."
+cat > kubeclaw-values.yaml << 'EOF'
+config:
+  desired: |
+    {
+      "agents": {
+        "defaults": {
+          "model": { "primary": "openai/gpt-4o" }
+        }
+      }
+    }
+EOF
+helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
+  --namespace kubeclaw --create-namespace \
+  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$TOKEN" \
+  --set secret.data.OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -f kubeclaw-values.yaml
 
 # Wait for pod to be ready
 kubectl -n kubeclaw rollout status statefulset/kubeclaw
