@@ -36,11 +36,8 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Lint openclaw chart
-        run: helm lint charts/openclaw
-
-      - name: Lint openclaw-ultra chart
-        run: helm lint charts/openclaw-ultra || true  # ultra may have unresolvable deps in CI
+      - name: Lint kubeclaw chart
+        run: helm lint charts/kubeclaw
 
       - name: Run ct lint (changed charts only)
         if: steps.list-changed.outputs.changed == 'true'
@@ -50,7 +47,7 @@ jobs:
         run: |
           echo "Testing that replicaCount=2 fails schema validation..."
           set +e
-          output=$(helm template openclaw charts/openclaw \
+          output=$(helm template openclaw charts/kubeclaw \
             --set replicaCount=2 \
             --set secret.data.OPENCLAW_GATEWAY_TOKEN=test \
             2>&1)
@@ -66,7 +63,7 @@ jobs:
 
       - name: Dry-run render (default values)
         run: |
-          helm template openclaw charts/openclaw \
+          helm template openclaw charts/kubeclaw \
             --set secret.create=true \
             --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
             > /tmp/openclaw-render.yaml
@@ -104,7 +101,7 @@ jobs:
         run: |
           ct install \
             --config ct.yaml \
-            --charts charts/openclaw
+            --charts charts/kubeclaw
 
   security:
     name: Security Scanning
@@ -121,7 +118,7 @@ jobs:
 
       - name: Render chart for scanning
         run: |
-          helm template openclaw charts/openclaw \
+          helm template openclaw charts/kubeclaw \
             --set secret.create=true \
             --set secret.data.OPENCLAW_GATEWAY_TOKEN=scan-token \
             > "$GITHUB_WORKSPACE/rendered.yaml"
@@ -145,7 +142,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
-          scan-ref: charts/openclaw
+          scan-ref: charts/kubeclaw
           severity: HIGH,CRITICAL
           exit-code: "1"
 
@@ -158,7 +155,7 @@ jobs:
         run: |
           pip install --quiet checkov
           checkov \
-            --directory charts/openclaw \
+            --directory charts/kubeclaw \
             --framework helm \
             --quiet \
             --compact \

@@ -10,11 +10,11 @@
 ## Quick Install
 
 ```sh
-helm repo add kubeclaw https://kubeclaw.github.io/kubeclaw
+helm repo add kubeclaw https://iMerica.github.io/kubeclaw
 helm repo update
 
-helm install my-openclaw kubeclaw/openclaw \
-  --namespace openclaw \
+helm install my-kubeclaw kubeclaw/kubeclaw \
+  --namespace kubeclaw \
   --create-namespace \
   --set secret.create=true \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=<strong-token-here>
@@ -25,7 +25,7 @@ helm install my-openclaw kubeclaw/openclaw \
 After install, the Gateway runs at `ClusterIP:18789`. Access via port-forward:
 
 ```sh
-kubectl port-forward -n openclaw svc/my-openclaw 18789:18789
+kubectl port-forward -n kubeclaw svc/my-kubeclaw 18789:18789
 # Now connect your browser or CLI to http://localhost:18789
 ```
 
@@ -33,7 +33,7 @@ For external access, enable Ingress (see below).
 
 ## Configuration Reference
 
-See [`values.yaml`](../../charts/openclaw/values.yaml) for all options with inline documentation.
+See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inline documentation.
 
 ### Minimum required values
 
@@ -184,7 +184,7 @@ For FQDN-based egress control, see the Ultra chart.
 ## Upgrade
 
 ```sh
-helm upgrade my-openclaw kubeclaw/openclaw -n openclaw -f my-values.yaml
+helm upgrade my-kubeclaw kubeclaw/kubeclaw -n kubeclaw -f my-values.yaml
 ```
 
 The StatefulSet uses `replicas: 1` enforced by JSON schema. The PVC persists across upgrades.
@@ -192,7 +192,7 @@ The StatefulSet uses `replicas: 1` enforced by JSON schema. The PVC persists acr
 ## Uninstall
 
 ```sh
-helm uninstall my-openclaw -n openclaw
+helm uninstall my-kubeclaw -n kubeclaw
 # PVCs are NOT deleted by default. Delete manually if desired:
-kubectl -n openclaw delete pvc -l app.kubernetes.io/instance=my-openclaw
+kubectl -n kubeclaw delete pvc -l app.kubernetes.io/instance=my-kubeclaw
 ```

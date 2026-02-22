@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "openclaw.name" -}}
+{{- define "kubeclaw.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -9,7 +9,7 @@ Expand the name of the chart.
 Create a default fully qualified app name.
 Truncated at 63 chars because some Kubernetes name fields are limited to this.
 */}}
-{{- define "openclaw.fullname" -}}
+{{- define "kubeclaw.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -25,16 +25,16 @@ Truncated at 63 chars because some Kubernetes name fields are limited to this.
 {{/*
 Create chart label value: "<chart-name>-<chart-version>".
 */}}
-{{- define "openclaw.chart" -}}
+{{- define "kubeclaw.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels applied to all resources.
 */}}
-{{- define "openclaw.labels" -}}
-helm.sh/chart: {{ include "openclaw.chart" . }}
-{{ include "openclaw.selectorLabels" . }}
+{{- define "kubeclaw.labels" -}}
+helm.sh/chart: {{ include "kubeclaw.chart" . }}
+{{ include "kubeclaw.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -44,8 +44,8 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels used by the StatefulSet and Service.
 */}}
-{{- define "openclaw.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "openclaw.name" . }}
+{{- define "kubeclaw.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "kubeclaw.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
@@ -53,48 +53,48 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Name of the Secret that holds gateway credentials.
 Returns the existing secret name when set, otherwise the generated name.
 */}}
-{{- define "openclaw.secretName" -}}
+{{- define "kubeclaw.secretName" -}}
 {{- if .Values.secret.existingSecretName }}
 {{- .Values.secret.existingSecretName }}
 {{- else }}
-{{- include "openclaw.fullname" . }}
+{{- include "kubeclaw.fullname" . }}
 {{- end }}
 {{- end }}
 
 {{/*
 Name of the desired-config ConfigMap.
 */}}
-{{- define "openclaw.configmapName" -}}
-{{- printf "%s-config" (include "openclaw.fullname" .) }}
+{{- define "kubeclaw.configmapName" -}}
+{{- printf "%s-config" (include "kubeclaw.fullname" .) }}
 {{- end }}
 
 {{/*
 Name of the init-script ConfigMap.
 */}}
-{{- define "openclaw.initScriptConfigmapName" -}}
-{{- printf "%s-init-script" (include "openclaw.fullname" .) }}
+{{- define "kubeclaw.initScriptConfigmapName" -}}
+{{- printf "%s-init-script" (include "kubeclaw.fullname" .) }}
 {{- end }}
 
 {{/*
 Name of the main state PVC (used in volumeClaimTemplates metadata).
 */}}
-{{- define "openclaw.statePvcName" -}}
-{{- printf "%s-state" (include "openclaw.fullname" .) }}
+{{- define "kubeclaw.statePvcName" -}}
+{{- printf "%s-state" (include "kubeclaw.fullname" .) }}
 {{- end }}
 
 {{/*
 Name of the workspace PVC (used in volumeClaimTemplates metadata when splitVolumes=true).
 */}}
-{{- define "openclaw.workspacePvcName" -}}
-{{- printf "%s-workspace" (include "openclaw.fullname" .) }}
+{{- define "kubeclaw.workspacePvcName" -}}
+{{- printf "%s-workspace" (include "kubeclaw.fullname" .) }}
 {{- end }}
 
 {{/*
 ServiceAccount name.
 */}}
-{{- define "openclaw.serviceAccountName" -}}
+{{- define "kubeclaw.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "openclaw.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "kubeclaw.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -103,9 +103,9 @@ ServiceAccount name.
 {{/*
 Checksum annotation for the desired-config ConfigMap.
 Including this in the StatefulSet pod template triggers a rollout when config changes.
-Usage: {{ include "openclaw.configChecksum" . }}
+Usage: {{ include "kubeclaw.configChecksum" . }}
 */}}
-{{- define "openclaw.configChecksum" -}}
+{{- define "kubeclaw.configChecksum" -}}
 {{- if .Values.config.desired }}
 checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
 {{- end }}
@@ -114,6 +114,6 @@ checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sh
 {{/*
 Image string helper.
 */}}
-{{- define "openclaw.image" -}}
+{{- define "kubeclaw.image" -}}
 {{- printf "%s:%s" .Values.image.repository .Values.image.tag }}
 {{- end }}

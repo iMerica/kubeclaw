@@ -6,10 +6,10 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ include "openclaw.fullname" . }}-diagnostics
+  name: {{ include "kubeclaw.fullname" . }}-diagnostics
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "openclaw.labels" . | nindent 4 }}
+    {{- include "kubeclaw.labels" . | nindent 4 }}
     app.kubernetes.io/component: diagnostics
 spec:
   schedule: {{ .Values.diagnostics.schedule | quote }}
@@ -21,21 +21,21 @@ spec:
       template:
         metadata:
           labels:
-            {{- include "openclaw.selectorLabels" . | nindent 12 }}
+            {{- include "kubeclaw.selectorLabels" . | nindent 12 }}
             app.kubernetes.io/component: diagnostics
         spec:
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          serviceAccountName: {{ include "openclaw.serviceAccountName" . }}
+          serviceAccountName: {{ include "kubeclaw.serviceAccountName" . }}
           restartPolicy: OnFailure
           securityContext:
             runAsNonRoot: true
             fsGroup: 1000
           containers:
             - name: diagnostics
-              image: {{ include "openclaw.image" . }}
+              image: {{ include "kubeclaw.image" . }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               command:
                 - /bin/sh
@@ -48,15 +48,15 @@ spec:
                   node dist/index.js status --all
               envFrom:
                 - secretRef:
-                    name: {{ include "openclaw.secretName" . }}
+                    name: {{ include "kubeclaw.secretName" . }}
               volumeMounts:
-                - name: {{ include "openclaw.statePvcName" . }}
+                - name: {{ include "kubeclaw.statePvcName" . }}
                   mountPath: /home/node/.openclaw
                   {{- if .Values.persistence.splitVolumes }}
                   subPath: state
                   {{- end }}
                 {{- if .Values.persistence.splitVolumes }}
-                - name: {{ include "openclaw.workspacePvcName" . }}
+                - name: {{ include "kubeclaw.workspacePvcName" . }}
                   mountPath: /home/node/.openclaw/workspace
                 {{- end }}
               resources:
@@ -68,12 +68,12 @@ spec:
           # The PVC names are: <fullname>-state-<statefulset-pod-ordinal>
           # For a single-replica StatefulSet, pod ordinal is always 0.
           volumes:
-            - name: {{ include "openclaw.statePvcName" . }}
+            - name: {{ include "kubeclaw.statePvcName" . }}
               persistentVolumeClaim:
-                claimName: {{ include "openclaw.statePvcName" . }}-{{ include "openclaw.fullname" . }}-0
+                claimName: {{ include "kubeclaw.statePvcName" . }}-{{ include "kubeclaw.fullname" . }}-0
             {{- if .Values.persistence.splitVolumes }}
-            - name: {{ include "openclaw.workspacePvcName" . }}
+            - name: {{ include "kubeclaw.workspacePvcName" . }}
               persistentVolumeClaim:
-                claimName: {{ include "openclaw.workspacePvcName" . }}-{{ include "openclaw.fullname" . }}-0
+                claimName: {{ include "kubeclaw.workspacePvcName" . }}-{{ include "kubeclaw.fullname" . }}-0
             {{- end }}
 {{- end }}

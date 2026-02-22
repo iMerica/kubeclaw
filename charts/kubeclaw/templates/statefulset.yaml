@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "openclaw.fullname" . }}
+  name: {{ include "kubeclaw.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "openclaw.labels" . | nindent 4 }}
+    {{- include "kubeclaw.labels" . | nindent 4 }}
 spec:
   # replicas is hard-locked to 1. The Gateway is a stateful singleton that owns
   # an exclusive WebSocket listener and all session/channel state. Running multiple
@@ -13,17 +13,17 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "openclaw.selectorLabels" . | nindent 6 }}
-  serviceName: {{ include "openclaw.fullname" . }}
+      {{- include "kubeclaw.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "kubeclaw.fullname" . }}
   template:
     metadata:
       labels:
-        {{- include "openclaw.selectorLabels" . | nindent 8 }}
+        {{- include "kubeclaw.selectorLabels" . | nindent 8 }}
         {{- with .Values.pod.labels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
-        {{- include "openclaw.configChecksum" . | nindent 8 }}
+        {{- include "kubeclaw.configChecksum" . | nindent 8 }}
         {{- with .Values.pod.annotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -32,7 +32,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "openclaw.serviceAccountName" . }}
+      serviceAccountName: {{ include "kubeclaw.serviceAccountName" . }}
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -62,7 +62,7 @@ spec:
       {{- if .Values.config.desired }}
       initContainers:
         - name: config-init
-          image: {{ include "openclaw.image" . }}
+          image: {{ include "kubeclaw.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/bin/sh", "/scripts/init.sh"]
           env:
@@ -70,9 +70,9 @@ spec:
               value: {{ .Values.config.mode | quote }}
           envFrom:
             - secretRef:
-                name: {{ include "openclaw.secretName" . }}
+                name: {{ include "kubeclaw.secretName" . }}
           volumeMounts:
-            - name: {{ include "openclaw.statePvcName" . }}
+            - name: {{ include "kubeclaw.statePvcName" . }}
               mountPath: /data
               {{- if .Values.persistence.splitVolumes }}
               subPath: state
@@ -100,7 +100,7 @@ spec:
         # Gateway container
         # -------------------------------------------------------------------------
         - name: gateway
-          image: {{ include "openclaw.image" . }}
+          image: {{ include "kubeclaw.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["node", "dist/index.js", "gateway"]
           ports:
@@ -117,15 +117,15 @@ spec:
             {{- end }}
           envFrom:
             - secretRef:
-                name: {{ include "openclaw.secretName" . }}
+                name: {{ include "kubeclaw.secretName" . }}
           volumeMounts:
-            - name: {{ include "openclaw.statePvcName" . }}
+            - name: {{ include "kubeclaw.statePvcName" . }}
               mountPath: /home/node/.openclaw
               {{- if .Values.persistence.splitVolumes }}
               subPath: state
               {{- end }}
             {{- if .Values.persistence.splitVolumes }}
-            - name: {{ include "openclaw.workspacePvcName" . }}
+            - name: {{ include "kubeclaw.workspacePvcName" . }}
               mountPath: /home/node/.openclaw/workspace
             {{- end }}
             - name: tmp
@@ -217,13 +217,13 @@ spec:
         {{- if .Values.config.desired }}
         - name: config-src
           configMap:
-            name: {{ include "openclaw.configmapName" . }}
+            name: {{ include "kubeclaw.configmapName" . }}
             items:
               - key: openclaw.json
                 path: openclaw.json
         - name: init-script
           configMap:
-            name: {{ include "openclaw.initScriptConfigmapName" . }}
+            name: {{ include "kubeclaw.initScriptConfigmapName" . }}
             defaultMode: 0555
         {{- end }}
 
@@ -233,7 +233,7 @@ spec:
   # ---------------------------------------------------------------------------
   volumeClaimTemplates:
     - metadata:
-        name: {{ include "openclaw.statePvcName" . }}
+        name: {{ include "kubeclaw.statePvcName" . }}
       spec:
         accessModes: {{ toYaml .Values.persistence.accessModes | nindent 10 }}
         {{- if .Values.persistence.storageClass }}
@@ -244,7 +244,7 @@ spec:
             storage: {{ .Values.persistence.size }}
     {{- if .Values.persistence.splitVolumes }}
     - metadata:
-        name: {{ include "openclaw.workspacePvcName" . }}
+        name: {{ include "kubeclaw.workspacePvcName" . }}
       spec:
         accessModes: {{ toYaml .Values.persistence.workspace.accessModes | nindent 10 }}
         {{- if .Values.persistence.workspace.storageClass }}

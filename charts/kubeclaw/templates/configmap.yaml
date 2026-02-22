@@ -4,10 +4,10 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "openclaw.configmapName" . }}
+  name: {{ include "kubeclaw.configmapName" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "openclaw.labels" . | nindent 4 }}
+    {{- include "kubeclaw.labels" . | nindent 4 }}
 data:
   openclaw.json: |
     {{- .Values.config.desired | nindent 4 }}
@@ -17,10 +17,10 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "openclaw.initScriptConfigmapName" . }}
+  name: {{ include "kubeclaw.initScriptConfigmapName" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "openclaw.labels" . | nindent 4 }}
+    {{- include "kubeclaw.labels" . | nindent 4 }}
 data:
   init.sh: |
     #!/bin/sh

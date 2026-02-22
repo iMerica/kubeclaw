@@ -15,12 +15,12 @@
 </p>
 
 <p align="center">
-<a href="https://github.com/kubeclaw/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://github.com/kubeclaw/kubeclaw/actions/workflows/lint-test.yaml/badge.svg?branch=master" alt="CI"></a>
-<a href="https://github.com/kubeclaw/kubeclaw/releases"><img src="https://img.shields.io/github/v/release/kubeclaw/kubeclaw?label=chart&color=0f7b3f" alt="Chart Version"></a>
+<a href="https://github.com/iMerica/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://github.com/iMerica/kubeclaw/actions/workflows/lint-test.yaml/badge.svg?branch=master" alt="CI"></a>
+<a href="https://github.com/iMerica/kubeclaw/releases"><img src="https://img.shields.io/github/v/release/iMerica/kubeclaw?label=chart&color=0f7b3f" alt="Chart Version"></a>
 <a href="https://kubernetes.io/releases/"><img src="https://img.shields.io/badge/k8s-1.25%2B-326ce5?logo=kubernetes&logoColor=white" alt="Kubernetes 1.25+"></a>
 <a href="https://helm.sh"><img src="https://img.shields.io/badge/Helm-3.12%2B-0f1689?logo=helm&logoColor=white" alt="Helm 3.12+"></a>
-<a href="https://github.com/kubeclaw/kubeclaw/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue" alt="License"></a>
-<a href="https://ghcr.io/kubeclaw/openclaw"><img src="https://img.shields.io/badge/OCI-ghcr.io-purple?logo=github" alt="OCI Registry"></a>
+<a href="https://github.com/iMerica/kubeclaw/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue" alt="License"></a>
+<a href="https://ghcr.io/iMerica/kubeclaw"><img src="https://img.shields.io/badge/OCI-ghcr.io-purple?logo=github" alt="OCI Registry"></a>
 <a href="https://github.com/aquasecurity/trivy"><img src="https://img.shields.io/badge/Trivy-scanned-1904DA?logo=aquasec&logoColor=white" alt="Trivy"></a>
 <a href="https://github.com/yannh/kubeconform"><img src="https://img.shields.io/badge/kubeconform-validated-4CAF50" alt="kubeconform"></a>
 <a href="https://github.com/stackrox/kube-linter"><img src="https://img.shields.io/badge/kube--linter-passing-ee0000" alt="kube-linter"></a>
@@ -31,8 +31,8 @@
 ## Quick Start
 
 ```sh
-helm install openclaw oci://ghcr.io/kubeclaw/openclaw \
-  --namespace openclaw --create-namespace \
+helm install kubeclaw oci://ghcr.io/iMerica/kubeclaw \
+  --namespace kubeclaw --create-namespace \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)"
 ```
 
@@ -54,9 +54,9 @@ That's it. One Gateway, one PVC, one Secret, running.
 ### Via OCI (recommended)
 
 ```sh
-helm install openclaw oci://ghcr.io/kubeclaw/openclaw \
+helm install kubeclaw oci://ghcr.io/iMerica/kubeclaw \
   --version 0.1.0 \
-  --namespace openclaw \
+  --namespace kubeclaw \
   --create-namespace \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=change-me
 ```
@@ -64,18 +64,18 @@ helm install openclaw oci://ghcr.io/kubeclaw/openclaw \
 ### Via Helm Repo
 
 ```sh
-helm repo add kubeclaw https://kubeclaw.github.io/kubeclaw
+helm repo add kubeclaw https://iMerica.github.io/kubeclaw
 helm repo update
 
-helm install openclaw kubeclaw/openclaw \
-  --namespace openclaw \
+helm install kubeclaw kubeclaw/kubeclaw \
+  --namespace kubeclaw \
   --create-namespace \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=change-me
 ```
 
 ## Configuration
 
-All values are documented inline in [`charts/openclaw/values.yaml`](charts/openclaw/values.yaml).
+All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubeclaw/values.yaml).
 
 | Key | Default | Description |
 |-----|---------|-------------|
@@ -98,15 +98,15 @@ Full reference and advanced examples: [kubeclaw.ai/docs](https://kubeclaw.ai/doc
 
 ```sh
 # Lint
-helm lint charts/openclaw
+helm lint charts/kubeclaw
 
 # Dry-run
-helm template openclaw charts/openclaw \
+helm template kubeclaw charts/kubeclaw \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=test \
   | kubectl apply --dry-run=client -f -
 
 # Confirm replica enforcement (must error)
-helm template openclaw charts/openclaw --set replicaCount=2
+helm template kubeclaw charts/kubeclaw --set replicaCount=2
 ```
 
 ## Docs

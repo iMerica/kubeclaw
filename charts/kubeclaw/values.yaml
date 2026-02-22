@@ -2,7 +2,7 @@
 # OpenClaw Helm Chart — Default Values
 # ==============================================================================
 # All values are documented inline. Required fields are marked with REQUIRED.
-# See https://github.com/kubeclaw/kubeclaw for full documentation.
+# See https://github.com/iMerica/kubeclaw for full documentation.
 
 # ------------------------------------------------------------------------------
 # Image

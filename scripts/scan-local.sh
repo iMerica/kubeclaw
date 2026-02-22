@@ -3,8 +3,8 @@
 # Usage: ./scripts/scan-local.sh
 set -euo pipefail
 
-CHART_DIR="charts/openclaw"
-RENDERED="/tmp/openclaw-scan-rendered.yaml"
+CHART_DIR="charts/kubeclaw"
+RENDERED="/tmp/kubeclaw-scan-rendered.yaml"
 PASS=0
 FAIL=0
 SKIP=0
@@ -58,7 +58,7 @@ if ! command -v helm &>/dev/null; then
   exit 1
 fi
 
-helm template openclaw "$CHART_PATH" \
+helm template kubeclaw "$CHART_PATH" \
   --set secret.create=true \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=local-scan-token \
   > "$RENDERED"

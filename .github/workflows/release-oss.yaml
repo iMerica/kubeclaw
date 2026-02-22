@@ -29,7 +29,7 @@ jobs:
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Lint chart before packaging
-        run: helm lint charts/openclaw
+        run: helm lint charts/kubeclaw
 
       - name: Import GPG signing key
         if: ${{ env.GPG_PRIVATE_KEY != '' }}
@@ -44,7 +44,7 @@ jobs:
           mkdir -p .cr-release-packages
           if gpg --list-secret-keys 2>/dev/null | grep -q sec; then
             echo "Signing chart with GPG key..."
-            helm package charts/openclaw \
+            helm package charts/kubeclaw \
               --version "${{ steps.version.outputs.version }}" \
               --app-version "${{ steps.version.outputs.version }}" \
               --sign \
@@ -53,7 +53,7 @@ jobs:
               --destination .cr-release-packages
           else
             echo "No GPG key found; packaging without signature..."
-            helm package charts/openclaw \
+            helm package charts/kubeclaw \
               --version "${{ steps.version.outputs.version }}" \
               --app-version "${{ steps.version.outputs.version }}" \
               --destination .cr-release-packages
@@ -68,14 +68,14 @@ jobs:
 
       - name: Push chart to OCI registry (GHCR)
         run: |
-          for tgz in .cr-release-packages/openclaw-*.tgz; do
+          for tgz in .cr-release-packages/kubeclaw-*.tgz; do
             echo "Pushing $tgz to OCI..."
             helm push "$tgz" oci://ghcr.io/${{ github.repository_owner }}
           done
 
       - name: Upload provenance file (if present) as OCI layer
         run: |
-          for prov in .cr-release-packages/openclaw-*.tgz.prov; do
+          for prov in .cr-release-packages/kubeclaw-*.tgz.prov; do
             if [ -f "$prov" ]; then
               echo "Provenance file found: $prov"
               # .prov files are pushed alongside the chart automatically by helm push
@@ -106,33 +106,33 @@ jobs:
           cp .cr-release-packages/index.yaml . 2>/dev/null || true
 
           git add *.tgz index.yaml 2>/dev/null || true
-          git commit -m "Release openclaw ${{ steps.version.outputs.version }}" || echo "Nothing to commit"
+          git commit -m "Release kubeclaw ${{ steps.version.outputs.version }}" || echo "Nothing to commit"
           git push origin gh-pages
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            .cr-release-packages/openclaw-*.tgz
-            .cr-release-packages/openclaw-*.tgz.prov
+            .cr-release-packages/kubeclaw-*.tgz
+            .cr-release-packages/kubeclaw-*.tgz.prov
           body: |
-            ## OpenClaw Chart ${{ github.ref_name }}
+            ## KubeClaw Chart ${{ github.ref_name }}
 
             ### Install
 
             ```sh
             helm repo add kubeclaw https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-            helm install my-openclaw kubeclaw/openclaw --version ${{ steps.version.outputs.version }}
+            helm install my-kubeclaw kubeclaw/kubeclaw --version ${{ steps.version.outputs.version }}
             ```
 
             ### OCI
 
             ```sh
-            helm install my-openclaw oci://ghcr.io/${{ github.repository_owner }}/openclaw --version ${{ steps.version.outputs.version }}
+            helm install my-kubeclaw oci://ghcr.io/${{ github.repository_owner }}/kubeclaw --version ${{ steps.version.outputs.version }}
             ```
 
             ### Verify provenance (if .prov file is present)
 
             ```sh
-            helm verify openclaw-${{ steps.version.outputs.version }}.tgz
+            helm verify kubeclaw-${{ steps.version.outputs.version }}.tgz
             ```
