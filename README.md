@@ -31,11 +31,21 @@
 ## Quick Start
 
 ```sh
-# Install
+# Required: gateway token + at least one model provider key
 export TOKEN=$(openssl rand -hex 32)
+export OPENAI_API_KEY="sk-..."         # or use OPENROUTER_API_KEY instead
+
+# Install (OpenAI example)
 helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --namespace kubeclaw --create-namespace \
-  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$TOKEN"
+  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$TOKEN" \
+  --set secret.data.OPENAI_API_KEY="$OPENAI_API_KEY"
+
+# OpenRouter alternative:
+# helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
+#   --namespace kubeclaw --create-namespace \
+#   --set secret.data.OPENCLAW_GATEWAY_TOKEN="$TOKEN" \
+#   --set secret.data.OPENROUTER_API_KEY="$OPENROUTER_API_KEY"
 
 # Wait for pod to be ready
 kubectl -n kubeclaw rollout status statefulset/kubeclaw
