@@ -1,0 +1,34 @@
+# Helm packaged charts
+*.tgz
+
+# Chart releaser packages
+.cr-release-packages/
+
+# Helm downloaded dependencies
+charts/*/charts/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Kind cluster configs
+kind-*.yaml
+
+# Cosign keys
+cosign.key
+
+# Local test overrides
+local-values.yaml
+
+# Strategy / planning docs (local only)
+strategy.md
+
+# AI agent instructions (local only)
+CLAUDE.md
+AGENTS.md

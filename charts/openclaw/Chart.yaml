@@ -1,0 +1,27 @@
+apiVersion: v2
+name: openclaw
+description: >
+  Helm chart for deploying a single OpenClaw AI automation Gateway on Kubernetes.
+  Provides a stateful single-replica Gateway with durable PVC-backed storage,
+  WebSocket-capable Ingress, health probes, optional Chromium sidecar, and
+  GitOps-friendly desired-config management via initContainer.
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - openclaw
+  - ai
+  - automation
+  - gateway
+  - websocket
+home: https://github.com/kubeclaw/kubeclaw
+sources:
+  - https://github.com/kubeclaw/kubeclaw
+maintainers:
+  - name: KubeClaw
+    url: https://kubeclaw.dev
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/signKey: |
+    fingerprint: <GPG_FINGERPRINT>
+    url: https://kubeclaw.dev/gpg.asc

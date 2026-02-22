@@ -1,0 +1,68 @@
+{{- if .Values.networkPolicy.enabled }}
+# NetworkPolicy for the OpenClaw Gateway.
+# Restricts ingress to the Ingress controller namespace and within-namespace
+# traffic. Egress is fully open by default in OSS (allowAll: true).
+#
+# NOTE: Kubernetes NetworkPolicy operates at L3/L4 (IP/port). FQDN-based
+# allowlists require a CNI with FQDN support (Cilium, Calico) or a proxy.
+# For domain-level egress control, see the Ultra chart egress patterns.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "openclaw.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "openclaw.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    {{- if not .Values.networkPolicy.egress.allowAll }}
+    - Egress
+    {{- end }}
+
+  ingress:
+    # Allow traffic from within the same namespace (kubectl exec, internal services).
+    - from:
+        - podSelector: {}
+
+    # Allow traffic from the Ingress controller namespace.
+    # Configure ingressControllerNamespaceSelector to match your controller.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.ingressControllerNamespaceSelector | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 18789
+
+  {{- if not .Values.networkPolicy.egress.allowAll }}
+  # Egress scaffold for "deny all except DNS + configured CIDRs".
+  # Uncomment and configure the CIDRs/ports you need.
+  # Requires networkPolicy.egress.allowAll: false.
+  egress:
+    # Allow DNS resolution (required for most workloads).
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow HTTPS egress (add/remove as needed).
+    - ports:
+        - protocol: TCP
+          port: 443
+    # Allow HTTP egress (add/remove as needed).
+    - ports:
+        - protocol: TCP
+          port: 80
+    # Example: restrict to specific CIDRs only.
+    # - to:
+    #     - ipBlock:
+    #         cidr: 10.0.0.0/8
+    #   ports:
+    #     - protocol: TCP
+    #       port: 443
+  {{- end }}
+{{- end }}

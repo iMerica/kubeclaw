@@ -1,0 +1,243 @@
+# ==============================================================================
+# OpenClaw Helm Chart — Default Values
+# ==============================================================================
+# All values are documented inline. Required fields are marked with REQUIRED.
+# See https://github.com/kubeclaw/kubeclaw for full documentation.
+
+# ------------------------------------------------------------------------------
+# Image
+# ------------------------------------------------------------------------------
+image:
+  # REQUIRED: Docker image repository for the OpenClaw Gateway.
+  repository: ghcr.io/openclaw/openclaw
+  # REQUIRED: Image tag. Pin to a specific release in production.
+  tag: "latest"
+  # Pull policy: Always | IfNotPresent | Never
+  pullPolicy: IfNotPresent
+
+# Image pull secrets for private registries.
+# imagePullSecrets:
+#   - name: my-registry-secret
+imagePullSecrets: []
+
+# ------------------------------------------------------------------------------
+# Replica count — MUST remain 1.
+# The OpenClaw Gateway is a stateful process that holds exclusive listener
+# state. Running multiple replicas causes port-collision failures and data
+# corruption. This is enforced by the JSON schema (values.schema.json).
+# ------------------------------------------------------------------------------
+replicaCount: 1
+
+# ------------------------------------------------------------------------------
+# Gateway Secret
+# The Gateway requires OPENCLAW_GATEWAY_TOKEN for authenticated health probes
+# and non-loopback binds. Treat this like a strong password.
+# ------------------------------------------------------------------------------
+secret:
+  # Create a Kubernetes Secret from secret.data values below.
+  create: true
+  # If create=false and existingSecretName is set, the StatefulSet references
+  # that Secret via envFrom. The Secret must contain OPENCLAW_GATEWAY_TOKEN.
+  existingSecretName: ""
+  # Key/value pairs written into the Secret (plain text; encoded at template time).
+  # OPENCLAW_GATEWAY_TOKEN is required. Add provider API keys as needed.
+  data:
+    # REQUIRED for non-loopback binds and health probes.
+    OPENCLAW_GATEWAY_TOKEN: ""
+    # Provider keys (examples):
+    # ANTHROPIC_API_KEY: ""
+    # OPENAI_API_KEY: ""
+
+# ------------------------------------------------------------------------------
+# Persistent Storage
+# The Gateway stores all state under /home/node/.openclaw.
+# Default: single PVC. Optional: split state vs workspace PVCs.
+# ------------------------------------------------------------------------------
+persistence:
+  # Storage class for the PVC. Empty = cluster default.
+  storageClass: ""
+  # Size of the primary state PVC.
+  size: 5Gi
+  # AccessMode for PVC.
+  accessModes:
+    - ReadWriteOnce
+  # Split into separate state and workspace PVCs.
+  # When true:
+  #   - "state" PVC mounts at /home/node/.openclaw (subPath: state)
+  #   - "workspace" PVC mounts at /home/node/.openclaw/workspace
+  splitVolumes: false
+  workspace:
+    storageClass: ""
+    size: 5Gi
+    accessModes:
+      - ReadWriteOnce
+
+# ------------------------------------------------------------------------------
+# Desired Configuration (GitOps / ConfigMode)
+# If set, a ConfigMap is created containing openclaw.json and an initContainer
+# runs before the Gateway to merge or overwrite the config on the PVC.
+# A checksum annotation ensures rollout is triggered when config changes.
+# ------------------------------------------------------------------------------
+config:
+  # Set to a JSON5 string to enable config management. Leave empty to disable.
+  # Example:
+  #   desired: |
+  #     {
+  #       "gateway": { "host": "0.0.0.0" },
+  #       "tools": { "exec": { "enabled": true } }
+  #     }
+  desired: ""
+  # merge: apply JSON merge-patch (objects merge recursively, arrays replace,
+  #        null deletes keys). Preserves runtime-edited values not in desired.
+  # overwrite: replace the entire config file with desired (equivalent to
+  #            openclaw config apply). Safe for fully declarative setups.
+  mode: merge
+
+# ------------------------------------------------------------------------------
+# Resources
+# ------------------------------------------------------------------------------
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# ------------------------------------------------------------------------------
+# Service
+# The Gateway multiplexes WebSocket + HTTP Control UI on port 18789.
+# ------------------------------------------------------------------------------
+service:
+  type: ClusterIP
+  port: 18789
+  # Optional: extra annotations for cloud load balancers etc.
+  annotations: {}
+
+# ------------------------------------------------------------------------------
+# Ingress
+# WebSocket requires long proxy timeouts. Annotations below target ingress-nginx.
+# Default off — enable only when you need external access.
+# Keep Gateway token auth enabled; exposing without auth is dangerous.
+# ------------------------------------------------------------------------------
+ingress:
+  enabled: false
+  # Ingress class name (Kubernetes 1.18+). Overrides deprecated annotation.
+  className: nginx
+  # Per-controller annotations. Defaults include WebSocket timeout for nginx.
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  # Hostname for the Ingress rule.
+  host: openclaw.example.com
+  # TLS configuration. Each item maps to a Secret holding the TLS cert.
+  tls: []
+  # - secretName: openclaw-tls
+  #   hosts:
+  #     - openclaw.example.com
+
+# ------------------------------------------------------------------------------
+# NetworkPolicy
+# Default off to avoid breaking clusters without a NetworkPolicy-capable CNI.
+# When enabled, restricts inbound traffic to the Ingress controller namespace.
+# ------------------------------------------------------------------------------
+networkPolicy:
+  enabled: false
+  # Labels that identify the Ingress controller namespace.
+  # Used to build the ingress-from-ingress-controller NetworkPolicy rule.
+  ingressControllerNamespaceSelector:
+    kubernetes.io/metadata.name: ingress-nginx
+  # Allow all egress (OSS default). Set false to enable egress scaffolding.
+  egress:
+    allowAll: true
+
+# ------------------------------------------------------------------------------
+# Chromium Sidecar (remote CDP)
+# Adds a Chromium container alongside the Gateway. The Gateway connects via
+# browser.profiles.chromium.cdpUrl = http://127.0.0.1:9222 (auto-set via
+# config merge when chromium.enabled=true).
+# CDP port 9222 is NOT exposed via a Service (pod-internal only).
+# NOTE: Running Chromium in containers often requires --no-sandbox; read the
+# security notes in the values below before enabling.
+# ------------------------------------------------------------------------------
+chromium:
+  enabled: false
+  image:
+    repository: browserless/chromium
+    tag: latest
+    pullPolicy: IfNotPresent
+  # Container port for Chrome DevTools Protocol (pod-internal only).
+  cdpPort: 9222
+  # Resources for the Chromium sidecar.
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  # Security context for the Chromium container.
+  # WARNING: Chromium sandbox in containers requires careful configuration.
+  # --no-sandbox reduces isolation; use with caution and in trusted environments.
+  # For stronger isolation, consider gVisor/Kata via pod.runtimeClassName.
+  securityContext:
+    runAsNonRoot: false  # Chromium may need root for sandbox setup
+    allowPrivilegeEscalation: false
+  # Extra args passed to the Chromium launcher.
+  # Example: ["--no-sandbox", "--disable-dev-shm-usage"]
+  extraArgs: []
+
+# ------------------------------------------------------------------------------
+# Diagnostics CronJob
+# Runs `openclaw doctor --yes` and `openclaw status --all` on a schedule.
+# Output is written to pod logs (stream to your logging stack).
+# ------------------------------------------------------------------------------
+diagnostics:
+  enabled: false
+  # Cron schedule (default: hourly).
+  schedule: "0 * * * *"
+  # Concurrency policy: Forbid prevents overlapping runs.
+  concurrencyPolicy: Forbid
+  # History limits.
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: "500m"
+      memory: 256Mi
+
+# ------------------------------------------------------------------------------
+# Pod runtime class (exec isolation).
+# Set to the name of an existing RuntimeClass for gVisor ("gvisor") or
+# Kata Containers ("kata-containers"). Empty = cluster default runtime.
+# RuntimeClass must exist cluster-side; this chart does not install runtimes.
+# ------------------------------------------------------------------------------
+pod:
+  runtimeClassName: ""
+  # Extra annotations for the Gateway pod.
+  annotations: {}
+  # Extra labels for the Gateway pod.
+  labels: {}
+  # Node selector.
+  nodeSelector: {}
+  # Tolerations.
+  tolerations: []
+  # Affinity rules.
+  affinity: {}
+
+# ------------------------------------------------------------------------------
+# Service Account
+# ------------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# ------------------------------------------------------------------------------
+# Name overrides
+# ------------------------------------------------------------------------------
+nameOverride: ""
+fullnameOverride: ""

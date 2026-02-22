@@ -1,0 +1,246 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "openclaw.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+spec:
+  # replicas is hard-locked to 1. The Gateway is a stateful singleton that owns
+  # an exclusive WebSocket listener and all session/channel state. Running multiple
+  # replicas causes port-collision failures and data corruption. Enforced by
+  # values.schema.json.
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "openclaw.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "openclaw.fullname" . }}
+  template:
+    metadata:
+      labels:
+        {{- include "openclaw.selectorLabels" . | nindent 8 }}
+        {{- with .Values.pod.labels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- include "openclaw.configChecksum" . | nindent 8 }}
+        {{- with .Values.pod.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "openclaw.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1000
+      {{- with .Values.pod.runtimeClassName }}
+      runtimeClassName: {{ . }}
+      {{- end }}
+      {{- with .Values.pod.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.pod.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.pod.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      # ---------------------------------------------------------------------------
+      # initContainer: configMode
+      # Only rendered when config.desired is non-empty.
+      # Merges or overwrites openclaw.json on the PVC before the Gateway starts.
+      # ---------------------------------------------------------------------------
+      {{- if .Values.config.desired }}
+      initContainers:
+        - name: config-init
+          image: {{ include "openclaw.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "/scripts/init.sh"]
+          env:
+            - name: CONFIG_MODE
+              value: {{ .Values.config.mode | quote }}
+          envFrom:
+            - secretRef:
+                name: {{ include "openclaw.secretName" . }}
+          volumeMounts:
+            - name: {{ include "openclaw.statePvcName" . }}
+              mountPath: /data
+              {{- if .Values.persistence.splitVolumes }}
+              subPath: state
+              {{- end }}
+            - name: config-src
+              mountPath: /config-src
+              readOnly: true
+            - name: init-script
+              mountPath: /scripts
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "500m"
+              memory: 256Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+      {{- end }}
+
+      containers:
+        # -------------------------------------------------------------------------
+        # Gateway container
+        # -------------------------------------------------------------------------
+        - name: gateway
+          image: {{ include "openclaw.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["node", "dist/index.js", "gateway"]
+          ports:
+            - name: gateway
+              containerPort: 18789
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: {{ include "openclaw.secretName" . }}
+          volumeMounts:
+            - name: {{ include "openclaw.statePvcName" . }}
+              mountPath: /home/node/.openclaw
+              {{- if .Values.persistence.splitVolumes }}
+              subPath: state
+              {{- end }}
+            {{- if .Values.persistence.splitVolumes }}
+            - name: {{ include "openclaw.workspacePvcName" . }}
+              mountPath: /home/node/.openclaw/workspace
+            {{- end }}
+            {{- if .Values.config.desired }}
+            - name: config-src
+              mountPath: /config-src
+              readOnly: true
+            {{- end }}
+          securityContext:
+            runAsNonRoot: true
+            # Gateway writes state to PVC; readOnlyRootFilesystem would block
+            # writes to /tmp and process-level state. Leave false.
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+
+          # -----------------------------------------------------------------------
+          # Health Probes
+          # All three probes use the token-authenticated health command, which
+          # performs a real control-plane check (not just TCP socket open).
+          # The Gateway multiplexes WebSocket + HTTP on port 18789 and requires
+          # auth, making TCP-level probes insufficient.
+          # -----------------------------------------------------------------------
+
+          # Startup probe: allow up to 5 minutes for first startup (30 * 10s).
+          # Prevents premature liveness kills during slow cold starts.
+          startupProbe:
+            exec:
+              command:
+                - node
+                - dist/index.js
+                - health
+                - "--token"
+                - "$(OPENCLAW_GATEWAY_TOKEN)"
+            failureThreshold: 30
+            periodSeconds: 10
+
+          # Liveness probe: restart if the gateway becomes unresponsive.
+          livenessProbe:
+            exec:
+              command:
+                - node
+                - dist/index.js
+                - health
+                - "--token"
+                - "$(OPENCLAW_GATEWAY_TOKEN)"
+            failureThreshold: 3
+            periodSeconds: 30
+
+          # Readiness probe: remove from Service endpoints when not ready.
+          readinessProbe:
+            exec:
+              command:
+                - node
+                - dist/index.js
+                - health
+                - "--token"
+                - "$(OPENCLAW_GATEWAY_TOKEN)"
+            failureThreshold: 3
+            periodSeconds: 10
+
+        # -------------------------------------------------------------------------
+        # Chromium sidecar (optional)
+        # Exposes CDP on 127.0.0.1:9222 inside the pod. NOT exposed via Service.
+        # The Gateway connects via browser.profiles.chromium.cdpUrl.
+        # -------------------------------------------------------------------------
+        {{- if .Values.chromium.enabled }}
+        - name: chromium
+          image: {{ .Values.chromium.image.repository }}:{{ .Values.chromium.image.tag }}
+          imagePullPolicy: {{ .Values.chromium.image.pullPolicy }}
+          {{- with .Values.chromium.extraArgs }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: cdp
+              containerPort: {{ .Values.chromium.cdpPort }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.chromium.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.chromium.securityContext | nindent 12 }}
+        {{- end }}
+
+      # ---------------------------------------------------------------------------
+      # Volumes (non-PVC)
+      # ---------------------------------------------------------------------------
+      volumes:
+        {{- if .Values.config.desired }}
+        - name: config-src
+          configMap:
+            name: {{ include "openclaw.configmapName" . }}
+            items:
+              - key: openclaw.json
+                path: openclaw.json
+        - name: init-script
+          configMap:
+            name: {{ include "openclaw.initScriptConfigmapName" . }}
+            defaultMode: 0555
+        {{- end }}
+
+  # ---------------------------------------------------------------------------
+  # volumeClaimTemplates — PVCs provisioned and owned by the StatefulSet.
+  # These persist across pod restarts and deletions (must be deleted manually).
+  # ---------------------------------------------------------------------------
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ include "openclaw.statePvcName" . }}
+      spec:
+        accessModes: {{ toYaml .Values.persistence.accessModes | nindent 10 }}
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
+    {{- if .Values.persistence.splitVolumes }}
+    - metadata:
+        name: {{ include "openclaw.workspacePvcName" . }}
+      spec:
+        accessModes: {{ toYaml .Values.persistence.workspace.accessModes | nindent 10 }}
+        {{- if .Values.persistence.workspace.storageClass }}
+        storageClassName: {{ .Values.persistence.workspace.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.workspace.size }}
+    {{- end }}

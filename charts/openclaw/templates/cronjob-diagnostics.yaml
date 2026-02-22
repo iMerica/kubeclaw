@@ -1,0 +1,79 @@
+{{- if .Values.diagnostics.enabled }}
+# Diagnostics CronJob
+# Runs openclaw doctor --yes and openclaw status --all on a schedule.
+# Output goes to pod logs (configure your logging stack to capture these).
+# Uses the same image as the Gateway — no separate binary needed.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "openclaw.fullname" . }}-diagnostics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: diagnostics
+spec:
+  schedule: {{ .Values.diagnostics.schedule | quote }}
+  concurrencyPolicy: {{ .Values.diagnostics.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.diagnostics.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.diagnostics.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "openclaw.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: diagnostics
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "openclaw.serviceAccountName" . }}
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            fsGroup: 1000
+          containers:
+            - name: diagnostics
+              image: {{ include "openclaw.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  echo "=== openclaw doctor ==="
+                  node dist/index.js doctor --yes
+                  echo "=== openclaw status --all ==="
+                  node dist/index.js status --all
+              envFrom:
+                - secretRef:
+                    name: {{ include "openclaw.secretName" . }}
+              volumeMounts:
+                - name: {{ include "openclaw.statePvcName" . }}
+                  mountPath: /home/node/.openclaw
+                  {{- if .Values.persistence.splitVolumes }}
+                  subPath: state
+                  {{- end }}
+                {{- if .Values.persistence.splitVolumes }}
+                - name: {{ include "openclaw.workspacePvcName" . }}
+                  mountPath: /home/node/.openclaw/workspace
+                {{- end }}
+              resources:
+                {{- toYaml .Values.diagnostics.resources | nindent 16 }}
+              securityContext:
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+          # Reference existing PVCs created by the StatefulSet volumeClaimTemplates.
+          # The PVC names are: <fullname>-state-<statefulset-pod-ordinal>
+          # For a single-replica StatefulSet, pod ordinal is always 0.
+          volumes:
+            - name: {{ include "openclaw.statePvcName" . }}
+              persistentVolumeClaim:
+                claimName: {{ include "openclaw.statePvcName" . }}-{{ include "openclaw.fullname" . }}-0
+            {{- if .Values.persistence.splitVolumes }}
+            - name: {{ include "openclaw.workspacePvcName" . }}
+              persistentVolumeClaim:
+                claimName: {{ include "openclaw.workspacePvcName" . }}-{{ include "openclaw.fullname" . }}-0
+            {{- end }}
+{{- end }}

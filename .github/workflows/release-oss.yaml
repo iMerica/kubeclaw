@@ -1,0 +1,136 @@
+name: Release OSS Chart
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+  pages: write
+
+jobs:
+  release-oss:
+    name: Package, Sign, and Publish OSS Chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "3.14.0"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Lint chart before packaging
+        run: helm lint charts/openclaw
+
+      - name: Import GPG signing key
+        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          gpg --list-secret-keys
+
+      - name: Package chart (with Helm provenance if GPG key available)
+        run: |
+          mkdir -p .cr-release-packages
+          if gpg --list-secret-keys 2>/dev/null | grep -q sec; then
+            echo "Signing chart with GPG key..."
+            helm package charts/openclaw \
+              --version "${{ steps.version.outputs.version }}" \
+              --app-version "${{ steps.version.outputs.version }}" \
+              --sign \
+              --key "${{ secrets.GPG_KEY_ID }}" \
+              --keyring ~/.gnupg/secring.gpg \
+              --destination .cr-release-packages
+          else
+            echo "No GPG key found; packaging without signature..."
+            helm package charts/openclaw \
+              --version "${{ steps.version.outputs.version }}" \
+              --app-version "${{ steps.version.outputs.version }}" \
+              --destination .cr-release-packages
+          fi
+          ls -la .cr-release-packages/
+
+      - name: Log in to GitHub Container Registry (OCI)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io \
+            --username "${{ github.actor }}" \
+            --password-stdin
+
+      - name: Push chart to OCI registry (GHCR)
+        run: |
+          for tgz in .cr-release-packages/openclaw-*.tgz; do
+            echo "Pushing $tgz to OCI..."
+            helm push "$tgz" oci://ghcr.io/${{ github.repository_owner }}
+          done
+
+      - name: Upload provenance file (if present) as OCI layer
+        run: |
+          for prov in .cr-release-packages/openclaw-*.tgz.prov; do
+            if [ -f "$prov" ]; then
+              echo "Provenance file found: $prov"
+              # .prov files are pushed alongside the chart automatically by helm push
+              # when they exist in the same directory. Verify here.
+              echo "Provenance: $prov"
+            fi
+          done
+
+      - name: Update GitHub Pages Helm repo index
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Checkout or create gh-pages branch
+          git fetch origin gh-pages 2>/dev/null || true
+          if git show-ref --quiet refs/remotes/origin/gh-pages; then
+            git checkout -b gh-pages origin/gh-pages
+          else
+            git checkout --orphan gh-pages
+            git rm -rf . 2>/dev/null || true
+          fi
+
+          # Generate updated index.yaml
+          helm repo index .cr-release-packages/ \
+            --url "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+
+          cp .cr-release-packages/*.tgz . 2>/dev/null || true
+          cp .cr-release-packages/index.yaml . 2>/dev/null || true
+
+          git add *.tgz index.yaml 2>/dev/null || true
+          git commit -m "Release openclaw ${{ steps.version.outputs.version }}" || echo "Nothing to commit"
+          git push origin gh-pages
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            .cr-release-packages/openclaw-*.tgz
+            .cr-release-packages/openclaw-*.tgz.prov
+          body: |
+            ## OpenClaw Chart ${{ github.ref_name }}
+
+            ### Install
+
+            ```sh
+            helm repo add kubeclaw https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+            helm install my-openclaw kubeclaw/openclaw --version ${{ steps.version.outputs.version }}
+            ```
+
+            ### OCI
+
+            ```sh
+            helm install my-openclaw oci://ghcr.io/${{ github.repository_owner }}/openclaw --version ${{ steps.version.outputs.version }}
+            ```
+
+            ### Verify provenance (if .prov file is present)
+
+            ```sh
+            helm verify openclaw-${{ steps.version.outputs.version }}.tgz
+            ```

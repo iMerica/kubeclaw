@@ -1,0 +1,117 @@
+{{- if .Values.config.desired }}
+# ConfigMap: desired openclaw.json config (JSON5).
+# Mounted read-only into the initContainer and Gateway at /config-src.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openclaw.configmapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+data:
+  openclaw.json: |
+    {{- .Values.config.desired | nindent 4 }}
+---
+# ConfigMap: init script for configMode initContainer.
+# Handles merge (JSON merge-patch) and overwrite semantics.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openclaw.initScriptConfigmapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+data:
+  init.sh: |
+    #!/bin/sh
+    set -eu
+
+    CONFIG_SRC=/config-src/openclaw.json
+    CONFIG_DEST=/data/openclaw.json
+    CONFIG_TMP=/data/openclaw.json.tmp
+
+    echo "configMode initContainer: CONFIG_MODE=${CONFIG_MODE}"
+
+    if [ "$CONFIG_MODE" = "overwrite" ]; then
+      echo "Overwriting ${CONFIG_DEST} with ${CONFIG_SRC}"
+      cp "$CONFIG_SRC" "$CONFIG_DEST"
+    else
+      echo "Merging ${CONFIG_SRC} into ${CONFIG_DEST} (merge-patch semantics)"
+      if [ ! -f "$CONFIG_DEST" ]; then
+        echo "No existing config found; copying desired config as-is"
+        cp "$CONFIG_SRC" "$CONFIG_DEST"
+      else
+        node /scripts/merge-json5.js "$CONFIG_DEST" "$CONFIG_SRC" > "$CONFIG_TMP"
+        mv "$CONFIG_TMP" "$CONFIG_DEST"
+      fi
+    fi
+
+    echo "configMode initContainer complete"
+
+  merge-json5.js: |
+    #!/usr/bin/env node
+    /**
+     * merge-json5.js <base-file> <patch-file>
+     *
+     * Applies JSON merge-patch (RFC 7396) semantics to the base config:
+     *   - Objects: merged recursively (patch keys override base keys)
+     *   - Arrays: replaced entirely by patch value
+     *   - null values in patch: delete the key from base
+     *
+     * Both files may use JSON5 (comments, trailing commas, etc.) if the
+     * runtime supports it. If JSON5 parsing is unavailable, falls back to
+     * standard JSON.parse (comments must be stripped first).
+     *
+     * Output is written to stdout as formatted JSON.
+     */
+    'use strict';
+
+    const fs = require('fs');
+    const path = require('path');
+
+    function tryParse(text) {
+      // Attempt JSON5 if available (may be installed in the OpenClaw image).
+      try {
+        // eslint-disable-next-line node/no-missing-require
+        const JSON5 = require('json5');
+        return JSON5.parse(text);
+      } catch (_) {
+        // Strip single-line comments and trailing commas before JSON.parse.
+        const stripped = text
+          .replace(/\/\/[^\n]*/g, '')
+          .replace(/,\s*([}\]])/g, '$1');
+        return JSON.parse(stripped);
+      }
+    }
+
+    function mergePatch(base, patch) {
+      if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) {
+        return patch;
+      }
+      const result = Object.assign({}, base);
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === null) {
+          delete result[key];
+        } else if (typeof value === 'object' && !Array.isArray(value) &&
+                   typeof result[key] === 'object' && result[key] !== null &&
+                   !Array.isArray(result[key])) {
+          result[key] = mergePatch(result[key], value);
+        } else {
+          result[key] = value;
+        }
+      }
+      return result;
+    }
+
+    const [,, baseFile, patchFile] = process.argv;
+    if (!baseFile || !patchFile) {
+      console.error('Usage: merge-json5.js <base-file> <patch-file>');
+      process.exit(1);
+    }
+
+    const base  = tryParse(fs.readFileSync(baseFile,  'utf8'));
+    const patch = tryParse(fs.readFileSync(patchFile, 'utf8'));
+
+    const merged = mergePatch(base, patch);
+    process.stdout.write(JSON.stringify(merged, null, 2) + '\n');
+{{- end }}
