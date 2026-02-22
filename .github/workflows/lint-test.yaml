@@ -142,6 +142,9 @@ jobs:
         with:
           cluster_name: kubeclaw-test
 
+      - name: Build chart dependencies
+        run: helm dependency build charts/kubeclaw
+
       - name: Run ct install (changed charts)
         run: |
           ct install \
@@ -160,6 +163,9 @@ jobs:
         uses: azure/setup-helm@v4
         with:
           version: "3.14.0"
+
+      - name: Build chart dependencies
+        run: helm dependency build charts/kubeclaw
 
       - name: Render chart for scanning
         run: |
