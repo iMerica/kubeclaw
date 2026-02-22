@@ -94,6 +94,24 @@ config:
   mode: merge
 
 # ------------------------------------------------------------------------------
+# Node.js runtime options
+# NODE_OPTIONS is passed to every `node` invocation in the Gateway container.
+# Increase --max-old-space-size (in MiB) if the Gateway hits a JavaScript heap
+# out-of-memory error. Keep it below the container memory limit to leave room
+# for native allocations and OS overhead (~75 % of limit is a safe default).
+# Set to "" to suppress NODE_OPTIONS entirely.
+# ------------------------------------------------------------------------------
+nodeOptions: "--max-old-space-size=768"
+
+# Extra environment variables injected into the Gateway container.
+# Accepts standard Kubernetes env-var objects (name/value or valueFrom).
+# Example:
+#   extraEnv:
+#     - name: HTTP_PROXY
+#       value: "http://proxy.corp.example.com:3128"
+extraEnv: []
+
+# ------------------------------------------------------------------------------
 # Resources
 # ------------------------------------------------------------------------------
 resources:

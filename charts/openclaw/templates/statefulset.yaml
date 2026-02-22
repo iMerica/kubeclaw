@@ -107,6 +107,14 @@ spec:
             - name: gateway
               containerPort: 18789
               protocol: TCP
+          env:
+            {{- if .Values.nodeOptions }}
+            - name: NODE_OPTIONS
+              value: {{ .Values.nodeOptions | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           envFrom:
             - secretRef:
                 name: {{ include "openclaw.secretName" . }}
