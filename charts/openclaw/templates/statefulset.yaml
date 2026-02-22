@@ -162,6 +162,7 @@ spec:
                 - "$(OPENCLAW_GATEWAY_TOKEN)"
             failureThreshold: 30
             periodSeconds: 10
+            timeoutSeconds: 5
 
           # Liveness probe: restart if the gateway becomes unresponsive.
           livenessProbe:
@@ -174,6 +175,7 @@ spec:
                 - "$(OPENCLAW_GATEWAY_TOKEN)"
             failureThreshold: 3
             periodSeconds: 30
+            timeoutSeconds: 5
 
           # Readiness probe: remove from Service endpoints when not ready.
           readinessProbe:
@@ -186,6 +188,7 @@ spec:
                 - "$(OPENCLAW_GATEWAY_TOKEN)"
             failureThreshold: 3
             periodSeconds: 10
+            timeoutSeconds: 5
 
         # -------------------------------------------------------------------------
         # Chromium sidecar (optional)
