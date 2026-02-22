@@ -92,7 +92,38 @@ config:
   #     }
   desired: |
     {
-      "gateway": { "mode": "local" }
+      "gateway": { "mode": "local" },
+      "browser": {
+        "enabled": true,
+        "defaultProfile": "default",
+        "profiles": {
+          "default": {
+            "cdpUrl": "http://localhost:9222",
+            "color": "#4285F4"
+          }
+        }
+      },
+      "agents": {
+        "defaults": {
+          "workspace": "/home/node/.openclaw/workspace",
+          "model": {
+            "primary": "anthropic/claude-opus-4-6"
+          },
+          "userTimezone": "UTC",
+          "timeoutSeconds": 600,
+          "maxConcurrent": 1
+        },
+        "list": [
+          {
+            "id": "main",
+            "default": true,
+            "identity": {
+              "name": "KubeClaw",
+              "emoji": "🦞"
+            }
+          }
+        ]
+      }
     }
   # merge: apply JSON merge-patch (objects merge recursively, arrays replace,
   #        null deletes keys). Preserves runtime-edited values not in desired.
@@ -188,29 +219,42 @@ networkPolicy:
 chromium:
   enabled: false
   image:
-    repository: browserless/chromium
-    tag: latest
+    repository: zenika/alpine-chrome
+    tag: "124"
     pullPolicy: IfNotPresent
   # Container port for Chrome DevTools Protocol (pod-internal only).
   cdpPort: 9222
   # Resources for the Chromium sidecar.
   resources:
     requests:
-      cpu: 200m
-      memory: 512Mi
+      cpu: 100m
+      memory: 256Mi
     limits:
-      cpu: "2"
-      memory: 2Gi
+      cpu: 1000m
+      memory: 1Gi
   # Security context for the Chromium container.
-  # WARNING: Chromium sandbox in containers requires careful configuration.
-  # --no-sandbox reduces isolation; use with caution and in trusted environments.
+  # zenika/alpine-chrome runs as uid 1000 (non-root) with a read-only root
+  # filesystem and drops all Linux capabilities.
   # For stronger isolation, consider gVisor/Kata via pod.runtimeClassName.
   securityContext:
-    runAsNonRoot: false  # Chromium may need root for sandbox setup
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
     allowPrivilegeEscalation: false
-  # Extra args passed to the Chromium launcher.
-  # Example: ["--no-sandbox", "--disable-dev-shm-usage"]
-  extraArgs: []
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+  # Default headless Chrome args with remote debugging enabled.
+  # Override or extend via extraArgs.
+  extraArgs:
+    - --headless
+    - --disable-gpu
+    - --no-sandbox
+    - --disable-dev-shm-usage
+    - --remote-debugging-address=0.0.0.0
+    - --remote-debugging-port=9222
+    - --user-data-dir=/tmp/chromium
 
 # ------------------------------------------------------------------------------
 # Diagnostics CronJob
