@@ -31,12 +31,25 @@
 ## Quick Start
 
 ```sh
+# Install
+export TOKEN=$(openssl rand -hex 32)
 helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --namespace kubeclaw --create-namespace \
-  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)"
+  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$TOKEN"
+
+# Wait for pod to be ready
+kubectl -n kubeclaw rollout status statefulset/kubeclaw
+
+# Access the Control UI
+kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 ```
 
-That's it. One Gateway, one PVC, one Secret, running.
+Open http://localhost:18789 in your browser. When prompted, paste this token:
+```sh
+echo $TOKEN
+```
+
+> **Note**: The Gateway requires the token for authentication. This is a security feature to prevent unauthorized access.
 
 ## What You Get
 
