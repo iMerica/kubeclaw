@@ -31,33 +31,13 @@ jobs:
       - name: Lint chart before packaging
         run: helm lint charts/kubeclaw
 
-      - name: Import GPG signing key
-        if: ${{ env.GPG_PRIVATE_KEY != '' }}
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
-          gpg --list-secret-keys
-
-      - name: Package chart (with Helm provenance if GPG key available)
+      - name: Package chart
         run: |
           mkdir -p .cr-release-packages
-          if gpg --list-secret-keys 2>/dev/null | grep -q sec; then
-            echo "Signing chart with GPG key..."
-            helm package charts/kubeclaw \
-              --version "${{ steps.version.outputs.version }}" \
-              --app-version "${{ steps.version.outputs.version }}" \
-              --sign \
-              --key "${{ secrets.GPG_KEY_ID }}" \
-              --keyring ~/.gnupg/secring.gpg \
-              --destination .cr-release-packages
-          else
-            echo "No GPG key found; packaging without signature..."
-            helm package charts/kubeclaw \
-              --version "${{ steps.version.outputs.version }}" \
-              --app-version "${{ steps.version.outputs.version }}" \
-              --destination .cr-release-packages
-          fi
+          helm package charts/kubeclaw \
+            --version "${{ steps.version.outputs.version }}" \
+            --app-version "${{ steps.version.outputs.version }}" \
+            --destination .cr-release-packages
           ls -la .cr-release-packages/
 
       - name: Log in to GitHub Container Registry (OCI)
