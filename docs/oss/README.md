@@ -26,8 +26,15 @@ After install, the Gateway runs at `ClusterIP:18789`. Access via port-forward:
 
 ```sh
 kubectl port-forward -n kubeclaw svc/my-kubeclaw 18789:18789
-# Now connect your browser or CLI to http://localhost:18789
 ```
+
+**Important**: Generate an authenticated URL before opening the UI:
+```sh
+kubectl -n kubeclaw exec statefulset/my-kubeclaw -- \
+  node dist/index.js dashboard --no-open
+```
+
+Use the generated URL (with token) instead of plain localhost:18789. Opening without the token will show "unauthorized" errors.
 
 For external access, enable Ingress (see below).
 
@@ -188,6 +195,25 @@ helm upgrade my-kubeclaw kubeclaw/kubeclaw -n kubeclaw -f my-values.yaml
 ```
 
 The StatefulSet uses `replicas: 1` enforced by JSON schema. The PVC persists across upgrades.
+
+## Troubleshooting
+
+### "unauthorized: gateway token missing" error
+
+This error means you're accessing the Control UI without authentication. Generate a tokenized URL:
+
+```sh
+kubectl -n kubeclaw exec statefulset/my-kubeclaw -- \
+  node dist/index.js dashboard --no-open
+```
+
+Use the generated URL (with token) instead of plain localhost:18789.
+
+### Still getting unauthorized?
+
+1. Clear browser local storage: DevTools → Application → Local Storage → delete `openclaw.control.settings.v1`
+2. Restart the gateway: `kubectl -n kubeclaw rollout restart statefulset/my-kubeclaw`
+3. Generate a fresh tokenized URL (tokens are tied to gateway instance)
 
 ## Uninstall
 

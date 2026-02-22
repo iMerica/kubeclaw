@@ -40,16 +40,18 @@ helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
 # Wait for pod to be ready
 kubectl -n kubeclaw rollout status statefulset/kubeclaw
 
+# Generate an authenticated URL (don't skip this step!)
+URL=$(kubectl -n kubeclaw exec statefulset/kubeclaw -- \
+  node dist/index.js dashboard --no-open | grep "Dashboard URL:")
+echo "Open this URL in your browser: $URL"
+
 # Access the Control UI
 kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 ```
 
-Open http://localhost:18789 in your browser. When prompted, paste this token:
-```sh
-echo $TOKEN
-```
+> **Important**: Use the authenticated URL with token from the dashboard command. Opening plain localhost:18789 will show "unauthorized" errors.
 
-> **Note**: The Gateway requires the token for authentication. This is a security feature to prevent unauthorized access.
+> **Troubleshooting**: Check logs with `kubectl -n kubeclaw logs -f statefulset/kubeclaw`
 
 ## What You Get
 
@@ -121,6 +123,25 @@ helm template kubeclaw charts/kubeclaw \
 # Confirm replica enforcement (must error)
 helm template kubeclaw charts/kubeclaw --set replicaCount=2
 ```
+
+## Troubleshooting
+
+### "unauthorized: gateway token missing" error
+
+This means the Control UI opened without the authentication token. Generate a fresh tokenized URL:
+
+```sh
+kubectl -n kubeclaw exec statefulset/kubeclaw -- \
+  node dist/index.js dashboard --no-open
+```
+
+Use the generated URL (with token) instead of plain localhost:18789.
+
+### Still getting unauthorized?
+
+1. Clear browser state: Open DevTools → Application → Local Storage → delete `openclaw.control.settings.v1`
+2. Restart the Gateway: `kubectl -n kubeclaw rollout restart statefulset/kubeclaw`
+3. Generate a new tokenized URL (tokens are tied to gateway instance)
 
 ## Docs
 
