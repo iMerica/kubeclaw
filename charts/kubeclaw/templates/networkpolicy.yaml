@@ -56,6 +56,16 @@ spec:
     - ports:
         - protocol: TCP
           port: 80
+    {{- if .Values.litellm.enabled }}
+    # Allow egress to the LiteLLM proxy pod on port 4000.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: litellm
+      ports:
+        - protocol: TCP
+          port: 4000
+    {{- end }}
     # Example: restrict to specific CIDRs only.
     # - to:
     #     - ipBlock:

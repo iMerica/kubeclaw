@@ -127,8 +127,89 @@
           "type": "integer"
         }
       }
+    },
+    "litellm": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "masterkey": {
+          "type": "string"
+        },
+        "masterkeySecretName": {
+          "type": "string"
+        },
+        "masterkeySecretKey": {
+          "type": "string"
+        },
+        "environmentSecrets": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "proxy_config": {
+          "type": "object"
+        },
+        "db": {
+          "type": "object",
+          "properties": {
+            "deployStandalone": { "type": "boolean" }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" }
+          }
+        },
+        "replicaCount": {
+          "type": "integer"
+        }
+      }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "litellm": {
+            "properties": {
+              "enabled": { "const": true }
+            },
+            "required": ["enabled"]
+          }
+        },
+        "required": ["litellm"]
+      },
+      "then": {
+        "properties": {
+          "litellm": {
+            "anyOf": [
+              {
+                "properties": {
+                  "masterkey": {
+                    "type": "string",
+                    "pattern": "^sk-",
+                    "minLength": 4
+                  }
+                },
+                "required": ["masterkey"]
+              },
+              {
+                "properties": {
+                  "masterkeySecretName": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["masterkeySecretName"]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
   "if": {
     "properties": {
       "replicaCount": {

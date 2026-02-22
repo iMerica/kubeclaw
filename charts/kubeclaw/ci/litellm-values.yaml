@@ -1,0 +1,38 @@
+# CI values for testing the LiteLLM-enabled path.
+# Deploys the Gateway with LiteLLM proxy enabled and a test master key.
+secret:
+  create: true
+  data:
+    OPENCLAW_GATEWAY_TOKEN: ci-test-token
+
+config:
+  mode: merge
+  desired: |
+    {
+      gateway: { mode: "local" }
+    }
+
+litellm:
+  enabled: true
+  masterkey: sk-ci-test-key
+  proxy_config:
+    model_list:
+      - model_name: "openai/gpt-4o-mini"
+        litellm_params:
+          model: "openai/gpt-4o-mini"
+          api_key: "os.environ/OPENAI_API_KEY"
+    litellm_settings:
+      drop_params: true
+    general_settings:
+      master_key: "os.environ/PROXY_MASTER_KEY"
+  db:
+    deployStandalone: false
+  redis:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi

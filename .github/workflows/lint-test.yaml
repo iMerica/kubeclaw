@@ -40,6 +40,9 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Build chart dependencies
+        run: helm dependency build charts/kubeclaw
+
       - name: Lint kubeclaw chart
         run: helm lint charts/kubeclaw
 
@@ -73,6 +76,44 @@ jobs:
             > /tmp/openclaw-render.yaml
           echo "Rendered YAML:"
           cat /tmp/openclaw-render.yaml
+
+      - name: Lint kubeclaw chart (LiteLLM enabled)
+        run: |
+          helm lint charts/kubeclaw \
+            --set litellm.enabled=true \
+            --set litellm.masterkey=sk-test-key
+
+      - name: Dry-run render (LiteLLM enabled)
+        run: |
+          helm template openclaw charts/kubeclaw \
+            --set secret.create=true \
+            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
+            --set litellm.enabled=true \
+            --set litellm.masterkey=sk-test-key \
+            > /tmp/openclaw-litellm-render.yaml
+          echo "Rendered YAML (LiteLLM enabled):"
+          cat /tmp/openclaw-litellm-render.yaml
+          echo "Verifying OPENAI_API_BASE is present..."
+          grep -q "OPENAI_API_BASE" /tmp/openclaw-litellm-render.yaml || \
+            { echo "FAIL: OPENAI_API_BASE not found in rendered output"; exit 1; }
+          echo "PASS: OPENAI_API_BASE found"
+
+      - name: Validate schema — litellm.enabled=true requires masterkey
+        run: |
+          echo "Testing that litellm.enabled=true without masterkey fails..."
+          set +e
+          output=$(helm template openclaw charts/kubeclaw \
+            --set litellm.enabled=true \
+            2>&1)
+          exit_code=$?
+          set -e
+          echo "$output"
+          if echo "$output" | grep -qi "error\|invalid\|must\|anyOf"; then
+            echo "PASS: missing masterkey correctly rejected"
+          else
+            echo "FAIL: missing masterkey was not rejected by schema"
+            exit 1
+          fi
 
   install:
     name: Install Test (kind)

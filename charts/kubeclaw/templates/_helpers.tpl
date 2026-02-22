@@ -117,3 +117,32 @@ Image string helper.
 {{- define "kubeclaw.image" -}}
 {{- printf "%s:%s@%s" .Values.image.repository .Values.image.tag .Values.image.digest }}
 {{- end }}
+
+{{/*
+LiteLLM proxy base URL.
+Returns the in-cluster URL of the LiteLLM proxy service on port 4000.
+The alias "litellm" in Chart.yaml causes the subchart Service to be named
+"<release>-litellm", matching the standard Helm subchart naming convention.
+*/}}
+{{- define "kubeclaw.litellmBaseUrl" -}}
+{{- printf "http://%s-litellm:4000/v1" .Release.Name }}
+{{- end }}
+
+{{/*
+Name of the Secret holding the LiteLLM master key.
+Returns the user-provided secret name or the auto-generated default.
+*/}}
+{{- define "kubeclaw.litellmMasterkeySecretName" -}}
+{{- if .Values.litellm.masterkeySecretName }}
+{{- .Values.litellm.masterkeySecretName }}
+{{- else }}
+{{- printf "%s-litellm-masterkey" (include "kubeclaw.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Key name within the LiteLLM master key Secret.
+*/}}
+{{- define "kubeclaw.litellmMasterkeySecretKey" -}}
+{{- default "PROXY_MASTER_KEY" .Values.litellm.masterkeySecretKey }}
+{{- end }}

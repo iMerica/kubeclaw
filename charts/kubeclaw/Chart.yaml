@@ -8,6 +8,12 @@ description: >
 type: application
 version: 0.1.0
 appVersion: "latest"
+dependencies:
+  - name: litellm-helm
+    version: "1.81.13"
+    repository: "oci://ghcr.io/berriai"
+    condition: litellm.enabled
+    alias: litellm
 keywords:
   - kubeclaw
   - openclaw

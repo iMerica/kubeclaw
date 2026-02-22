@@ -279,6 +279,95 @@ diagnostics:
       memory: 256Mi
 
 # ------------------------------------------------------------------------------
+# LiteLLM Proxy (optional subchart)
+# When enabled, deploys a LiteLLM proxy alongside the Gateway and injects
+# OPENAI_API_BASE into the Gateway container so all LLM SDK calls route through
+# the proxy transparently.
+#
+# Benefits: per-agent virtual keys, budget caps, model fallback routing,
+# semantic caching, and content guardrails, all configured declaratively.
+#
+# IMPORTANT: litellm.masterkey (or masterkeySecretName) is required when enabled.
+# The master key must start with "sk-".
+# ------------------------------------------------------------------------------
+litellm:
+  enabled: false
+
+  # Master key for the LiteLLM proxy API. Must start with "sk-".
+  # Set this or provide masterkeySecretName below.
+  masterkey: ""
+
+  # Reference an existing Secret instead of setting masterkey above.
+  # The Secret must contain the key named in masterkeySecretKey.
+  masterkeySecretName: ""
+  masterkeySecretKey: "PROXY_MASTER_KEY"
+
+  # List of existing Secret names to mount as environment variables on the
+  # LiteLLM proxy pod. Use this to inject provider API keys (e.g. ANTHROPIC_API_KEY).
+  environmentSecrets: []
+  # - my-llm-keys
+
+  # LiteLLM proxy configuration. Maps 1:1 to the upstream config.yaml format.
+  # See https://docs.litellm.ai/docs/proxy/configs for full reference.
+  proxy_config:
+    model_list:
+      - model_name: "anthropic/claude-opus-4-6"
+        litellm_params:
+          model: "anthropic/claude-opus-4-6"
+          api_key: "os.environ/ANTHROPIC_API_KEY"
+      # Fallback example:
+      # - model_name: "anthropic/claude-opus-4-6"
+      #   litellm_params:
+      #     model: "openai/gpt-4o"
+      #     api_key: "os.environ/OPENAI_API_KEY"
+
+    litellm_settings:
+      drop_params: true
+
+    router_settings:
+      routing_strategy: "simple-shuffle"
+      num_retries: 2
+      timeout: 120
+
+    general_settings:
+      master_key: "os.environ/PROXY_MASTER_KEY"
+
+    # Guardrails example (requires guardrails provider configured in litellm_settings):
+    # guardrails:
+    #   - guardrail_name: "bedrock-guardrails"
+    #     litellm_params:
+    #       guardrailIdentifier: "...arn..."
+    #       guardrailVersion: "DRAFT"
+    #     on_success: pass
+    #     on_failure: block
+
+    # Semantic caching example (requires litellm.redis.enabled=true):
+    # cache:
+    #   type: redis
+    #   similarity_threshold: 0.8
+
+  # PostgreSQL subchart toggle. Set deployStandalone=false to avoid creating a
+  # PostgreSQL pod when you do not need virtual keys / budget tracking.
+  db:
+    deployStandalone: false
+
+  # Redis subchart toggle. Enable for semantic caching.
+  redis:
+    enabled: false
+
+  # Resources for the LiteLLM proxy container.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+  # Number of LiteLLM proxy replicas.
+  replicaCount: 1
+
+# ------------------------------------------------------------------------------
 # Pod runtime class (exec isolation).
 # Set to the name of an existing RuntimeClass for gVisor ("gvisor") or
 # Kata Containers ("kata-containers"). Empty = cluster default runtime.
