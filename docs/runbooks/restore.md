@@ -96,7 +96,7 @@ kubectl -n <tenant-namespace> rollout status statefulset/openclaw-gateway
 
 ```sh
 kubectl -n <tenant-namespace> exec statefulset/openclaw-gateway -- \
-  node dist/index.js health --token "$OPENCLAW_GATEWAY_TOKEN"
+  node dist/index.js health
 kubectl -n <tenant-namespace> exec statefulset/openclaw-gateway -- \
   node dist/index.js status
 kubectl -n <tenant-namespace> exec statefulset/openclaw-gateway -- \

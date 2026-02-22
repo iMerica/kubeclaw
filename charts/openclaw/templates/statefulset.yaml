@@ -158,8 +158,6 @@ spec:
                 - node
                 - dist/index.js
                 - health
-                - "--token"
-                - "$(OPENCLAW_GATEWAY_TOKEN)"
             failureThreshold: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -171,8 +169,6 @@ spec:
                 - node
                 - dist/index.js
                 - health
-                - "--token"
-                - "$(OPENCLAW_GATEWAY_TOKEN)"
             failureThreshold: 3
             periodSeconds: 30
             timeoutSeconds: 5
@@ -184,8 +180,6 @@ spec:
                 - node
                 - dist/index.js
                 - health
-                - "--token"
-                - "$(OPENCLAW_GATEWAY_TOKEN)"
             failureThreshold: 3
             periodSeconds: 10
             timeoutSeconds: 5
