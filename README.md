@@ -15,12 +15,11 @@
 </p>
 
 <p align="center">
-<a href="https://github.com/kubeclaw/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://github.com/kubeclaw/kubeclaw/actions/workflows/lint-test.yaml/badge.svg" alt="CI"></a>
+<a href="https://github.com/kubeclaw/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://github.com/kubeclaw/kubeclaw/actions/workflows/lint-test.yaml/badge.svg?branch=master" alt="CI"></a>
 <a href="https://github.com/kubeclaw/kubeclaw/releases"><img src="https://img.shields.io/github/v/release/kubeclaw/kubeclaw?label=chart&color=0f7b3f" alt="Chart Version"></a>
-<a href="https://artifacthub.io/packages/helm/kubeclaw/openclaw"><img src="https://img.shields.io/badge/Artifact_Hub-openclaw-417598?logo=artifacthub" alt="Artifact Hub"></a>
 <a href="https://kubernetes.io/releases/"><img src="https://img.shields.io/badge/k8s-1.25%2B-326ce5?logo=kubernetes&logoColor=white" alt="Kubernetes 1.25+"></a>
 <a href="https://helm.sh"><img src="https://img.shields.io/badge/Helm-3.12%2B-0f1689?logo=helm&logoColor=white" alt="Helm 3.12+"></a>
-<a href="https://github.com/kubeclaw/kubeclaw/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue" alt="License"></a>
+<a href="https://github.com/kubeclaw/kubeclaw/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue" alt="License"></a>
 <a href="https://ghcr.io/kubeclaw/openclaw"><img src="https://img.shields.io/badge/OCI-ghcr.io-purple?logo=github" alt="OCI Registry"></a>
 </p>
 
