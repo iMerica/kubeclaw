@@ -69,7 +69,7 @@ kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 - **Optional LiteLLM proxy subchart** for per-agent virtual keys, budget caps, model fallback routing, and semantic caching
 - **NetworkPolicy** scaffolding for locking down traffic
 - **Diagnostics CronJob** for periodic `openclaw doctor` runs
-- **Replica enforcement**: JSON Schema rejects `replicas != 1` at install time (the Gateway is stateful; this is intentional)
+
 
 ## Install
 
