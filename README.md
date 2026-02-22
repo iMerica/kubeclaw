@@ -43,6 +43,57 @@ kubectl -n kubeclaw rollout status statefulset/kubeclaw
 kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 ```
 
+## Architecture
+
+```mermaid
+graph LR
+    subgraph Clients
+        app[macOS App]
+        cli[CLI]
+        web[Web UI]
+    end
+
+    subgraph Tailnet
+        tsdevice[Tailnet Devices]
+    end
+
+    subgraph Cluster["Kubernetes Cluster"]
+        ingress[Ingress :443]
+
+        subgraph svc["Service :18789"]
+            direction TB
+        end
+
+        subgraph pod["StatefulSet Pod (replicas: 1)"]
+            gw["Gateway :18789\n(WebSocket + HTTP)"]
+            chrome["Chromium Sidecar\nCDP :9222"]
+            tssidecar["Tailscale Sidecar\n--ssh"]
+        end
+
+        subgraph litellm["LiteLLM Deployment :4000"]
+            proxy[Proxy]
+        end
+
+        pvc[(PVC\n/home/node/.openclaw)]
+    end
+
+    subgraph External
+        llm[LLM APIs\nOpenAI / Anthropic / ...]
+        msg[Messaging Providers\nWhatsApp / Telegram / ...]
+    end
+
+    app & cli & web -- "WS/HTTP" --> ingress
+    app & cli & web -- "WS/HTTP" --> svc
+    tsdevice -- "SSH via tailnet" --> tssidecar
+    ingress --> svc --> gw
+    gw -- "localhost:9222" --> chrome
+    gw -- "HTTP :4000" --> proxy
+    gw --- pvc
+    gw -- "outbound" --> msg
+    proxy -- "HTTPS" --> llm
+    tssidecar -. "outbound" .-> Tailnet
+```
+
 ## What You Get
 
 | Feature | Description |
