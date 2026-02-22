@@ -120,6 +120,8 @@ spec:
             - name: {{ include "openclaw.workspacePvcName" . }}
               mountPath: /home/node/.openclaw/workspace
             {{- end }}
+            - name: tmp
+              mountPath: /tmp
             {{- if .Values.config.desired }}
             - name: config-src
               mountPath: /config-src
@@ -127,9 +129,7 @@ spec:
             {{- end }}
           securityContext:
             runAsNonRoot: true
-            # Gateway writes state to PVC; readOnlyRootFilesystem would block
-            # writes to /tmp and process-level state. Leave false.
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
@@ -206,6 +206,9 @@ spec:
       # Volumes (non-PVC)
       # ---------------------------------------------------------------------------
       volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi
         {{- if .Values.config.desired }}
         - name: config-src
           configMap:

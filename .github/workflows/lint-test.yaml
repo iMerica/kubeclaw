@@ -125,7 +125,7 @@ jobs:
           helm template openclaw charts/openclaw \
             --set secret.create=true \
             --set secret.data.OPENCLAW_GATEWAY_TOKEN=scan-token \
-            > /tmp/rendered.yaml
+            > "$GITHUB_WORKSPACE/rendered.yaml"
 
       - name: Kubeconform — validate manifests against K8s schemas
         uses: docker://ghcr.io/yannh/kubeconform:latest
@@ -135,12 +135,12 @@ jobs:
             -strict
             -kubernetes-version 1.25.0
             -output text
-            /tmp/rendered.yaml
+            /github/workspace/rendered.yaml
 
       - name: Kube-linter — static analysis for best practices
         uses: stackrox/kube-linter-action@v1
         with:
-          directory: /tmp/rendered.yaml
+          directory: "${{ github.workspace }}/rendered.yaml"
 
       - name: Trivy — scan for misconfigurations (HIGH/CRITICAL)
         uses: aquasecurity/trivy-action@master

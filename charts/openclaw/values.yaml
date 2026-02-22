@@ -11,7 +11,7 @@ image:
   # REQUIRED: Docker image repository for the OpenClaw Gateway.
   repository: ghcr.io/openclaw/openclaw
   # REQUIRED: Image tag. Pin to a specific release in production.
-  tag: "latest"
+  tag: "main"
   # Pull policy: Always | IfNotPresent | Never
   pullPolicy: IfNotPresent
 
