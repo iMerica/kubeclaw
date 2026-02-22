@@ -23,16 +23,27 @@ helm install my-kubeclaw kubeclaw/kubeclaw \
 ## Verify
 
 ```sh
-# Lint
+# Build subchart dependencies (required when litellm.enabled=true)
+helm dependency build charts/kubeclaw
+
+# Lint (default)
 helm lint charts/kubeclaw
 
-# Dry-run
+# Lint with LiteLLM enabled
+helm lint charts/kubeclaw \
+  --set litellm.enabled=true \
+  --set litellm.masterkey=sk-test-key
+
+# Dry-run (default)
 helm template kubeclaw charts/kubeclaw \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=test \
   | kubectl apply --dry-run=client -f -
 
 # Confirm replica enforcement (must error)
 helm template kubeclaw charts/kubeclaw --set replicaCount=2
+
+# Confirm masterkey is required when litellm.enabled=true (must error)
+helm template kubeclaw charts/kubeclaw --set litellm.enabled=true
 ```
 
 ## Day-0: First Connect
@@ -137,6 +148,88 @@ chromium:
 The Gateway config is automatically patched to set `browser.profiles.chromium.cdpUrl: "http://127.0.0.1:9222"` — add this to your `config.desired` or set it at runtime.
 
 > **Security note**: Chromium in containers often requires `--no-sandbox`. For stronger isolation, set `pod.runtimeClassName: gvisor`.
+
+### LiteLLM Proxy (optional)
+
+The chart can deploy a [LiteLLM](https://docs.litellm.ai/) proxy alongside the Gateway. When enabled, the chart injects `OPENAI_API_BASE` into the Gateway container so that all LLM SDK calls route through the proxy transparently.
+
+**Benefits:** per-agent virtual keys with budget caps, model fallback routing, semantic caching, and content guardrails, all declared in `values.yaml`.
+
+#### Enable
+
+Pull the subchart before the first install or upgrade:
+
+```sh
+helm dependency build charts/kubeclaw
+```
+
+Minimum values:
+
+```yaml
+litellm:
+  enabled: true
+  masterkey: sk-your-strong-key   # must start with sk-
+
+  # provider API keys — reference an existing Secret
+  environmentSecrets:
+    - my-llm-provider-keys        # must contain e.g. ANTHROPIC_API_KEY
+
+  proxy_config:
+    model_list:
+      - model_name: "anthropic/claude-opus-4-6"
+        litellm_params:
+          model: "anthropic/claude-opus-4-6"
+          api_key: "os.environ/ANTHROPIC_API_KEY"
+    litellm_settings:
+      drop_params: true
+    general_settings:
+      master_key: "os.environ/PROXY_MASTER_KEY"
+```
+
+The `masterkey` value (or a reference via `masterkeySecretName`) is enforced by the chart's JSON schema. `helm install` will fail if `litellm.enabled=true` and neither is set.
+
+#### Model fallback routing
+
+Add multiple entries for the same `model_name` to enable automatic fallback:
+
+```yaml
+litellm:
+  proxy_config:
+    model_list:
+      - model_name: "claude-opus-4-6"
+        litellm_params:
+          model: "anthropic/claude-opus-4-6"
+          api_key: "os.environ/ANTHROPIC_API_KEY"
+      - model_name: "claude-opus-4-6"
+        litellm_params:
+          model: "openai/gpt-4o"
+          api_key: "os.environ/OPENAI_API_KEY"
+    router_settings:
+      routing_strategy: "simple-shuffle"
+      num_retries: 2
+      timeout: 120
+```
+
+#### Verify the proxy is wired up
+
+After install, confirm `OPENAI_API_BASE` is set on the Gateway container:
+
+```sh
+kubectl -n kubeclaw exec statefulset/kubeclaw -- env | grep OPENAI_API_BASE
+# expected: OPENAI_API_BASE=http://kubeclaw-litellm:4000/v1
+```
+
+#### PostgreSQL and Redis
+
+The upstream LiteLLM chart includes optional PostgreSQL (for virtual keys and budget tracking) and Redis (for semantic caching) subcharts. Both are off by default in this chart:
+
+```yaml
+litellm:
+  db:
+    deployStandalone: false   # set true to deploy PostgreSQL
+  redis:
+    enabled: false            # set true to deploy Redis for semantic caching
+```
 
 ### Using an Existing Secret
 

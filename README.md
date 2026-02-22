@@ -66,6 +66,7 @@ kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 - **Health probes** (startup, liveness, readiness) baked in
 - **GitOps-friendly config**: declare desired `openclaw.json` and the chart handles merge or overwrite via initContainer
 - **Optional Chromium sidecar** for browser automation (CDP on `127.0.0.1:9222`, never exposed)
+- **Optional LiteLLM proxy subchart** for per-agent virtual keys, budget caps, model fallback routing, and semantic caching
 - **NetworkPolicy** scaffolding for locking down traffic
 - **Diagnostics CronJob** for periodic `openclaw doctor` runs
 - **Replica enforcement**: JSON Schema rejects `replicas != 1` at install time (the Gateway is stateful; this is intentional)
@@ -101,6 +102,9 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 | `chromium.enabled` | `false` | Chromium sidecar for CDP |
 | `networkPolicy.enabled` | `false` | Enable NetworkPolicy |
 | `diagnostics.enabled` | `false` | Enable diagnostics CronJob |
+| `litellm.enabled` | `false` | Deploy LiteLLM proxy alongside the Gateway |
+| `litellm.masterkey` | `""` | LiteLLM master key (required when enabled, must start with `sk-`) |
+| `litellm.proxy_config` | *(see values.yaml)* | LiteLLM `config.yaml` contents as a YAML object |
 
 Full reference and advanced examples: [kubeclaw.ai/docs](https://kubeclaw.ai/docs)
 
