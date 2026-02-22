@@ -53,17 +53,6 @@ jobs:
             helm push "$tgz" oci://ghcr.io/${{ github.repository_owner }}
           done
 
-      - name: Upload provenance file (if present) as OCI layer
-        run: |
-          for prov in .cr-release-packages/kubeclaw-*.tgz.prov; do
-            if [ -f "$prov" ]; then
-              echo "Provenance file found: $prov"
-              # .prov files are pushed alongside the chart automatically by helm push
-              # when they exist in the same directory. Verify here.
-              echo "Provenance: $prov"
-            fi
-          done
-
       - name: Update GitHub Pages Helm repo index
         run: |
           git config user.name "github-actions[bot]"
@@ -94,25 +83,18 @@ jobs:
         with:
           files: |
             .cr-release-packages/kubeclaw-*.tgz
-            .cr-release-packages/kubeclaw-*.tgz.prov
           body: |
             ## KubeClaw Chart ${{ github.ref_name }}
 
-            ### Install
+            ### Install via OCI (recommended)
+
+            ```sh
+            helm install kubeclaw oci://ghcr.io/${{ github.repository_owner }}/kubeclaw --version ${{ steps.version.outputs.version }}
+            ```
+
+            ### Install via Helm Repo
 
             ```sh
             helm repo add kubeclaw https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-            helm install my-kubeclaw kubeclaw/kubeclaw --version ${{ steps.version.outputs.version }}
-            ```
-
-            ### OCI
-
-            ```sh
-            helm install my-kubeclaw oci://ghcr.io/${{ github.repository_owner }}/kubeclaw --version ${{ steps.version.outputs.version }}
-            ```
-
-            ### Verify provenance (if .prov file is present)
-
-            ```sh
-            helm verify kubeclaw-${{ steps.version.outputs.version }}.tgz
+            helm install kubeclaw kubeclaw/kubeclaw --version ${{ steps.version.outputs.version }}
             ```
