@@ -1,0 +1,35 @@
+apiVersion: v1
+entries:
+  kubeclaw:
+  - annotations:
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/signKey: |
+        fingerprint: <GPG_FINGERPRINT>
+        url: https://kubeclaw.dev/gpg.asc
+    apiVersion: v2
+    appVersion: 0.0.3
+    created: "2026-02-22T05:52:35.078963118Z"
+    description: 'Helm chart for deploying a single OpenClaw AI automation Gateway
+      on Kubernetes. Provides a stateful single-replica Gateway with durable PVC-backed
+      storage, WebSocket-capable Ingress, health probes, optional Chromium sidecar,
+      and GitOps-friendly desired-config management via initContainer. '
+    digest: 7c073580aadd9a355157b7975715efb1815d85d993c982d1af4b14233a902a16
+    home: https://github.com/iMerica/kubeclaw
+    keywords:
+    - kubeclaw
+    - openclaw
+    - ai
+    - automation
+    - gateway
+    - websocket
+    maintainers:
+    - name: KubeClaw
+      url: https://kubeclaw.dev
+    name: kubeclaw
+    sources:
+    - https://github.com/iMerica/kubeclaw
+    type: application
+    urls:
+    - https://iMerica.github.io/kubeclaw/kubeclaw-0.0.3.tgz
+    version: 0.0.3
+generated: "2026-02-22T05:52:35.077781948Z"
