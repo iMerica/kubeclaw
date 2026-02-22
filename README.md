@@ -30,50 +30,16 @@
 ## Quick Start
 
 ```sh
-# Required: gateway token + Tailscale auth key + provider key + matching model selection
-export TOKEN=$(openssl rand -hex 32)
-export TS_AUTHKEY="tskey-auth-..."   # from https://login.tailscale.com/admin/settings/keys
-
-# Install (Anthropic example — default model is anthropic/claude-opus-4-6)
-export ANTHROPIC_API_KEY="sk-ant-..."
 helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --namespace kubeclaw --create-namespace \
-  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$TOKEN" \
-  --set secret.data.ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
-  --set tailscale.ssh.authKey="$TS_AUTHKEY"
+  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)" \
+  --set secret.data.OPENAI_API_KEY="sk-..." \
+  --set tailscale.ssh.authKey="tskey-auth-..." \
+  --set litellm.enabled=true \
+  --set litellm.masterkey="sk-$(openssl rand -hex 16)"
 
-# Install (OpenAI example — must also set the model, provider key alone is not enough)
-# Use a values file for config.desired; --set cannot handle nested JSON braces.
-export OPENAI_API_KEY="sk-..."
-cat > kubeclaw-values.yaml << 'EOF'
-tailscale:
-  ssh:
-    authKey: "tskey-auth-..."   # replace with your key
-config:
-  desired: |
-    {
-      "agents": {
-        "defaults": {
-          "model": { "primary": "openai/gpt-4o" }
-        }
-      }
-    }
-EOF
-helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
-  --namespace kubeclaw --create-namespace \
-  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$TOKEN" \
-  --set secret.data.OPENAI_API_KEY="$OPENAI_API_KEY" \
-  -f kubeclaw-values.yaml
-
-# Wait for pod to be ready
+# Wait for the pod, then open the UI
 kubectl -n kubeclaw rollout status statefulset/kubeclaw
-
-# Generate an authenticated URL (don't skip this step!)
-URL=$(kubectl -n kubeclaw exec statefulset/kubeclaw -- \
-  node dist/index.js dashboard --no-open | grep "Dashboard URL:")
-echo "Open this URL in your browser: $URL"
-
-# Access the Control UI
 kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 ```
 
