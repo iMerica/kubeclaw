@@ -25,6 +25,7 @@ cosign.key
 
 # Local test overrides
 local-values.yaml
+kubeclaw-values.yaml
 
 # Strategy / planning docs (local only)
 strategy.md
