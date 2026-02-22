@@ -103,11 +103,31 @@ config:
           }
         }
       },
+      "models": {
+        "mode": "merge",
+        "providers": {
+          "litellm": {
+            "baseUrl": "http://kubeclaw-litellm:4000",
+            "apiKey": "${LITELLM_API_KEY}",
+            "api": "openai-completions",
+            "models": [
+              {
+                "id": "gpt-4o",
+                "name": "GPT-4o",
+                "reasoning": false,
+                "input": ["text", "image"],
+                "contextWindow": 128000,
+                "maxTokens": 8192
+              }
+            ]
+          }
+        }
+      },
       "agents": {
         "defaults": {
           "workspace": "/home/node/.openclaw/workspace",
           "model": {
-            "primary": "anthropic/claude-opus-4-6"
+            "primary": "litellm/gpt-4o"
           },
           "userTimezone": "UTC",
           "timeoutSeconds": 600,
@@ -291,7 +311,7 @@ diagnostics:
 # The master key must start with "sk-".
 # ------------------------------------------------------------------------------
 litellm:
-  enabled: false
+  enabled: true
 
   # Override the LiteLLM container image tag. The upstream chart's default tag
   # (main-v<appVersion>) is not always published; pin to a known-good tag here.
@@ -307,24 +327,31 @@ litellm:
   masterkeySecretName: ""
   masterkeySecretKey: "masterkey"
 
-  # List of existing Secret names to mount as environment variables on the
-  # LiteLLM proxy pod. Use this to inject provider API keys (e.g. ANTHROPIC_API_KEY).
-  environmentSecrets: []
-  # - my-llm-keys
+  # Secrets mounted as environment variables on the LiteLLM proxy pod.
+  # The default entry forwards provider API keys (e.g. OPENAI_API_KEY) from
+  # secret.data to the proxy. If you change the Helm release name or set
+  # fullnameOverride, update the first entry to match: <fullname>-litellm-env.
+  environmentSecrets:
+    - kubeclaw-litellm-env
+  # - my-extra-llm-keys
+
+  # Disable the database migration job (no PostgreSQL by default).
+  migrationJob:
+    enabled: false
 
   # LiteLLM proxy configuration. Maps 1:1 to the upstream config.yaml format.
   # See https://docs.litellm.ai/docs/proxy/configs for full reference.
   proxy_config:
     model_list:
-      - model_name: "anthropic/claude-opus-4-6"
+      - model_name: "gpt-4o"
         litellm_params:
-          model: "anthropic/claude-opus-4-6"
-          api_key: "os.environ/ANTHROPIC_API_KEY"
-      # Fallback example:
-      # - model_name: "anthropic/claude-opus-4-6"
+          model: "gpt-4o"
+          api_key: "os.environ/OPENAI_API_KEY"
+      # Add more models as needed:
+      # - model_name: "claude-opus-4-6"
       #   litellm_params:
-      #     model: "openai/gpt-4o"
-      #     api_key: "os.environ/OPENAI_API_KEY"
+      #     model: "claude-opus-4-6"
+      #     api_key: "os.environ/ANTHROPIC_API_KEY"
 
     litellm_settings:
       drop_params: true

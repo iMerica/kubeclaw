@@ -1,0 +1,22 @@
+{{- if and .Values.litellm.enabled .Values.secret.create }}
+{{/*
+Copies provider API keys from the Gateway secret to a dedicated Secret for
+the LiteLLM subchart (OPENCLAW_GATEWAY_TOKEN is excluded). Referenced by
+litellm.environmentSecrets so the proxy_config can use "os.environ/OPENAI_API_KEY"
+and similar without a separately managed Secret.
+*/}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-litellm-env
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+type: Opaque
+data:
+  {{- range $key, $val := .Values.secret.data }}
+  {{- if ne $key "OPENCLAW_GATEWAY_TOKEN" }}
+  {{ $key }}: {{ $val | b64enc | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}

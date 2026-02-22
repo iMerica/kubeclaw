@@ -120,8 +120,11 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
             {{- if .Values.litellm.enabled }}
-            - name: OPENAI_API_BASE
-              value: {{ include "kubeclaw.litellmBaseUrl" . | quote }}
+            - name: LITELLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeclaw.litellmMasterkeySecretName" . }}
+                  key: {{ include "kubeclaw.litellmMasterkeySecretKey" . }}
             {{- end }}
           envFrom:
             - secretRef:
