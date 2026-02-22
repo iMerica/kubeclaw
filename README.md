@@ -46,52 +46,43 @@ kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 ## Architecture
 
 ```mermaid
-graph LR
-    subgraph Clients
-        app[macOS App]
-        cli[CLI]
-        web[Web UI]
+graph TB
+    subgraph clients [" "]
+        direction LR
+        app([fa:fa-desktop macOS App])
+        cli([fa:fa-terminal CLI])
+        web([fa:fa-globe Web UI])
+        tsdevice([fa:fa-network-wired Tailnet Device])
     end
 
-    subgraph Tailnet
-        tsdevice[Tailnet Devices]
-    end
+    subgraph cluster ["Kubernetes Cluster"]
+        ingress[fa:fa-shield-halved Ingress]
 
-    subgraph Cluster["Kubernetes Cluster"]
-        ingress[Ingress :443]
-
-        subgraph svc["Service :18789"]
-            direction TB
+        subgraph pod ["StatefulSet · replicas: 1"]
+            gw[fa:fa-server Gateway :18789]
+            chrome[fa:fa-window-maximize Chromium :9222]
+            ts[fa:fa-lock Tailscale SSH]
         end
 
-        subgraph pod["StatefulSet Pod (replicas: 1)"]
-            gw["Gateway :18789\n(WebSocket + HTTP)"]
-            chrome["Chromium Sidecar\nCDP :9222"]
-            tssidecar["Tailscale Sidecar\n--ssh"]
-        end
-
-        subgraph litellm["LiteLLM Deployment :4000"]
-            proxy[Proxy]
-        end
-
-        pvc[(PVC\n/home/node/.openclaw)]
+        svc[[fa:fa-diagram-project Service :18789]]
+        litellm[fa:fa-route LiteLLM Proxy :4000]
+        pvc[(fa:fa-database PVC)]
     end
 
-    subgraph External
-        llm[LLM APIs\nOpenAI / Anthropic / ...]
-        msg[Messaging Providers\nWhatsApp / Telegram / ...]
+    subgraph external [" "]
+        direction LR
+        llm([fa:fa-brain LLM APIs])
+        msg([fa:fa-comments Messaging Providers])
     end
 
-    app & cli & web -- "WS/HTTP" --> ingress
-    app & cli & web -- "WS/HTTP" --> svc
-    tsdevice -- "SSH via tailnet" --> tssidecar
+    app & cli & web -->|WS / HTTP| ingress
+    tsdevice -->|SSH| ts
     ingress --> svc --> gw
-    gw -- "localhost:9222" --> chrome
-    gw -- "HTTP :4000" --> proxy
-    gw --- pvc
-    gw -- "outbound" --> msg
-    proxy -- "HTTPS" --> llm
-    tssidecar -. "outbound" .-> Tailnet
+    gw <--->|CDP| chrome
+    gw -->|HTTP| litellm
+    gw ---|state| pvc
+    gw -->|outbound| msg
+    litellm -->|HTTPS| llm
 ```
 
 ## What You Get
