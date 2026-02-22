@@ -62,13 +62,15 @@ kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 ## What You Get
 
 - **StatefulSet** with durable PVC-backed storage at `/home/node/.openclaw`
-- **WebSocket-ready Ingress** with configurable TLS
 - **Health probes** (startup, liveness, readiness) baked in
 - **GitOps-friendly config**: declare desired `openclaw.json` and the chart handles merge or overwrite via initContainer
-- **Optional Chromium sidecar** for browser automation (CDP on `127.0.0.1:9222`, never exposed)
-- **Optional LiteLLM proxy subchart** for per-agent virtual keys, budget caps, model fallback routing, and semantic caching
-- **NetworkPolicy** scaffolding for locking down traffic
-- **Diagnostics CronJob** for periodic `openclaw doctor` runs
+- **Optional**
+  - **WebSocket-ready Ingress** with configurable TLS
+  - **Split workspace volume** via a separate PVC (`persistence.splitVolumes`)
+  - **Chromium sidecar** for browser automation (CDP on `127.0.0.1:9222`, never exposed)
+  - **LiteLLM proxy subchart** for per-agent virtual keys, budget caps, model fallback routing, and semantic caching
+  - **NetworkPolicy** scaffolding for locking down traffic
+  - **Diagnostics CronJob** for periodic `openclaw doctor` runs
 
 
 ## Install

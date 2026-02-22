@@ -70,18 +70,26 @@ data:
     const path = require('path');
 
     function tryParse(text) {
-      // Attempt JSON5 if available (may be installed in the OpenClaw image).
+      // Try standard JSON.parse first. The ConfigMap-mounted desired config is
+      // plain JSON, and JSON.parse handles URLs like http://host:port correctly
+      // without any regex mangling.
+      try {
+        return JSON.parse(text);
+      } catch (_) {}
+      // Try JSON5 if available (for on-disk configs that may have comments or
+      // trailing commas written by the Gateway or edited by hand).
       try {
         // eslint-disable-next-line node/no-missing-require
         const JSON5 = require('json5');
         return JSON5.parse(text);
-      } catch (_) {
-        // Strip single-line comments and trailing commas before JSON.parse.
-        const stripped = text
-          .replace(/\/\/[^\n]*/g, '')
-          .replace(/,\s*([}\]])/g, '$1');
-        return JSON.parse(stripped);
-      }
+      } catch (_) {}
+      // Last resort: naive comment and trailing-comma stripping, then JSON.parse.
+      // WARNING: this regex is not string-aware. If string values contain "//",
+      // install the json5 package in the Gateway image instead.
+      const stripped = text
+        .replace(/\/\/[^\n]*/g, '')
+        .replace(/,\s*([}\]])/g, '$1');
+      return JSON.parse(stripped);
     }
 
     function mergePatch(base, patch) {
