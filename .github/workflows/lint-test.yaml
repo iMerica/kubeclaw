@@ -105,4 +105,62 @@ jobs:
           ct install \
             --config ct.yaml \
             --charts charts/openclaw \
-            --helm-extra-set-args "--set secret.create=true --set secret.data.OPENCLAW_GATEWAY_TOKEN=ci-test-token"
+            --helm-extra-args "-f ci/values-ci.yaml"
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "3.14.0"
+
+      - name: Render chart for scanning
+        run: |
+          helm template openclaw charts/openclaw \
+            --set secret.create=true \
+            --set secret.data.OPENCLAW_GATEWAY_TOKEN=scan-token \
+            > /tmp/rendered.yaml
+
+      - name: Kubeconform — validate manifests against K8s schemas
+        uses: docker://ghcr.io/yannh/kubeconform:latest
+        with:
+          args: >-
+            -summary
+            -strict
+            -kubernetes-version 1.25.0
+            -output text
+            /tmp/rendered.yaml
+
+      - name: Kube-linter — static analysis for best practices
+        uses: stackrox/kube-linter-action@v1
+        with:
+          directory: /tmp/rendered.yaml
+
+      - name: Trivy — scan for misconfigurations (HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: charts/openclaw
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+      - name: Set up Python (for Checkov)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Checkov — Helm chart policy scanning
+        run: |
+          pip install --quiet checkov
+          checkov \
+            --directory charts/openclaw \
+            --framework helm \
+            --quiet \
+            --compact \
+            --soft-fail
