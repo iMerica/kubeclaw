@@ -105,7 +105,7 @@ jobs:
           ct install \
             --config ct.yaml \
             --charts charts/openclaw \
-            --helm-extra-args "-f ci/values-ci.yaml"
+            --helm-extra-set-args "secret.create=true,secret.data.OPENCLAW_GATEWAY_TOKEN=ci-test-token,config.mode=merge,config.desired={gateway:{mode:\"local\"}}"
 
   security:
     name: Security Scanning
