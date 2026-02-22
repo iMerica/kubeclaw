@@ -144,5 +144,5 @@ Returns the user-provided secret name or the auto-generated default.
 Key name within the LiteLLM master key Secret.
 */}}
 {{- define "kubeclaw.litellmMasterkeySecretKey" -}}
-{{- default "PROXY_MASTER_KEY" .Values.litellm.masterkeySecretKey }}
+{{- default "masterkey" .Values.litellm.masterkeySecretKey }}
 {{- end }}

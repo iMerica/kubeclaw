@@ -293,6 +293,11 @@ diagnostics:
 litellm:
   enabled: false
 
+  # Override the LiteLLM container image tag. The upstream chart's default tag
+  # (main-v<appVersion>) is not always published; pin to a known-good tag here.
+  image:
+    tag: "main-v1.61.0"
+
   # Master key for the LiteLLM proxy API. Must start with "sk-".
   # Set this or provide masterkeySecretName below.
   masterkey: ""
@@ -300,7 +305,7 @@ litellm:
   # Reference an existing Secret instead of setting masterkey above.
   # The Secret must contain the key named in masterkeySecretKey.
   masterkeySecretName: ""
-  masterkeySecretKey: "PROXY_MASTER_KEY"
+  masterkeySecretKey: "masterkey"
 
   # List of existing Secret names to mount as environment variables on the
   # LiteLLM proxy pod. Use this to inject provider API keys (e.g. ANTHROPIC_API_KEY).
