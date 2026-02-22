@@ -82,7 +82,6 @@ kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
 | Feature | Description |
 |---------|-------------|
 | **StatefulSet** | Durable PVC-backed storage at `/home/node/.openclaw` |
-| **Health probes** | Startup, liveness, and readiness probes baked in |
 | **GitOps-friendly config** | Declare desired `openclaw.json`; chart handles merge or overwrite via initContainer |
 | **WebSocket-ready Ingress** | Configurable TLS |
 | **Split workspace volume** | Separate PVC for workspace via `persistence.splitVolumes` |
