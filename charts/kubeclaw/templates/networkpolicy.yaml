@@ -1,11 +1,10 @@
 {{- if .Values.networkPolicy.enabled }}
 # NetworkPolicy for the OpenClaw Gateway.
 # Restricts ingress to the Ingress controller namespace and within-namespace
-# traffic. Egress is fully open by default in OSS (allowAll: true).
+# traffic. Egress is fully open by default (allowAll: true).
 #
 # NOTE: Kubernetes NetworkPolicy operates at L3/L4 (IP/port). FQDN-based
 # allowlists require a CNI with FQDN support (Cilium, Calico) or a proxy.
-# For domain-level egress control, see the Ultra chart egress patterns.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

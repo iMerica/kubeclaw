@@ -2,7 +2,7 @@
 
 ## Overview
 
-This runbook covers restoring an OpenClaw Gateway from a CSI `VolumeSnapshot` (Ultra) or a manual PVC backup (OSS). The Gateway stores all state — config, auth tokens, sessions, channel state, and workspace — under `/home/node/.openclaw`.
+This runbook covers restoring an OpenClaw Gateway from a CSI `VolumeSnapshot` or a manual PVC backup. The Gateway stores all state — config, auth tokens, sessions, channel state, and workspace — under `/home/node/.openclaw`.
 
 **What needs to be backed up:**
 - Primary PVC: `/home/node/.openclaw` (excluding workspace if split)
@@ -12,18 +12,18 @@ This runbook covers restoring an OpenClaw Gateway from a CSI `VolumeSnapshot` (U
 
 ## Prerequisites
 
-For CSI snapshot restore (Ultra):
+For CSI snapshot restore:
 - CSI snapshot controller installed in cluster
 - `VolumeSnapshot` and `VolumeSnapshotClass` CRDs present
-- Snapshot exists (created by pre-upgrade hook or manually)
+- Snapshot exists (created manually or via automation)
 
-For manual restore (OSS/Ultra):
+For manual restore:
 - A backup archive (tarball) of the state directory contents
 - `kubectl` access to the target namespace
 
 ---
 
-## Method 1: CSI VolumeSnapshot Restore (Ultra)
+## Method 1: CSI VolumeSnapshot Restore
 
 ### Step 1: Identify the snapshot to restore
 
@@ -105,7 +105,7 @@ kubectl -n <tenant-namespace> exec statefulset/openclaw-gateway -- \
 
 ---
 
-## Method 2: Manual Backup / Restore (OSS and Ultra)
+## Method 2: Manual Backup / Restore
 
 ### Backup: Create a tarball from the running Gateway
 
@@ -210,9 +210,9 @@ kubectl -n <namespace> exec statefulset/<release-name> -- \
 
 ---
 
-## Snapshot Retention (Ultra)
+## Snapshot Retention
 
-The backup hook creates snapshots named `openclaw-<tenant>-<timestamp>`. To enforce retention:
+If using automated snapshots, enforce retention by cleaning up old snapshots:
 
 ```sh
 # List all snapshots for a tenant, sorted by age:

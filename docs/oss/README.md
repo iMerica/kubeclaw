@@ -179,7 +179,7 @@ networkPolicy:
     kubernetes.io/metadata.name: ingress-nginx
 ```
 
-For FQDN-based egress control, see the Ultra chart.
+FQDN-based egress control requires a CNI with FQDN support (Cilium, Calico) or a proxy.
 
 ## Upgrade
 
