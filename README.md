@@ -10,7 +10,7 @@
 </div>
 
 <p align="center">
-<strong>The Helm chart for running <a href="https://openclaw.dev">OpenClaw</a> on Kubernetes.</strong><br>
+<strong>Production-grade <a href="https://openclaw.dev">OpenClaw</a> on Kubernetes.</strong><br>
 <sub>Stateful. Single-replica. Production-ready.</sub>
 </p>
 
