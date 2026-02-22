@@ -5,9 +5,22 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "kubeclaw.labels" . | nindent 4 }}
+  {{- $annotations := dict }}
   {{- with .Values.service.annotations }}
+  {{- $annotations = merge $annotations . }}
+  {{- end }}
+  {{- if .Values.tailscale.expose.enabled }}
+  {{- $_ := set $annotations "tailscale.com/expose" "true" }}
+  {{- with .Values.tailscale.expose.hostname }}
+  {{- $_ := set $annotations "tailscale.com/hostname" . }}
+  {{- end }}
+  {{- with .Values.tailscale.expose.tags }}
+  {{- $_ := set $annotations "tailscale.com/tags" . }}
+  {{- end }}
+  {{- end }}
+  {{- if $annotations }}
   annotations:
-    {{- toYaml . | nindent 4 }}
+    {{- toYaml $annotations | nindent 4 }}
   {{- end }}
 spec:
   type: {{ .Values.service.type }}

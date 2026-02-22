@@ -128,6 +128,35 @@
         }
       }
     },
+    "tailscale": {
+      "type": "object",
+      "properties": {
+        "expose": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "hostname": { "type": "string" },
+            "tags": { "type": "string" }
+          }
+        },
+        "ssh": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "image": { "type": "object" },
+            "authKey": { "type": "string" },
+            "authKeySecretName": { "type": "string" },
+            "authKeySecretKey": { "type": "string" },
+            "hostname": { "type": "string" },
+            "userspace": { "type": "boolean" },
+            "persistState": { "type": "boolean" },
+            "stateStorage": { "type": "object" },
+            "extraEnv": { "type": "array" },
+            "resources": { "type": "object" }
+          }
+        }
+      }
+    },
     "litellm": {
       "type": "object",
       "properties": {
@@ -169,6 +198,54 @@
     }
   },
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "tailscale": {
+            "properties": {
+              "ssh": {
+                "properties": {
+                  "enabled": { "const": true }
+                },
+                "required": ["enabled"]
+              }
+            },
+            "required": ["ssh"]
+          }
+        },
+        "required": ["tailscale"]
+      },
+      "then": {
+        "properties": {
+          "tailscale": {
+            "properties": {
+              "ssh": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "authKey": {
+                        "type": "string",
+                        "minLength": 4
+                      }
+                    },
+                    "required": ["authKey"]
+                  },
+                  {
+                    "properties": {
+                      "authKeySecretName": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": ["authKeySecretName"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     {
       "if": {
         "properties": {

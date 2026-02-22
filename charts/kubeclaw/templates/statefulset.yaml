@@ -162,13 +162,15 @@ spec:
           # -----------------------------------------------------------------------
 
           # Startup probe: allow up to 5 minutes for first startup (30 * 10s).
-          # Prevents premature liveness kills during slow cold starts.
+          # initialDelaySeconds gives the process time to bind before the first
+          # probe fires, reducing noisy 1006 WebSocket closure events in logs.
           startupProbe:
             exec:
               command:
                 - node
                 - dist/index.js
                 - health
+            initialDelaySeconds: 15
             failureThreshold: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -246,6 +248,78 @@ spec:
             timeoutSeconds: 5
         {{- end }}
 
+        # -------------------------------------------------------------------------
+        # Tailscale sidecar (optional)
+        # Provides SSH access into the pod via the tailnet.
+        # -------------------------------------------------------------------------
+        {{- if .Values.tailscale.ssh.enabled }}
+        - name: tailscale
+          image: {{ .Values.tailscale.ssh.image.repository }}:{{ .Values.tailscale.ssh.image.tag }}
+          imagePullPolicy: {{ .Values.tailscale.ssh.image.pullPolicy }}
+          env:
+            - name: TS_AUTHKEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeclaw.tailscaleAuthKeySecretName" . }}
+                  key: {{ include "kubeclaw.tailscaleAuthKeySecretKey" . }}
+            - name: TS_HOSTNAME
+              value: {{ include "kubeclaw.tailscaleHostname" . | quote }}
+            # Use a subdirectory of the shared tmp emptyDir so uid 1000 can
+            # create and chmod it freely. /var/lib/tailscale is root-owned on
+            # mount and chmod fails with "operation not permitted".
+            - name: TS_STATE_DIR
+              value: /tmp/tailscale-state
+            # Disable the Kubernetes Secret state backend. We use TS_STATE_DIR
+            # (emptyDir or PVC) instead. Without this the client attempts to
+            # get/update a Secret named "tailscale" and logs RBAC errors.
+            - name: TS_KUBE_SECRET
+              value: ""
+            - name: TS_USERSPACE
+              value: {{ .Values.tailscale.ssh.userspace | quote }}
+            - name: TS_EXTRA_ARGS
+              value: "--ssh"
+            {{- with .Values.tailscale.ssh.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .Values.tailscale.ssh.userspace }}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          {{- else }}
+          securityContext:
+            runAsUser: 0
+            capabilities:
+              add:
+                - NET_ADMIN
+          {{- end }}
+          resources:
+            {{- toYaml .Values.tailscale.ssh.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          # Startup/liveness probes use `tailscale --version` which exits 0
+          # immediately from compiled-in data. The tailscale/tailscale image is
+          # distroless so no shell is available; avoid any /bin/sh commands.
+          startupProbe:
+            exec:
+              command:
+                - tailscale
+                - --version
+            failureThreshold: 24
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command:
+                - tailscale
+                - --version
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 3
+        {{- end }}
+
       # ---------------------------------------------------------------------------
       # Volumes (non-PVC)
       # ---------------------------------------------------------------------------
@@ -264,6 +338,10 @@ spec:
           configMap:
             name: {{ include "kubeclaw.initScriptConfigmapName" . }}
             defaultMode: 0555
+        {{- end }}
+        {{- if and .Values.tailscale.ssh.enabled (not .Values.tailscale.ssh.persistState) }}
+        - name: ts-state
+          emptyDir: {}
         {{- end }}
 
   # ---------------------------------------------------------------------------
@@ -292,4 +370,16 @@ spec:
         resources:
           requests:
             storage: {{ .Values.persistence.workspace.size }}
+    {{- end }}
+    {{- if and .Values.tailscale.ssh.enabled .Values.tailscale.ssh.persistState }}
+    - metadata:
+        name: ts-state
+      spec:
+        accessModes: {{ toYaml .Values.tailscale.ssh.stateStorage.accessModes | nindent 10 }}
+        {{- if .Values.tailscale.ssh.stateStorage.storageClass }}
+        storageClassName: {{ .Values.tailscale.ssh.stateStorage.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.tailscale.ssh.stateStorage.size }}
     {{- end }}

@@ -19,6 +19,10 @@ OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-changeme}"
 # LiteLLM proxy master key — must start with "sk-" (required when litellm is enabled)
 LITELLM_MASTERKEY="${LITELLM_MASTERKEY:-sk-changeme}"
 
+# Tailscale auth key — required when tailscale.ssh.enabled=true (the default).
+# Accepts either TS_AUTHKEY or TAILSCALE_AUTH_KEY from the environment.
+TS_AUTHKEY="${TS_AUTHKEY:-${TAILSCALE_AUTH_KEY:-}}"
+
 # Provider API keys — passed to both the Gateway and LiteLLM proxy
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 
@@ -43,6 +47,13 @@ if ! kubectl get namespace "${NAMESPACE}" &>/dev/null; then
 fi
 
 # --- Build helm args ---
+if [[ -z "${TS_AUTHKEY}" ]]; then
+  echo "ERROR: A Tailscale auth key is required (tailscale.ssh is enabled by default)." >&2
+  echo "  Set TAILSCALE_AUTH_KEY or TS_AUTHKEY in your environment, or pass a VALUES_FILE" >&2
+  echo "  with tailscale.ssh.authKeySecretName pointing to an existing Secret." >&2
+  exit 1
+fi
+
 HELM_ARGS=(
   upgrade --install "${RELEASE}" "${CHART_DIR}"
   --namespace "${NAMESPACE}"
@@ -50,6 +61,7 @@ HELM_ARGS=(
   --set "secret.data.OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}"
   --set "litellm.masterkey=${LITELLM_MASTERKEY}"
   --set "secret.data.OPENAI_API_KEY=${OPENAI_API_KEY}"
+  --set "tailscale.ssh.authKey=${TS_AUTHKEY}"
   --wait
   --timeout 5m
 )
@@ -67,6 +79,7 @@ echo "=== KubeClaw Install ==="
 echo "Release:   ${RELEASE}"
 echo "Namespace: ${NAMESPACE}"
 echo "Chart:     ${CHART_DIR}"
+echo "Tailscale: ${TS_AUTHKEY:0:12}***"
 echo ""
 
 echo ">>> Updating chart dependencies..."

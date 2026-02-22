@@ -299,6 +299,58 @@ diagnostics:
       memory: 256Mi
 
 # ------------------------------------------------------------------------------
+# Tailscale Integration
+# Two independent features:
+#   expose — annotates the Service for the Tailscale K8s Operator to proxy
+#            port 18789 onto your tailnet (no public ingress needed).
+#   ssh    — adds a Tailscale sidecar container with --ssh so operators can
+#            SSH into the pod from any enrolled tailnet device.
+# Both are disabled by default.
+# ------------------------------------------------------------------------------
+tailscale:
+  expose:
+    enabled: true
+    # Hostname the Tailscale operator assigns on the tailnet.
+    hostname: ""
+    # ACL tags applied to the exposed service (e.g. "tag:k8s,tag:kubeclaw").
+    tags: ""
+  ssh:
+    enabled: true
+    image:
+      repository: tailscale/tailscale
+      tag: "v1.78.1"
+      pullPolicy: IfNotPresent
+    # Tailscale auth key (inline). One of authKey or authKeySecretName is
+    # required when ssh.enabled=true (enforced by values.schema.json).
+    authKey: ""
+    # OR reference an existing Secret containing the auth key.
+    authKeySecretName: ""
+    # Key within the Secret that holds the Tailscale auth key.
+    authKeySecretKey: "TS_AUTHKEY"
+    # Tailnet hostname for the sidecar. Defaults to Helm fullname.
+    hostname: ""
+    # Userspace networking mode (recommended). When true, no NET_ADMIN
+    # capability is needed and the container runs as uid 1000.
+    userspace: true
+    # Persist Tailscale state across restarts. When false, uses emptyDir
+    # and re-registers with the tailnet on every pod restart.
+    persistState: false
+    stateStorage:
+      storageClass: ""
+      size: 100Mi
+      accessModes:
+        - ReadWriteOnce
+    # Extra environment variables for the Tailscale sidecar.
+    extraEnv: []
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+# ------------------------------------------------------------------------------
 # LiteLLM Proxy (optional subchart)
 # When enabled, deploys a LiteLLM proxy alongside the Gateway and injects
 # OPENAI_API_BASE into the Gateway container so all LLM SDK calls route through

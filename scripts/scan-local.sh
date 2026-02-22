@@ -61,6 +61,7 @@ fi
 helm template kubeclaw "$CHART_PATH" \
   --set secret.create=true \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=local-scan-token \
+  --set litellm.masterkey=sk-local-scan \
   > "$RENDERED"
 echo "Rendered to $RENDERED"
 

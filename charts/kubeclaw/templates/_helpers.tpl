@@ -119,6 +119,32 @@ Image string helper.
 {{- end }}
 
 {{/*
+Name of the Secret holding the Tailscale auth key.
+Returns authKeySecretName if set, otherwise "<fullname>-tailscale-authkey".
+*/}}
+{{- define "kubeclaw.tailscaleAuthKeySecretName" -}}
+{{- if .Values.tailscale.ssh.authKeySecretName }}
+{{- .Values.tailscale.ssh.authKeySecretName }}
+{{- else }}
+{{- printf "%s-tailscale-authkey" (include "kubeclaw.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Key within the Tailscale auth key Secret.
+*/}}
+{{- define "kubeclaw.tailscaleAuthKeySecretKey" -}}
+{{- default "TS_AUTHKEY" .Values.tailscale.ssh.authKeySecretKey }}
+{{- end }}
+
+{{/*
+Tailscale sidecar hostname. Falls back to kubeclaw.fullname.
+*/}}
+{{- define "kubeclaw.tailscaleHostname" -}}
+{{- default (include "kubeclaw.fullname" .) .Values.tailscale.ssh.hostname }}
+{{- end }}
+
+{{/*
 LiteLLM proxy base URL.
 Returns the in-cluster URL of the LiteLLM proxy service on port 4000.
 The alias "litellm" in Chart.yaml causes the subchart Service to be named

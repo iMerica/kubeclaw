@@ -51,7 +51,8 @@ for kind in "${RESOURCE_TYPES[@]}"; do
 done
 
 # --- 3. Delete PVCs by StatefulSet naming convention (in case labels were stripped) ---
-for pattern in "${RELEASE}-kubeclaw-state" "${RELEASE}-kubeclaw-workspace"; do
+# Patterns cover: primary state, split workspace, and Tailscale state (persistState=true)
+for pattern in "${RELEASE}-kubeclaw-state" "${RELEASE}-kubeclaw-workspace" "ts-state-${RELEASE}-kubeclaw"; do
   pvcs=$(kubectl get pvc -n "${NAMESPACE}" -o name 2>/dev/null | grep "${pattern}" || true)
   if [[ -n "${pvcs}" ]]; then
     echo ">>> Deleting PVCs matching '${pattern}'..."

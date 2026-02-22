@@ -30,20 +30,25 @@
 ## Quick Start
 
 ```sh
-# Required: gateway token + provider key + matching model selection
+# Required: gateway token + Tailscale auth key + provider key + matching model selection
 export TOKEN=$(openssl rand -hex 32)
+export TS_AUTHKEY="tskey-auth-..."   # from https://login.tailscale.com/admin/settings/keys
 
 # Install (Anthropic example — default model is anthropic/claude-opus-4-6)
 export ANTHROPIC_API_KEY="sk-ant-..."
 helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --namespace kubeclaw --create-namespace \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN="$TOKEN" \
-  --set secret.data.ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+  --set secret.data.ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  --set tailscale.ssh.authKey="$TS_AUTHKEY"
 
 # Install (OpenAI example — must also set the model, provider key alone is not enough)
 # Use a values file for config.desired; --set cannot handle nested JSON braces.
 export OPENAI_API_KEY="sk-..."
 cat > kubeclaw-values.yaml << 'EOF'
+tailscale:
+  ssh:
+    authKey: "tskey-auth-..."   # replace with your key
 config:
   desired: |
     {
@@ -84,6 +89,7 @@ kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
   - **LiteLLM proxy subchart** for per-agent virtual keys, budget caps, model fallback routing, and semantic caching
   - **NetworkPolicy** scaffolding for locking down traffic
   - **Diagnostics CronJob** for periodic `openclaw doctor` runs
+  - **Tailscale integration** — expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`)
 
 
 ## Install
@@ -120,6 +126,14 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 | `litellm.enabled` | `false` | Deploy LiteLLM proxy alongside the Gateway |
 | `litellm.masterkey` | `""` | LiteLLM master key (required when enabled, must start with `sk-`) |
 | `litellm.proxy_config` | *(see values.yaml)* | LiteLLM `config.yaml` contents as a YAML object |
+| `tailscale.expose.enabled` | `true` | Annotate the Service for the Tailscale K8s Operator to proxy port 18789 onto your tailnet |
+| `tailscale.expose.hostname` | `""` | `tailscale.com/hostname` annotation value |
+| `tailscale.expose.tags` | `""` | `tailscale.com/tags` annotation value (e.g. `tag:k8s,tag:kubeclaw`) |
+| `tailscale.ssh.enabled` | `true` | Add a Tailscale sidecar with `--ssh` for pod shell access from any tailnet device |
+| `tailscale.ssh.authKey` | `""` | **Required when `ssh.enabled`.** Inline Tailscale auth key, unless `authKeySecretName` is set |
+| `tailscale.ssh.authKeySecretName` | `""` | Existing Secret containing the auth key (alternative to `authKey`) |
+| `tailscale.ssh.hostname` | `""` | Tailnet hostname for the sidecar; defaults to the Helm fullname |
+| `tailscale.ssh.persistState` | `false` | Persist Tailscale state across restarts via a dedicated PVC (emptyDir when false) |
 
 Full reference and advanced examples: [kubeclaw.ai/docs](https://kubeclaw.ai/docs)
 
