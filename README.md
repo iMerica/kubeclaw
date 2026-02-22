@@ -106,26 +106,12 @@ Full reference and advanced examples: [kubeclaw.ai/docs](https://kubeclaw.ai/doc
 
 Image pinning policy: each chart release is validated against a candidate image, then the chart defaults are updated to the exact `image.tag` + `image.digest` before publishing.
 
-## Verify
-
-```sh
-# Lint
-helm lint charts/kubeclaw
-
-# Dry-run
-helm template kubeclaw charts/kubeclaw \
-  --set secret.data.OPENCLAW_GATEWAY_TOKEN=test \
-  | kubectl apply --dry-run=client -f -
-
-# Confirm replica enforcement (must error)
-helm template kubeclaw charts/kubeclaw --set replicaCount=2
-```
-
 ## Docs
 
 | | |
 |---|---|
 | [Install Guide](docs/oss/README.md) | Step-by-step setup |
+| [Verify](docs/oss/README.md#verify) | Lint, render, and schema checks |
 | [Troubleshooting](docs/oss/README.md#troubleshooting) | Common issues and fixes |
 | [Restore Runbook](docs/runbooks/restore.md) | Backup & recovery procedures |
 | [Full Documentation](https://kubeclaw.ai/docs) | Complete reference at kubeclaw.ai |

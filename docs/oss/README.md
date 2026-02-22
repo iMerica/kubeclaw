@@ -20,6 +20,21 @@ helm install my-kubeclaw kubeclaw/kubeclaw \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=<strong-token-here>
 ```
 
+## Verify
+
+```sh
+# Lint
+helm lint charts/kubeclaw
+
+# Dry-run
+helm template kubeclaw charts/kubeclaw \
+  --set secret.data.OPENCLAW_GATEWAY_TOKEN=test \
+  | kubectl apply --dry-run=client -f -
+
+# Confirm replica enforcement (must error)
+helm template kubeclaw charts/kubeclaw --set replicaCount=2
+```
+
 ## Day-0: First Connect
 
 After install, the Gateway runs at `ClusterIP:18789`. Access via port-forward:
