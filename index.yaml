@@ -8,7 +8,7 @@ entries:
         url: https://kubeclaw.dev/gpg.asc
     apiVersion: v2
     appVersion: 0.0.6
-    created: "2026-02-22T08:08:58.793613216Z"
+    created: "2026-02-22T08:09:40.498926778Z"
     dependencies:
     - alias: litellm
       condition: litellm.enabled
@@ -19,7 +19,7 @@ entries:
       on Kubernetes. Provides a stateful single-replica Gateway with durable PVC-backed
       storage, WebSocket-capable Ingress, health probes, optional Chromium sidecar,
       and GitOps-friendly desired-config management via initContainer. '
-    digest: 8ac535ca2ecf7a038da589ffe0dd7e3e8dcc754fcf2fdbb5dec563400dc72624
+    digest: 17efa59d4b5b83a95a7870a51f2d97f464577ba640bd6cd074f39cdcd84f694c
     home: https://github.com/iMerica/kubeclaw
     keywords:
     - kubeclaw
@@ -38,4 +38,4 @@ entries:
     urls:
     - https://iMerica.github.io/kubeclaw/kubeclaw-0.0.6.tgz
     version: 0.0.6
-generated: "2026-02-22T08:08:58.780433219Z"
+generated: "2026-02-22T08:09:40.48424149Z"
