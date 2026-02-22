@@ -34,6 +34,8 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "openclaw.serviceAccountName" . }}
       securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
         runAsNonRoot: true
         fsGroup: 1000
       {{- with .Values.pod.runtimeClassName }}
