@@ -330,7 +330,8 @@ tailscale:
     # Tailnet hostname for the sidecar. Defaults to Helm fullname.
     hostname: ""
     # Userspace networking mode (recommended). When true, no NET_ADMIN
-    # capability is needed and the container runs as uid 1000.
+    # capability is needed. The sidecar runs as root regardless so Tailscale
+    # SSH can resolve the username (uid 1000 has no /etc/passwd entry).
     userspace: true
     # Persist Tailscale state across restarts. When false, uses emptyDir
     # and re-registers with the tailnet on every pod restart.

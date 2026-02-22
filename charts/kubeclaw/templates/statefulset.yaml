@@ -282,10 +282,16 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           {{- if .Values.tailscale.ssh.userspace }}
+          # Run as root in userspace mode. Tailscale SSH requires a resolvable
+          # username — uid 1000 has no /etc/passwd entry in this image so SSH
+          # logins fail with "failed to look up 1000". Root is always resolvable
+          # and carries no extra risk in userspace networking mode (no host
+          # network access, no kernel bypass).
+          # runAsNonRoot: false overrides the pod-level securityContext.
           securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
-            runAsNonRoot: true
+            runAsUser: 0
+            runAsGroup: 0
+            runAsNonRoot: false
             allowPrivilegeEscalation: false
           {{- else }}
           securityContext:
