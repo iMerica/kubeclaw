@@ -43,7 +43,7 @@ jobs:
       - name: Build chart dependencies
         run: helm dependency build charts/kubeclaw
 
-      - name: Lint kubeclaw chart
+      - name: Lint kubeclaw chart (default values)
         run: |
           helm lint charts/kubeclaw \
             --set secret.create=true \
@@ -75,57 +75,6 @@ jobs:
             exit 1
           fi
 
-      - name: Dry-run render (default values)
-        run: |
-          helm template openclaw charts/kubeclaw \
-            --set secret.create=true \
-            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
-            --set litellm.masterkey=sk-test-key \
-            --set tailscale.ssh.authKey=tskey-auth-example \
-            > /tmp/openclaw-render.yaml
-          echo "Rendered YAML:"
-          cat /tmp/openclaw-render.yaml
-
-      - name: Lint kubeclaw chart (LiteLLM enabled)
-        run: |
-          helm lint charts/kubeclaw \
-            --set litellm.enabled=true \
-            --set litellm.masterkey=sk-test-key
-
-      - name: Dry-run render (LiteLLM enabled)
-        run: |
-          helm template openclaw charts/kubeclaw \
-            --set secret.create=true \
-            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
-            --set litellm.enabled=true \
-            --set litellm.masterkey=sk-test-key \
-            --set tailscale.ssh.authKey=tskey-auth-example \
-            > /tmp/openclaw-litellm-render.yaml
-          echo "Rendered YAML (LiteLLM enabled):"
-          cat /tmp/openclaw-litellm-render.yaml
-          echo "Verifying OPENAI_API_BASE is present..."
-          grep -q "OPENAI_API_BASE" /tmp/openclaw-litellm-render.yaml || \
-            { echo "FAIL: OPENAI_API_BASE not found in rendered output"; exit 1; }
-          echo "PASS: OPENAI_API_BASE found"
-
-      - name: Dry-run render (egress filter enabled)
-        run: |
-          helm template openclaw charts/kubeclaw \
-            --set secret.create=true \
-            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
-            --set egressFilter.enabled=true \
-            --set litellm.masterkey=sk-test-key \
-            --set tailscale.ssh.authKey=tskey-auth-example \
-            > /tmp/openclaw-egress-filter-render.yaml
-          echo "Verifying dnsPolicy: None is present..."
-          grep -q "dnsPolicy: None" /tmp/openclaw-egress-filter-render.yaml || \
-            { echo "FAIL: dnsPolicy: None not found"; exit 1; }
-          echo "PASS: dnsPolicy: None found"
-          echo "Verifying egress-filter Deployment..."
-          grep -q "egress-filter" /tmp/openclaw-egress-filter-render.yaml || \
-            { echo "FAIL: egress-filter resources not found"; exit 1; }
-          echo "PASS: egress-filter resources found"
-
       - name: Validate schema — litellm.enabled=true requires masterkey
         run: |
           echo "Testing that litellm.enabled=true without masterkey fails..."
@@ -142,6 +91,104 @@ jobs:
             echo "FAIL: missing masterkey was not rejected by schema"
             exit 1
           fi
+
+      # -----------------------------------------------------------------------
+      # Default render — all on-by-default features are active here:
+      # chromium, egressFilter, litellm, tailscale.expose, tailscale.ssh
+      # -----------------------------------------------------------------------
+      - name: Dry-run render (default values)
+        run: |
+          helm template openclaw charts/kubeclaw \
+            --set secret.create=true \
+            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
+            --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.authKey=tskey-auth-example \
+            > /tmp/openclaw-render.yaml
+          echo "Verifying OPENAI_API_BASE is present (litellm on by default)..."
+          grep -q "OPENAI_API_BASE" /tmp/openclaw-render.yaml || \
+            { echo "FAIL: OPENAI_API_BASE not found"; exit 1; }
+          echo "PASS: OPENAI_API_BASE found"
+          echo "Verifying dns-init initContainer present (egressFilter on by default)..."
+          grep -q "name: dns-init" /tmp/openclaw-render.yaml || \
+            { echo "FAIL: dns-init initContainer not found"; exit 1; }
+          echo "PASS: dns-init initContainer found"
+          echo "Verifying egress-filter resources present (egressFilter on by default)..."
+          grep -q "egress-filter" /tmp/openclaw-render.yaml || \
+            { echo "FAIL: egress-filter resources not found"; exit 1; }
+          echo "PASS: egress-filter resources found"
+          echo "Verifying Chromium Deployment present (chromium on by default)..."
+          grep -q "app.kubernetes.io/component: chromium" /tmp/openclaw-render.yaml || \
+            { echo "FAIL: Chromium resources not found"; exit 1; }
+          echo "PASS: Chromium resources found"
+          echo "Verifying Tailscale sidecar present (tailscale.ssh on by default)..."
+          grep -q "name: tailscale" /tmp/openclaw-render.yaml || \
+            { echo "FAIL: Tailscale sidecar not found"; exit 1; }
+          echo "PASS: Tailscale sidecar found"
+
+      # -----------------------------------------------------------------------
+      # Disabled-state renders — verify on-by-default features can be turned off
+      # -----------------------------------------------------------------------
+      - name: Dry-run render (litellm disabled)
+        run: |
+          helm template openclaw charts/kubeclaw \
+            --set secret.create=true \
+            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
+            --set litellm.enabled=false \
+            --set tailscale.ssh.authKey=tskey-auth-example \
+            > /tmp/openclaw-no-litellm.yaml
+          echo "Verifying OPENAI_API_BASE is absent when litellm disabled..."
+          ! grep -q "OPENAI_API_BASE" /tmp/openclaw-no-litellm.yaml || \
+            { echo "FAIL: OPENAI_API_BASE present when litellm is disabled"; exit 1; }
+          echo "PASS: OPENAI_API_BASE absent"
+          echo "Verifying no LiteLLM subchart Deployment rendered..."
+          ! grep -q "app.kubernetes.io/name: litellm" /tmp/openclaw-no-litellm.yaml || \
+            { echo "FAIL: LiteLLM Deployment present when disabled"; exit 1; }
+          echo "PASS: No LiteLLM Deployment"
+
+      - name: Dry-run render (egressFilter disabled)
+        run: |
+          helm template openclaw charts/kubeclaw \
+            --set secret.create=true \
+            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
+            --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.authKey=tskey-auth-example \
+            --set egressFilter.enabled=false \
+            > /tmp/openclaw-no-egress.yaml
+          echo "Verifying dns-init initContainer absent when egressFilter disabled..."
+          ! grep -q "name: dns-init" /tmp/openclaw-no-egress.yaml || \
+            { echo "FAIL: dns-init initContainer present when egressFilter disabled"; exit 1; }
+          echo "PASS: dns-init initContainer absent"
+          echo "Verifying egress-filter resources absent..."
+          ! grep -q "egress-filter" /tmp/openclaw-no-egress.yaml || \
+            { echo "FAIL: egress-filter resources present when disabled"; exit 1; }
+          echo "PASS: egress-filter resources absent"
+
+      - name: Dry-run render (chromium disabled)
+        run: |
+          helm template openclaw charts/kubeclaw \
+            --set secret.create=true \
+            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
+            --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.authKey=tskey-auth-example \
+            --set chromium.enabled=false \
+            > /tmp/openclaw-no-chromium.yaml
+          echo "Verifying Chromium resources absent when chromium disabled..."
+          ! grep -q "app.kubernetes.io/component: chromium" /tmp/openclaw-no-chromium.yaml || \
+            { echo "FAIL: Chromium resources present when disabled"; exit 1; }
+          echo "PASS: Chromium resources absent"
+
+      - name: Dry-run render (tailscale.ssh disabled)
+        run: |
+          helm template openclaw charts/kubeclaw \
+            --set secret.create=true \
+            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
+            --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.enabled=false \
+            > /tmp/openclaw-no-ts-ssh.yaml
+          echo "Verifying Tailscale sidecar absent when tailscale.ssh disabled..."
+          ! grep -q "name: tailscale" /tmp/openclaw-no-ts-ssh.yaml || \
+            { echo "FAIL: Tailscale sidecar present when disabled"; exit 1; }
+          echo "PASS: Tailscale sidecar absent"
 
   install:
     name: Install Test (kind)
