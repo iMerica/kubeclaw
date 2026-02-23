@@ -44,7 +44,12 @@ jobs:
         run: helm dependency build charts/kubeclaw
 
       - name: Lint kubeclaw chart
-        run: helm lint charts/kubeclaw
+        run: |
+          helm lint charts/kubeclaw \
+            --set secret.create=true \
+            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
+            --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.authKey=tskey-auth-example
 
       - name: Run ct lint (changed charts only)
         if: steps.list-changed.outputs.changed == 'true'

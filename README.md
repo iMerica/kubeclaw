@@ -15,7 +15,7 @@
 
 <p align="center">
 <a href="https://github.com/iMerica/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://github.com/iMerica/kubeclaw/actions/workflows/lint-test.yaml/badge.svg?branch=master" alt="CI"></a>
-<a href="https://github.com/iMerica/kubeclaw/releases"><img src="https://img.shields.io/github/v/release/iMerica/kubeclaw?label=chart&color=0f7b3f" alt="Chart Version"></a>
+<a href="https://github.com/iMerica/kubeclaw/releases"><img src="https://img.shields.io/badge/chart-0.1.0-0f7b3f" alt="Chart Version"></a>
 <a href="https://kubernetes.io/releases/"><img src="https://img.shields.io/badge/k8s-1.25%2B-326ce5?logo=kubernetes&logoColor=white" alt="Kubernetes 1.25+"></a>
 <a href="https://helm.sh"><img src="https://img.shields.io/badge/Helm-3.12%2B-0f1689?logo=helm&logoColor=white" alt="Helm 3.12+"></a>
 <a href="https://github.com/iMerica/kubeclaw/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue" alt="License"></a>
