@@ -29,7 +29,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "kubeclaw.fullname" . }}
+                name: {{ include "kubeclaw.gatewayName" . }}
                 port:
                   number: {{ .Values.service.port }}
 {{- end }}

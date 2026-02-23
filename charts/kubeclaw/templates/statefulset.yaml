@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "kubeclaw.fullname" . }}
+  name: {{ include "kubeclaw.gatewayName" . }}
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "kubeclaw.labels" . | nindent 4 }}
@@ -14,7 +14,7 @@ spec:
   selector:
     matchLabels:
       {{- include "kubeclaw.selectorLabels" . | nindent 6 }}
-  serviceName: {{ include "kubeclaw.fullname" . }}
+  serviceName: {{ include "kubeclaw.gatewayName" . }}
   template:
     metadata:
       labels:
@@ -203,25 +203,21 @@ spec:
 
           # -----------------------------------------------------------------------
           # Health Probes
-          # All three probes use the token-authenticated health command, which
-          # performs a real control-plane check (not just TCP socket open).
-          # The Gateway multiplexes WebSocket + HTTP on port 18789 and requires
-          # auth, making TCP-level probes insufficient.
+          # Startup uses tcpSocket for speed — avoids spawning a Node.js process
+          # on every probe during boot. Once the startup probe passes, liveness
+          # and readiness switch to the token-authenticated health command for a
+          # deeper control-plane check.
           # -----------------------------------------------------------------------
 
-          # Startup probe: allow up to 5 minutes for first startup (30 * 10s).
-          # initialDelaySeconds gives the process time to bind before the first
-          # probe fires, reducing noisy 1006 WebSocket closure events in logs.
+          # Startup probe: TCP check until the Gateway binds port 18789.
+          # Allow up to 5 minutes for first startup (30 * 10s).
           startupProbe:
-            exec:
-              command:
-                - node
-                - dist/index.js
-                - health
-            initialDelaySeconds: 15
+            tcpSocket:
+              port: gateway
+            initialDelaySeconds: 5
             failureThreshold: 30
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: 3
 
           # Liveness probe: restart if the gateway becomes unresponsive.
           livenessProbe:
@@ -232,7 +228,7 @@ spec:
                 - health
             failureThreshold: 3
             periodSeconds: 30
-            timeoutSeconds: 5
+            timeoutSeconds: 10
 
           # Readiness probe: remove from Service endpoints when not ready.
           readinessProbe:
@@ -243,7 +239,7 @@ spec:
                 - health
             failureThreshold: 3
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: 10
 
         # -------------------------------------------------------------------------
         # Tailscale sidecar (optional)

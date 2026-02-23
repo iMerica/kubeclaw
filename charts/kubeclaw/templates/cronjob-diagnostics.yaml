@@ -70,10 +70,10 @@ spec:
           volumes:
             - name: {{ include "kubeclaw.statePvcName" . }}
               persistentVolumeClaim:
-                claimName: {{ include "kubeclaw.statePvcName" . }}-{{ include "kubeclaw.fullname" . }}-0
+                claimName: {{ include "kubeclaw.statePvcName" . }}-{{ include "kubeclaw.gatewayName" . }}-0
             {{- if .Values.persistence.splitVolumes }}
             - name: {{ include "kubeclaw.workspacePvcName" . }}
               persistentVolumeClaim:
-                claimName: {{ include "kubeclaw.workspacePvcName" . }}-{{ include "kubeclaw.fullname" . }}-0
+                claimName: {{ include "kubeclaw.workspacePvcName" . }}-{{ include "kubeclaw.gatewayName" . }}-0
             {{- end }}
 {{- end }}

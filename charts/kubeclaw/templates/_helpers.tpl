@@ -23,6 +23,13 @@ Truncated at 63 chars because some Kubernetes name fields are limited to this.
 {{- end }}
 
 {{/*
+Name of the Gateway StatefulSet and its headless Service.
+*/}}
+{{- define "kubeclaw.gatewayName" -}}
+{{- printf "%s-gateway" (include "kubeclaw.fullname" .) }}
+{{- end }}
+
+{{/*
 Create chart label value: "<chart-name>-<chart-version>".
 */}}
 {{- define "kubeclaw.chart" -}}

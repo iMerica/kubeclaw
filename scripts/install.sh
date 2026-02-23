@@ -99,7 +99,7 @@ echo ""
 echo ">>> Waiting for Gateway to become ready..."
 MAX_ATTEMPTS=30
 for i in $(seq 1 "${MAX_ATTEMPTS}"); do
-  URL=$(kubectl -n "${NAMESPACE}" exec "statefulset/${RELEASE}" -- \
+  URL=$(kubectl -n "${NAMESPACE}" exec "statefulset/${RELEASE}-gateway" -- \
     node dist/index.js dashboard --no-open 2>/dev/null | grep "Dashboard URL:" || true)
   if [[ -n "${URL}" ]]; then
     echo "Open this URL in your browser: ${URL#*Dashboard URL: }"
@@ -108,7 +108,7 @@ for i in $(seq 1 "${MAX_ATTEMPTS}"); do
   if [[ "${i}" -eq "${MAX_ATTEMPTS}" ]]; then
     echo "WARNING: Could not retrieve dashboard URL after ${MAX_ATTEMPTS} attempts."
     echo "The Gateway may still be starting. Try manually:"
-    echo "  kubectl -n ${NAMESPACE} exec statefulset/${RELEASE} -- node dist/index.js dashboard --no-open"
+    echo "  kubectl -n ${NAMESPACE} exec statefulset/${RELEASE}-gateway -- node dist/index.js dashboard --no-open"
     break
   fi
   sleep 2
