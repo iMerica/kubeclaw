@@ -39,8 +39,8 @@ helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --set litellm.masterkey="sk-$(openssl rand -hex 16)"
 
 # Wait for the pod, then open the UI
-kubectl -n kubeclaw rollout status statefulset/kubeclaw
-kubectl -n kubeclaw port-forward svc/kubeclaw 18789:18789
+kubectl -n kubeclaw rollout status statefulset/kubeclaw-gateway
+kubectl -n kubeclaw port-forward svc/kubeclaw-gateway 18789:18789
 ```
 
 ## Architecture
@@ -58,13 +58,17 @@ graph TB
     subgraph cluster ["Kubernetes Cluster"]
         ingress[fa:fa-shield-halved Ingress]
 
-        subgraph pod ["StatefulSet · replicas: 1"]
+        subgraph gwpod ["Gateway StatefulSet · replicas: 1"]
             gw[fa:fa-server Gateway :18789]
-            chrome[fa:fa-window-maximize Chromium :9222]
             ts[fa:fa-lock Tailscale SSH]
         end
 
-        svc[[fa:fa-diagram-project Service :18789]]
+        subgraph chromepod ["Chromium Deployment"]
+            chrome[fa:fa-window-maximize Chromium :9222]
+        end
+
+        svc[[fa:fa-diagram-project Gateway Service :18789]]
+        chromesvc[[fa:fa-diagram-project Chromium Service :9222]]
         litellm[fa:fa-route LiteLLM Proxy :4000]
         egressfilter[fa:fa-filter Egress Filter :53]
         pvc[(fa:fa-database PVC)]
@@ -79,7 +83,7 @@ graph TB
     app & cli & web -->|WS / HTTP| ingress
     tsdevice -->|SSH| ts
     ingress --> svc --> gw
-    gw <--->|CDP| chrome
+    gw -->|CDP| chromesvc --> chrome
     gw -->|HTTP| litellm
     gw -.->|DNS| egressfilter
     gw ---|state| pvc
@@ -95,7 +99,7 @@ graph TB
 | **GitOps-friendly config** | Declare desired `openclaw.json`; chart handles merge or overwrite via initContainer |
 | **WebSocket-ready Ingress** | Configurable TLS |
 | **Split workspace volume** | Separate PVC for workspace via `persistence.splitVolumes` |
-| **Chromium sidecar** | Browser automation with CDP on `127.0.0.1:9222`, never exposed |
+| **Chromium Deployment** | Browser automation via standalone Deployment + ClusterIP Service on port 9222 (cluster-internal) |
 | **LiteLLM proxy subchart** | Per-agent virtual keys, budget caps, model fallback routing, and semantic caching |
 | **Egress DNS filter** | NextDNS-style DNS filtering via [Blocky](https://0xerr0r.github.io/blocky/) — threat blocklists (HaGeZi, StevenBlack), country TLD blocking, and query logging |
 | **NetworkPolicy** | Scaffolding for locking down traffic |
@@ -131,15 +135,14 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 | `persistence.splitVolumes` | `false` | Separate PVC for workspace |
 | `config.desired` | `""` | Desired `openclaw.json` (JSON5) |
 | `config.mode` | `merge` | Config strategy: `merge` or `overwrite` |
-| `chromium.enabled` | `false` | Chromium sidecar for CDP |
-| `egressFilter.enabled` | `false` | Deploy Blocky DNS proxy for egress filtering |
-| `egressFilter.clusterIP` | `""` | **Required when enabled.** Static ClusterIP for the Blocky Service (e.g. `10.96.53.53`) |
+| `chromium.enabled` | `true` | Chromium Deployment + ClusterIP Service for CDP |
+| `egressFilter.enabled` | `true` | Deploy Blocky DNS proxy for egress filtering |
 | `egressFilter.blockCountries` | `[RU, CN]` | Country TLDs to block via regex (supports RU, CN, IR, KP, BY) |
 | `egressFilter.denylists` | *(threats + malware)* | Named blocklist groups with URLs fetched by Blocky |
 | `egressFilter.allowlists` | `[]` | Domains that are never blocked (overrides denylists) |
 | `networkPolicy.enabled` | `false` | Enable NetworkPolicy |
 | `diagnostics.enabled` | `false` | Enable diagnostics CronJob |
-| `litellm.enabled` | `false` | Deploy LiteLLM proxy alongside the Gateway |
+| `litellm.enabled` | `true` | Deploy LiteLLM proxy alongside the Gateway |
 | `litellm.masterkey` | `""` | LiteLLM master key (required when enabled, must start with `sk-`) |
 | `litellm.proxy_config` | *(see values.yaml)* | LiteLLM `config.yaml` contents as a YAML object |
 | `tailscale.expose.enabled` | `true` | Annotate the Service for the Tailscale K8s Operator to proxy port 18789 onto your tailnet |
