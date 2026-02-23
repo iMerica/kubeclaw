@@ -1,0 +1,27 @@
+{{- if .Values.egressFilter.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kubeclaw.egressFilterName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: egress-filter
+spec:
+  type: ClusterIP
+  ports:
+    - name: dns-udp
+      port: 53
+      targetPort: dns-udp
+      protocol: UDP
+    - name: dns-tcp
+      port: 53
+      targetPort: dns-tcp
+      protocol: TCP
+    - name: http
+      port: 4000
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "kubeclaw.egressFilterSelectorLabels" . | nindent 4 }}
+{{- end }}

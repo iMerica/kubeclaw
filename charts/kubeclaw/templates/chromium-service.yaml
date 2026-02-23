@@ -1,0 +1,19 @@
+{{- if .Values.chromium.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kubeclaw.chromiumName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: chromium
+spec:
+  type: ClusterIP
+  ports:
+    - name: cdp
+      port: 9222
+      targetPort: cdp
+      protocol: TCP
+  selector:
+    {{- include "kubeclaw.chromiumSelectorLabels" . | nindent 4 }}
+{{- end }}

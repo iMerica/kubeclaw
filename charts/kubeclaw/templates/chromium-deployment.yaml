@@ -1,0 +1,72 @@
+{{- if .Values.chromium.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubeclaw.chromiumName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: chromium
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kubeclaw.chromiumSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubeclaw.chromiumSelectorLabels" . | nindent 8 }}
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+      containers:
+        - name: chromium
+          image: {{ .Values.chromium.image.repository }}:{{ .Values.chromium.image.tag }}
+          imagePullPolicy: {{ .Values.chromium.image.pullPolicy }}
+          command: ["chromium-browser"]
+          {{- with .Values.chromium.extraArgs }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: XDG_CACHE_HOME
+              value: /tmp
+          ports:
+            - name: cdp
+              containerPort: {{ .Values.chromium.cdpPort }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.chromium.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.chromium.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          startupProbe:
+            tcpSocket:
+              port: {{ .Values.chromium.cdpPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.chromium.cdpPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 6
+            timeoutSeconds: 5
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.chromium.cdpPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi
+{{- end }}

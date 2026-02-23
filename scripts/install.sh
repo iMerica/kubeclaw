@@ -26,6 +26,7 @@ TS_AUTHKEY="${TS_AUTHKEY:-${TAILSCALE_AUTH_KEY:-}}"
 # Provider API keys — passed to both the Gateway and LiteLLM proxy
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 
+
 # Optional: path to a custom values file layered on top of chart defaults
 VALUES_FILE="${VALUES_FILE:-}"
 # ----------------------------------------------------------------------------
@@ -93,10 +94,22 @@ echo ""
 echo "=== Installed successfully ==="
 kubectl get pods -n "${NAMESPACE}" -l "app.kubernetes.io/instance=${RELEASE}"
 
-# --- Print dashboard URL ---
+# --- Wait for Gateway to be fully ready and print dashboard URL ---
 echo ""
-URL=$(kubectl -n "${NAMESPACE}" exec "statefulset/${RELEASE}" -- \
-  node dist/index.js dashboard --no-open 2>/dev/null | grep "Dashboard URL:" || true)
-if [[ -n "${URL}" ]]; then
-  echo "Open this URL in your browser: ${URL#*Dashboard URL: }"
-fi
+echo ">>> Waiting for Gateway to become ready..."
+MAX_ATTEMPTS=30
+for i in $(seq 1 "${MAX_ATTEMPTS}"); do
+  URL=$(kubectl -n "${NAMESPACE}" exec "statefulset/${RELEASE}" -- \
+    node dist/index.js dashboard --no-open 2>/dev/null | grep "Dashboard URL:" || true)
+  if [[ -n "${URL}" ]]; then
+    echo "Open this URL in your browser: ${URL#*Dashboard URL: }"
+    break
+  fi
+  if [[ "${i}" -eq "${MAX_ATTEMPTS}" ]]; then
+    echo "WARNING: Could not retrieve dashboard URL after ${MAX_ATTEMPTS} attempts."
+    echo "The Gateway may still be starting. Try manually:"
+    echo "  kubectl -n ${NAMESPACE} exec statefulset/${RELEASE} -- node dist/index.js dashboard --no-open"
+    break
+  fi
+  sleep 2
+done

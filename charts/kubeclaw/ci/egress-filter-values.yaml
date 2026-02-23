@@ -1,0 +1,17 @@
+secret:
+  create: true
+  data:
+    OPENCLAW_GATEWAY_TOKEN: ci-test-token
+litellm:
+  masterkey: sk-test
+tailscale:
+  ssh:
+    authKey: tskey-auth-example
+egressFilter:
+  enabled: true
+  blockCountries:
+    - RU
+    - CN
+  denylists:
+    threats:
+      - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.txt

@@ -1,0 +1,78 @@
+{{- if .Values.egressFilter.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubeclaw.egressFilterName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: egress-filter
+spec:
+  replicas: {{ .Values.egressFilter.replicas }}
+  selector:
+    matchLabels:
+      {{- include "kubeclaw.egressFilterSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubeclaw.egressFilterSelectorLabels" . | nindent 8 }}
+      annotations:
+        {{- include "kubeclaw.blockyConfigChecksum" . | nindent 8 }}
+    spec:
+      securityContext:
+        runAsUser: 100
+        runAsGroup: 100
+        runAsNonRoot: true
+        fsGroup: 100
+      containers:
+        - name: blocky
+          image: {{ .Values.egressFilter.image.repository }}:{{ .Values.egressFilter.image.tag }}
+          imagePullPolicy: {{ .Values.egressFilter.image.pullPolicy }}
+          ports:
+            - name: dns-udp
+              containerPort: 5353
+              protocol: UDP
+            - name: dns-tcp
+              containerPort: 5353
+              protocol: TCP
+            - name: http
+              containerPort: 4000
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yml
+              subPath: config.yml
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.egressFilter.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.egressFilter.securityContext | nindent 12 }}
+          startupProbe:
+            tcpSocket:
+              port: dns-tcp
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            failureThreshold: 10
+            timeoutSeconds: 2
+          livenessProbe:
+            tcpSocket:
+              port: dns-tcp
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 2
+          readinessProbe:
+            tcpSocket:
+              port: dns-tcp
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 2
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "kubeclaw.egressFilterName" . }}
+        - name: tmp
+          emptyDir:
+            sizeLimit: 50Mi
+{{- end }}

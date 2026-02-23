@@ -172,3 +172,45 @@ Key name within the LiteLLM master key Secret.
 {{- define "kubeclaw.litellmMasterkeySecretKey" -}}
 {{- default "masterkey" .Values.litellm.masterkeySecretKey }}
 {{- end }}
+
+{{/*
+Name of the egress-filter Deployment and Service.
+*/}}
+{{- define "kubeclaw.egressFilterName" -}}
+{{- printf "%s-egress-filter" (include "kubeclaw.fullname" .) }}
+{{- end }}
+
+{{/*
+Selector labels for the egress-filter Deployment.
+*/}}
+{{- define "kubeclaw.egressFilterSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "kubeclaw.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: egress-filter
+{{- end }}
+
+{{/*
+Name of the Chromium Deployment and Service.
+*/}}
+{{- define "kubeclaw.chromiumName" -}}
+{{- printf "%s-chromium" (include "kubeclaw.fullname" .) }}
+{{- end }}
+
+{{/*
+Selector labels for the Chromium Deployment.
+*/}}
+{{- define "kubeclaw.chromiumSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "kubeclaw.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: chromium
+{{- end }}
+
+{{/*
+Checksum annotation for the Blocky ConfigMap.
+Triggers rollout of the egress-filter Deployment when config changes.
+*/}}
+{{- define "kubeclaw.blockyConfigChecksum" -}}
+{{- if .Values.egressFilter.enabled }}
+checksum/blocky-config: {{ include (print $.Template.BasePath "/egress-filter-configmap.yaml") . | sha256sum }}
+{{- end }}
+{{- end }}

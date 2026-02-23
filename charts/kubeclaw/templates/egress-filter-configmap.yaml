@@ -1,0 +1,113 @@
+{{- if .Values.egressFilter.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubeclaw.egressFilterName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: egress-filter
+data:
+  config.yml: |
+{{- if .Values.egressFilter.customConfig }}
+{{ .Values.egressFilter.customConfig | indent 4 }}
+{{- else }}
+    upstreams:
+      groups:
+        default:
+    {{- range .Values.egressFilter.upstreamDns.default }}
+          - {{ . }}
+    {{- end }}
+    {{- if .Values.egressFilter.upstreamDns.external }}
+        external:
+    {{- range .Values.egressFilter.upstreamDns.external }}
+          - {{ . }}
+    {{- end }}
+    {{- end }}
+
+    ports:
+      dns: 5353
+      http: 4000
+
+    blocking:
+      denylists:
+    {{- range $group, $urls := .Values.egressFilter.denylists }}
+        {{ $group }}:
+      {{- range $urls }}
+          - {{ . }}
+      {{- end }}
+    {{- end }}
+    {{- /*
+        Country TLD blocking via regex.
+        Each country code maps to its ccTLDs including internationalized variants.
+    */}}
+    {{- $countryTLDs := dict
+        "RU" (list "/\\.ru$/" "/\\.su$/" "/\\.xn--p1ai$/")
+        "CN" (list "/\\.cn$/" "/\\.xn--fiqs8s$/" "/\\.xn--fiqz9s$/" "/\\.xn--io0a7i$/")
+        "IR" (list "/\\.ir$/")
+        "KP" (list "/\\.kp$/")
+        "BY" (list "/\\.by$/")
+    }}
+    {{- range .Values.egressFilter.blockCountries }}
+      {{- $tlds := index $countryTLDs . }}
+      {{- if $tlds }}
+        geo_{{ lower . }}:
+          - |
+        {{- range $tlds }}
+            {{ . }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+
+      allowlists:
+    {{- if .Values.egressFilter.allowlists }}
+        overrides:
+          - |
+      {{- range .Values.egressFilter.allowlists }}
+            {{ . }}
+      {{- end }}
+    {{- else }}
+        {}
+    {{- end }}
+
+      clientGroupsBlock:
+        default:
+    {{- range $group, $_ := .Values.egressFilter.denylists }}
+          - {{ $group }}
+    {{- end }}
+    {{- range .Values.egressFilter.blockCountries }}
+      {{- $tlds := index $countryTLDs . }}
+      {{- if $tlds }}
+          - geo_{{ lower . }}
+      {{- end }}
+    {{- end }}
+
+      blockType: nxdomain
+
+      loading:
+        refreshPeriod: 4h
+        downloads:
+          timeout: 60s
+          attempts: 3
+
+    {{- if .Values.egressFilter.queryLog.enabled }}
+    queryLog:
+      type: {{ .Values.egressFilter.queryLog.type }}
+      creationAttempts: 1
+      {{- if eq .Values.egressFilter.queryLog.logLevel "all" }}
+      logRetentionDays: 0
+      {{- end }}
+    {{- end }}
+
+    {{- if .Values.egressFilter.metrics.enabled }}
+    prometheus:
+      enable: true
+      path: /metrics
+    {{- end }}
+
+    log:
+      level: info
+      format: json
+      timestamp: true
+{{- end }}
+{{- end }}

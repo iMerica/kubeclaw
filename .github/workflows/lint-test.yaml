@@ -98,6 +98,22 @@ jobs:
             { echo "FAIL: OPENAI_API_BASE not found in rendered output"; exit 1; }
           echo "PASS: OPENAI_API_BASE found"
 
+      - name: Dry-run render (egress filter enabled)
+        run: |
+          helm template openclaw charts/kubeclaw \
+            --set secret.create=true \
+            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
+            --set egressFilter.enabled=true \
+            > /tmp/openclaw-egress-filter-render.yaml
+          echo "Verifying dnsPolicy: None is present..."
+          grep -q "dnsPolicy: None" /tmp/openclaw-egress-filter-render.yaml || \
+            { echo "FAIL: dnsPolicy: None not found"; exit 1; }
+          echo "PASS: dnsPolicy: None found"
+          echo "Verifying egress-filter Deployment..."
+          grep -q "egress-filter" /tmp/openclaw-egress-filter-render.yaml || \
+            { echo "FAIL: egress-filter resources not found"; exit 1; }
+          echo "PASS: egress-filter resources found"
+
       - name: Validate schema — litellm.enabled=true requires masterkey
         run: |
           echo "Testing that litellm.enabled=true without masterkey fails..."

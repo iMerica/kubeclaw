@@ -105,6 +105,39 @@
         }
       }
     },
+    "egressFilter": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "blockCountries": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          }
+        },
+        "denylists": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "allowlists": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "customConfig": {
+          "type": "string"
+        }
+      }
+    },
     "diagnostics": {
       "type": "object",
       "properties": {

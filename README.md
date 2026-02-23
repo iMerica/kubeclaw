@@ -66,6 +66,7 @@ graph TB
 
         svc[[fa:fa-diagram-project Service :18789]]
         litellm[fa:fa-route LiteLLM Proxy :4000]
+        egressfilter[fa:fa-filter Egress Filter :53]
         pvc[(fa:fa-database PVC)]
     end
 
@@ -80,6 +81,7 @@ graph TB
     ingress --> svc --> gw
     gw <--->|CDP| chrome
     gw -->|HTTP| litellm
+    gw -.->|DNS| egressfilter
     gw ---|state| pvc
     gw -->|outbound| msg
     litellm -->|HTTPS| llm
@@ -95,6 +97,7 @@ graph TB
 | **Split workspace volume** | Separate PVC for workspace via `persistence.splitVolumes` |
 | **Chromium sidecar** | Browser automation with CDP on `127.0.0.1:9222`, never exposed |
 | **LiteLLM proxy subchart** | Per-agent virtual keys, budget caps, model fallback routing, and semantic caching |
+| **Egress DNS filter** | NextDNS-style DNS filtering via [Blocky](https://0xerr0r.github.io/blocky/) — threat blocklists (HaGeZi, StevenBlack), country TLD blocking, and query logging |
 | **NetworkPolicy** | Scaffolding for locking down traffic |
 | **Diagnostics CronJob** | Periodic `openclaw doctor` runs |
 | **Tailscale integration** | Expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`) |
@@ -129,6 +132,11 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 | `config.desired` | `""` | Desired `openclaw.json` (JSON5) |
 | `config.mode` | `merge` | Config strategy: `merge` or `overwrite` |
 | `chromium.enabled` | `false` | Chromium sidecar for CDP |
+| `egressFilter.enabled` | `false` | Deploy Blocky DNS proxy for egress filtering |
+| `egressFilter.clusterIP` | `""` | **Required when enabled.** Static ClusterIP for the Blocky Service (e.g. `10.96.53.53`) |
+| `egressFilter.blockCountries` | `[RU, CN]` | Country TLDs to block via regex (supports RU, CN, IR, KP, BY) |
+| `egressFilter.denylists` | *(threats + malware)* | Named blocklist groups with URLs fetched by Blocky |
+| `egressFilter.allowlists` | `[]` | Domains that are never blocked (overrides denylists) |
 | `networkPolicy.enabled` | `false` | Enable NetworkPolicy |
 | `diagnostics.enabled` | `false` | Enable diagnostics CronJob |
 | `litellm.enabled` | `false` | Deploy LiteLLM proxy alongside the Gateway |

@@ -98,7 +98,7 @@ config:
         "defaultProfile": "default",
         "profiles": {
           "default": {
-            "cdpUrl": "http://localhost:9222",
+            "cdpUrl": "http://kubeclaw-chromium:9222",
             "color": "#4285F4"
           }
         }
@@ -228,23 +228,22 @@ networkPolicy:
     allowAll: true
 
 # ------------------------------------------------------------------------------
-# Chromium Sidecar (remote CDP)
-# Adds a Chromium container alongside the Gateway. The Gateway connects via
-# browser.profiles.chromium.cdpUrl = http://127.0.0.1:9222 (auto-set via
-# config merge when chromium.enabled=true).
-# CDP port 9222 is NOT exposed via a Service (pod-internal only).
+# Chromium Deployment (remote CDP)
+# Deploys Chromium as a standalone Deployment + ClusterIP Service. The Gateway
+# connects via browser.profiles.default.cdpUrl = http://<release>-chromium:9222.
+# CDP port 9222 is exposed as a ClusterIP Service (cluster-internal only).
 # NOTE: Running Chromium in containers often requires --no-sandbox; read the
 # security notes in the values below before enabling.
 # ------------------------------------------------------------------------------
 chromium:
-  enabled: false
+  enabled: true
   image:
     repository: zenika/alpine-chrome
     tag: "124"
     pullPolicy: IfNotPresent
-  # Container port for Chrome DevTools Protocol (pod-internal only).
+  # Container port for Chrome DevTools Protocol.
   cdpPort: 9222
-  # Resources for the Chromium sidecar.
+  # Resources for the Chromium Deployment.
   resources:
     requests:
       cpu: 100m
@@ -252,7 +251,7 @@ chromium:
     limits:
       cpu: 1000m
       memory: 1Gi
-  # Security context for the Chromium container.
+  # Security context for the Chromium Deployment container.
   # zenika/alpine-chrome runs as uid 1000 (non-root) with a read-only root
   # filesystem and drops all Linux capabilities.
   # For stronger isolation, consider gVisor/Kata via pod.runtimeClassName.
@@ -275,6 +274,92 @@ chromium:
     - --remote-debugging-address=0.0.0.0
     - --remote-debugging-port=9222
     - --user-data-dir=/tmp/chromium
+
+# ------------------------------------------------------------------------------
+# Egress DNS Filter (Blocky)
+# Deploys a Blocky DNS proxy as a separate Deployment + ClusterIP Service.
+# When enabled, the Gateway pod's DNS is routed through Blocky via
+# dnsPolicy: None, filtering all queries with maintained threat-intelligence
+# blocklists, country TLD blocking, and custom deny/allow lists.
+# Similar to NextDNS but self-hosted within the cluster.
+# Blocky API port 4000 is available on the Service for metrics/debugging.
+# ------------------------------------------------------------------------------
+egressFilter:
+  enabled: true
+  image:
+    repository: spx01/blocky
+    tag: "v0.24"
+    pullPolicy: IfNotPresent
+  # Number of Blocky replicas. 1 is sufficient for a single Gateway.
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  # Security context for the Blocky container.
+  # The spx01/blocky image runs as uid 100 (non-root). The binary is only
+  # executable by that user, so runAsUser must match.
+  # NOTE: capabilities.drop=[ALL] is intentionally omitted — the blocky binary
+  # fails with "operation not permitted" when all capabilities are dropped on
+  # Docker Desktop (and potentially other runtimes).
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    runAsGroup: 100
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+
+  # Upstream DNS servers Blocky forwards allowed queries to.
+  # Default: kube-dns at the standard ClusterIP. Adjust if your cluster differs.
+  upstreamDns:
+    default:
+      - 10.96.0.10
+    # DNS-over-HTTPS upstreams (optional, for external resolution):
+    # external:
+    #   - https://1.1.1.1/dns-query
+    #   - https://8.8.8.8/dns-query
+
+  # Country TLD blocking. Each 2-letter code maps to that country's TLDs.
+  # Supported: RU (.ru, .su, .рф), CN (.cn, .中国, .中國), IR (.ir), KP (.kp), BY (.by)
+  blockCountries:
+    - RU
+    - CN
+
+  # Maintained blocklists (fetched and refreshed periodically by Blocky).
+  # Each key is a named group; all groups are applied to every client.
+  denylists:
+    threats:
+      - https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/tif.txt
+    malware:
+      - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+    # oisd:
+    #   - https://big.oisd.nl/domainswildcard
+
+  # Domains that are never blocked (overrides all denylists).
+  allowlists: []
+    # - "api.openai.com"
+    # - "api.anthropic.com"
+    # - "*.slack.com"
+
+  # Query logging. Blocked queries are logged to container stdout.
+  queryLog:
+    enabled: true
+    # Log type: console (stdout) or csv.
+    type: console
+    # What to log: "blocked" (only blocked queries) or "all" (every query).
+    logLevel: blocked
+
+  # Prometheus metrics endpoint on :4000/metrics.
+  metrics:
+    enabled: false
+
+  # Escape hatch: provide a complete Blocky config.yml. When set, all other
+  # egressFilter settings (except image, replicas, resources, securityContext)
+  # are ignored and this is rendered verbatim.
+  customConfig: ""
 
 # ------------------------------------------------------------------------------
 # Diagnostics CronJob
