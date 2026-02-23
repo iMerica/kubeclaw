@@ -168,6 +168,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "kubeclaw.litellmMasterkeySecretName" . }}
                   key: {{ include "kubeclaw.litellmMasterkeySecretKey" . }}
+            - name: OPENAI_API_BASE
+              value: {{ include "kubeclaw.litellmBaseUrl" . | quote }}
             {{- end }}
           envFrom:
             - secretRef:
