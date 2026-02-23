@@ -220,14 +220,14 @@ ingress:
 # When enabled, restricts inbound traffic to the Ingress controller namespace.
 # ------------------------------------------------------------------------------
 networkPolicy:
-  enabled: false
+  enabled: true
   # Labels that identify the Ingress controller namespace.
   # Used to build the ingress-from-ingress-controller NetworkPolicy rule.
   ingressControllerNamespaceSelector:
     kubernetes.io/metadata.name: ingress-nginx
   # Allow all egress (OSS default). Set false to enable egress scaffolding.
   egress:
-    allowAll: true
+    allowAll: false
 
 # ------------------------------------------------------------------------------
 # Chromium Deployment (remote CDP)
@@ -361,7 +361,27 @@ egressFilter:
   # Escape hatch: provide a complete Blocky config.yml. When set, all other
   # egressFilter settings (except image, replicas, resources, securityContext)
   # are ignored and this is rendered verbatim.
-  customConfig: ""
+  customConfig: |
+    upstream:
+      default:
+        - 10.96.0.10
+    blocking:
+      blackLists:
+        blockAll:
+          - |
+            *
+      whiteLists:
+        blockAll:
+          - api.github.com
+          - github.com
+          - slack.com
+          - wss-primary.slack.com
+          - gmail.googleapis.com
+          - oauth2.googleapis.com
+          - accounts.google.com
+      clientGroupsBlock:
+        default:
+          - blockAll
 
 # ------------------------------------------------------------------------------
 # Diagnostics CronJob
@@ -526,6 +546,17 @@ litellm:
   # Redis subchart toggle. Enable for semantic caching.
   redis:
     enabled: false
+
+  # Security context for the LiteLLM proxy container.
+  # readOnlyRootFilesystem=true is safe: the upstream chart detects this flag
+  # and automatically mounts emptyDir volumes for /tmp, /.cache, and /.npm so
+  # prisma and other tools can still write at runtime.
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
 
   # Resources for the LiteLLM proxy container.
   resources:

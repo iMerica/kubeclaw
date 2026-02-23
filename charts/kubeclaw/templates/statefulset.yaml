@@ -284,14 +284,21 @@ spec:
           # and carries no extra risk in userspace networking mode (no host
           # network access, no kernel bypass).
           # runAsNonRoot: false overrides the pod-level securityContext.
+          # readOnlyRootFilesystem is safe because TS_STATE_DIR points to /tmp
+          # (the shared emptyDir), so no writes to the root FS are needed.
           securityContext:
             runAsUser: 0
             runAsGroup: 0
             runAsNonRoot: false
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           {{- else }}
+          # Kernel networking mode: requires NET_ADMIN and runs as root.
+          # readOnlyRootFilesystem is safe because TS_STATE_DIR points to /tmp.
           securityContext:
             runAsUser: 0
+            runAsNonRoot: false
+            readOnlyRootFilesystem: true
             capabilities:
               add:
                 - NET_ADMIN
