@@ -1,4 +1,20 @@
 {{/*
+Validate required secrets when features are enabled.
+*/}}
+{{- define "kubeclaw.validateValues" -}}
+{{- if .Values.tailscale.ssh.enabled }}
+  {{- if and (not .Values.tailscale.ssh.authKey) (not .Values.tailscale.ssh.authKeySecretName) }}
+    {{- fail "tailscale.ssh.enabled is true but neither tailscale.ssh.authKey nor tailscale.ssh.authKeySecretName is set" }}
+  {{- end }}
+{{- end }}
+{{- if .Values.litellm.enabled }}
+  {{- if and (not .Values.litellm.masterkey) (not .Values.litellm.masterkeySecretName) }}
+    {{- fail "litellm.enabled is true but neither litellm.masterkey nor litellm.masterkeySecretName is set" }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
 Expand the name of the chart.
 */}}
 {{- define "kubeclaw.name" -}}
