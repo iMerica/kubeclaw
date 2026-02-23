@@ -62,6 +62,8 @@ jobs:
           output=$(helm template openclaw charts/kubeclaw \
             --set replicaCount=2 \
             --set secret.data.OPENCLAW_GATEWAY_TOKEN=test \
+            --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.authKey=tskey-auth-example \
             2>&1)
           exit_code=$?
           set -e
@@ -78,6 +80,8 @@ jobs:
           helm template openclaw charts/kubeclaw \
             --set secret.create=true \
             --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
+            --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.authKey=tskey-auth-example \
             > /tmp/openclaw-render.yaml
           echo "Rendered YAML:"
           cat /tmp/openclaw-render.yaml
@@ -95,6 +99,7 @@ jobs:
             --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
             --set litellm.enabled=true \
             --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.authKey=tskey-auth-example \
             > /tmp/openclaw-litellm-render.yaml
           echo "Rendered YAML (LiteLLM enabled):"
           cat /tmp/openclaw-litellm-render.yaml
@@ -109,6 +114,8 @@ jobs:
             --set secret.create=true \
             --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
             --set egressFilter.enabled=true \
+            --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.authKey=tskey-auth-example \
             > /tmp/openclaw-egress-filter-render.yaml
           echo "Verifying dnsPolicy: None is present..."
           grep -q "dnsPolicy: None" /tmp/openclaw-egress-filter-render.yaml || \
@@ -193,6 +200,8 @@ jobs:
           helm template openclaw charts/kubeclaw \
             --set secret.create=true \
             --set secret.data.OPENCLAW_GATEWAY_TOKEN=scan-token \
+            --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.authKey=tskey-auth-example \
             > "$GITHUB_WORKSPACE/rendered.yaml"
 
       - name: Kubeconform — validate manifests against K8s schemas

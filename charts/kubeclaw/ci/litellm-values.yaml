@@ -12,6 +12,10 @@ config:
       gateway: { mode: "local" }
     }
 
+tailscale:
+  ssh:
+    authKey: tskey-auth-example
+
 litellm:
   enabled: true
   masterkey: sk-ci-test-key
