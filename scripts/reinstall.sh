@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
 # Destroys and reinstalls the kubeclaw Helm chart.
-# Just run: ./scripts/restart.sh
+# WARNING: This deletes all PVCs and state. Data will be lost.
+# Just run: ./scripts/reinstall.sh
 #
 # Inherits all configuration from destroy.sh and install.sh.
 # Override any variable via environment:
-#   NAMESPACE=prod ./scripts/restart.sh
+#   NAMESPACE=prod ./scripts/reinstall.sh
 #
 set -euo pipefail
 
