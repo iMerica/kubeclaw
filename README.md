@@ -35,12 +35,7 @@ helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)" \
   --set secret.data.OPENAI_API_KEY="sk-..." \
   --set tailscale.ssh.authKey="tskey-auth-..." \
-  --set litellm.enabled=true \
   --set litellm.masterkey="sk-$(openssl rand -hex 16)"
-
-# Wait for the pod, then open the UI
-kubectl -n kubeclaw rollout status statefulset/kubeclaw-gateway
-kubectl -n kubeclaw port-forward svc/kubeclaw-gateway 18789:18789
 ```
 
 ## Architecture
