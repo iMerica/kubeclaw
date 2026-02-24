@@ -1,0 +1,40 @@
+{{- if .Values.gatewayAPI.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ include "kubeclaw.gatewayAPIName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+  {{- with .Values.gatewayAPI.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  gatewayClassName: {{ .Values.gatewayAPI.gatewayClassName | quote }}
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      {{- with .Values.gatewayAPI.host }}
+      hostname: {{ . | quote }}
+      {{- end }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+    {{- if .Values.gatewayAPI.tls.certificateRefs }}
+    - name: https
+      protocol: HTTPS
+      port: 443
+      {{- with .Values.gatewayAPI.host }}
+      hostname: {{ . | quote }}
+      {{- end }}
+      tls:
+        mode: Terminate
+        certificateRefs:
+          {{- toYaml .Values.gatewayAPI.tls.certificateRefs | nindent 10 }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+    {{- end }}
+{{- end }}

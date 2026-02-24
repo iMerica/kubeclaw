@@ -215,6 +215,32 @@ ingress:
   #     - openclaw.example.com
 
 # ------------------------------------------------------------------------------
+# Gateway API (gateway.networking.k8s.io/v1)
+# Alternative to Ingress for clusters with a Gateway API controller (Envoy
+# Gateway, Istio, Cilium, etc.). Creates a single Gateway resource with
+# path-based HTTPRoutes for all HTTP-accessible services.
+# Mutually exclusive with ingress.enabled in intent, though both can coexist.
+# ------------------------------------------------------------------------------
+gatewayAPI:
+  enabled: false
+  # Gateway class — must match your cluster's GatewayClass (e.g. envoy, istio, cilium)
+  gatewayClassName: ""
+  # Hostname for all routes
+  host: openclaw.example.com
+  # Route path prefixes (customize if needed)
+  routes:
+    openclaw: /
+    o11y: /o11y
+    litellm: /litellm
+    filtering: /filtering
+  # TLS configuration
+  tls: {}
+  #   certificateRefs:
+  #     - name: openclaw-tls
+  # Optional annotations on the Gateway resource
+  annotations: {}
+
+# ------------------------------------------------------------------------------
 # NetworkPolicy
 # Default off to avoid breaking clusters without a NetworkPolicy-capable CNI.
 # When enabled, restricts inbound traffic to the Ingress controller namespace.

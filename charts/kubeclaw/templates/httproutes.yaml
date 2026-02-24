@@ -1,0 +1,124 @@
+{{- if .Values.gatewayAPI.enabled }}
+{{- $gwName := include "kubeclaw.gatewayAPIName" . }}
+{{- $host := .Values.gatewayAPI.host }}
+---
+# OpenClaw Gateway — catch-all route
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-openclaw
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ $gwName }}
+  {{- with $host }}
+  hostnames:
+    - {{ . | quote }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.gatewayAPI.routes.openclaw | quote }}
+      backendRefs:
+        - name: {{ include "kubeclaw.gatewayName" . }}
+          port: {{ .Values.service.port }}
+{{- if .Values.observability.enabled }}
+---
+# HyperDX observability UI
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-o11y
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ $gwName }}
+  {{- with $host }}
+  hostnames:
+    - {{ . | quote }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.gatewayAPI.routes.o11y | quote }}
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: {{ .Release.Name }}-clickstack-hyperdx
+          port: 8080
+{{- end }}
+{{- if .Values.litellm.enabled }}
+---
+# LiteLLM proxy dashboard + API
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-litellm
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ $gwName }}
+  {{- with $host }}
+  hostnames:
+    - {{ . | quote }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.gatewayAPI.routes.litellm | quote }}
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: {{ .Release.Name }}-litellm
+          port: 4000
+{{- end }}
+{{- if .Values.egressFilter.enabled }}
+---
+# Blocky DNS filter API/metrics
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-filtering
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ $gwName }}
+  {{- with $host }}
+  hostnames:
+    - {{ . | quote }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ .Values.gatewayAPI.routes.filtering | quote }}
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: {{ include "kubeclaw.egressFilterName" . }}
+          port: 4000
+{{- end }}
+{{- end }}

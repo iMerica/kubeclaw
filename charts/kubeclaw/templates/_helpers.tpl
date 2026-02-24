@@ -300,3 +300,10 @@ Checksum annotation for the OTel Cluster Collector ConfigMap.
 {{- define "kubeclaw.clusterCollectorConfigChecksum" -}}
 checksum/otel-cluster-config: {{ include (print $.Template.BasePath "/otel-cluster-configmap.yaml") . | sha256sum }}
 {{- end }}
+
+{{/*
+Name of the Gateway API Gateway resource.
+*/}}
+{{- define "kubeclaw.gatewayAPIName" -}}
+{{- printf "%s-gateway-api" (include "kubeclaw.fullname" .) }}
+{{- end }}
