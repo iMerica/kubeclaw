@@ -152,6 +152,11 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 | `egressFilter.allowlists` | `[]` | Domains that are never blocked (overrides denylists) |
 | `networkPolicy.enabled` | `false` | Enable NetworkPolicy |
 | `diagnostics.enabled` | `false` | Enable diagnostics CronJob |
+| `observability.enabled` | `true` | Deploy the ClickStack (ClickHouse + HyperDX + OTel Collector) and KubeClaw OTel collectors |
+| `observability.gateway.enabled` | `true` | Inject OTEL env vars into the Gateway for application-level trace/log export |
+| `observability.nodeCollector.enabled` | `true` | DaemonSet collecting pod logs and host metrics from every node |
+| `observability.clusterCollector.enabled` | `true` | Deployment collecting Kubernetes events and cluster-level metrics |
+| `observability.ingress.enabled` | `false` | Expose the HyperDX UI via Ingress |
 | `litellm.enabled` | `true` | Deploy LiteLLM proxy alongside the Gateway |
 | `litellm.masterkey` | `""` | LiteLLM master key (required when enabled, must start with `sk-`) |
 | `litellm.proxy_config` | *(see values.yaml)* | LiteLLM `config.yaml` contents as a YAML object |
