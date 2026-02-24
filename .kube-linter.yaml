@@ -1,0 +1,19 @@
+# KubeLinter configuration for kubeclaw.
+#
+# This file intentionally runs only the default checks (no extras).
+#
+# The two remaining intentional lint exceptions are handled elsewhere:
+#
+# 1. Helm test hook Pods (openclaw-litellm-test-connection, -env-test):
+#    The upstream litellm subchart generates these with plain "busybox" and no
+#    securityContext or resource limits. They cannot be modified here.
+#    Suppressed by rendering with `helm template --skip-tests` in CI.
+#
+# 2. Tailscale SSH sidecar runs as root (run-as-non-root):
+#    The tailscale/tailscale image has no /etc/passwd entry for uid 1000, so
+#    SSH logins fail with "failed to look up 1000". Root is always resolvable
+#    and carries no extra risk in userspace-networking mode.
+#    Suppressed via ignore-check.kube-linter.io/run-as-non-root annotation on
+#    the StatefulSet metadata (only when tailscale.ssh.enabled=true).
+checks:
+  addAllBuiltIn: false

@@ -244,7 +244,12 @@ jobs:
 
       - name: Render chart for scanning
         run: |
+          # --skip-tests omits Helm test hook Pods (e.g. litellm-test-connection)
+          # from the rendered output. Those upstream Pods use plain "busybox" with
+          # no securityContext or resource limits and would otherwise generate
+          # false-positive kube-linter errors that we cannot fix upstream.
           helm template openclaw charts/kubeclaw \
+            --skip-tests \
             --set secret.create=true \
             --set secret.data.OPENCLAW_GATEWAY_TOKEN=scan-token \
             --set litellm.masterkey=sk-test-key \
@@ -265,6 +270,7 @@ jobs:
         uses: stackrox/kube-linter-action@v1
         with:
           directory: "${{ github.workspace }}/rendered.yaml"
+          config: "${{ github.workspace }}/.kube-linter.yaml"
 
       - name: Trivy — scan for misconfigurations (HIGH/CRITICAL)
         uses: aquasecurity/trivy-action@master

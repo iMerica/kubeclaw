@@ -6,6 +6,14 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "kubeclaw.labels" . | nindent 4 }}
+  {{- if .Values.tailscale.ssh.enabled }}
+  annotations:
+    # The Tailscale SSH sidecar intentionally runs as root (uid 0) so Tailscale
+    # SSH can resolve a login name from /etc/passwd. uid 1000 has no entry in
+    # the image's passwd file and SSH logins fail with "failed to look up 1000".
+    # Running as root carries no extra risk in userspace-networking mode.
+    ignore-check.kube-linter.io/run-as-non-root: "tailscale sidecar requires root for SSH username resolution"
+  {{- end }}
 spec:
   # replicas is hard-locked to 1. The Gateway is a stateful singleton that owns
   # an exclusive WebSocket listener and all session/channel state. Running multiple
