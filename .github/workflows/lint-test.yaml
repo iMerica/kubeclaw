@@ -94,7 +94,7 @@ jobs:
 
       # -----------------------------------------------------------------------
       # Default render — all on-by-default features are active here:
-      # chromium, egressFilter, litellm, tailscale.expose, tailscale.ssh
+      # chromium, egressFilter, litellm, tailscale.expose, tailscale.ssh, observability
       # -----------------------------------------------------------------------
       - name: Dry-run render (default values)
         run: |
@@ -124,6 +124,16 @@ jobs:
           grep -q "name: tailscale" /tmp/openclaw-render.yaml || \
             { echo "FAIL: Tailscale sidecar not found"; exit 1; }
           echo "PASS: Tailscale sidecar found"
+          echo "Verifying OTel resources present (observability on by default)..."
+          grep -q "otel-node" /tmp/openclaw-render.yaml || \
+            { echo "FAIL: OTel Node Collector not found"; exit 1; }
+          echo "PASS: OTel Node Collector found"
+          grep -q "otel-cluster" /tmp/openclaw-render.yaml || \
+            { echo "FAIL: OTel Cluster Collector not found"; exit 1; }
+          echo "PASS: OTel Cluster Collector found"
+          grep -q "OTEL_EXPORTER_OTLP_ENDPOINT" /tmp/openclaw-render.yaml || \
+            { echo "FAIL: OTEL_EXPORTER_OTLP_ENDPOINT not found"; exit 1; }
+          echo "PASS: OTEL_EXPORTER_OTLP_ENDPOINT found"
 
       # -----------------------------------------------------------------------
       # Disabled-state renders — verify on-by-default features can be turned off
@@ -189,6 +199,23 @@ jobs:
           ! grep -q "name: tailscale" /tmp/openclaw-no-ts-ssh.yaml || \
             { echo "FAIL: Tailscale sidecar present when disabled"; exit 1; }
           echo "PASS: Tailscale sidecar absent"
+
+      # -----------------------------------------------------------------------
+      # Observability renders
+      # -----------------------------------------------------------------------
+      - name: Dry-run render (observability disabled)
+        run: |
+          helm template openclaw charts/kubeclaw \
+            --set secret.create=true \
+            --set secret.data.OPENCLAW_GATEWAY_TOKEN=test-token \
+            --set litellm.masterkey=sk-test-key \
+            --set tailscale.ssh.authKey=tskey-auth-example \
+            --set observability.enabled=false \
+            > /tmp/openclaw-no-o11y.yaml
+          echo "Verifying no OTel resources when observability disabled..."
+          ! grep -q "otel-node\|otel-cluster\|OTEL_EXPORTER_OTLP_ENDPOINT" /tmp/openclaw-no-o11y.yaml || \
+            { echo "FAIL: OTel resources leaked when observability disabled"; exit 1; }
+          echo "PASS: No OTel resources leaked"
 
   install:
     name: Install Test (kind)

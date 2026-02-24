@@ -62,6 +62,16 @@ spec:
         - protocol: TCP
           port: 4000
     {{- end }}
+    {{- if .Values.observability.enabled }}
+    # Allow egress to the OTel Collector (ClickStack) on OTLP ports.
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+    {{- end }}
     # Example: restrict to specific CIDRs only.
     # - to:
     #     - ipBlock:

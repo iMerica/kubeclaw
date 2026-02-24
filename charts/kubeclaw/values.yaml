@@ -459,6 +459,76 @@ tailscale:
         memory: 128Mi
 
 # ------------------------------------------------------------------------------
+# Observability — Wide Events (ClickStack)
+# Deploys ClickHouse + HyperDX + OTel Collector (ClickStack subchart) plus
+# KubeClaw-specific OTel collectors (DaemonSet for node logs/metrics,
+# Deployment for k8s events/cluster metrics). Disabled by default.
+# ------------------------------------------------------------------------------
+observability:
+  # Master toggle — enables the ClickStack subchart and OTel collectors.
+  enabled: true
+
+  # Gateway OTEL integration — injects OTEL env vars into the Gateway container
+  # so application-level traces and logs are exported to the OTel Collector.
+  gateway:
+    enabled: true
+    # OTEL service name reported by the Gateway.
+    serviceName: openclaw-gateway
+    # Additional OTEL resource attributes (comma-separated key=value pairs).
+    # These are appended to the auto-detected k8s attributes.
+    resourceAttributes: ""
+
+  # Node Collector — DaemonSet that collects pod logs and host metrics from
+  # every node and forwards them to the ClickStack OTel Collector gateway.
+  nodeCollector:
+    enabled: true
+    image:
+      repository: otel/opentelemetry-collector-contrib
+      tag: "0.120.0"
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+    # Tolerations for the DaemonSet. Default: schedule on all nodes.
+    tolerations:
+      - operator: Exists
+
+  # Cluster Collector — single-replica Deployment that collects Kubernetes
+  # events and cluster-level metrics.
+  clusterCollector:
+    enabled: true
+    image:
+      repository: otel/opentelemetry-collector-contrib
+      tag: "0.120.0"
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+  # Optional Ingress for the HyperDX UI.
+  ingress:
+    enabled: false
+    className: nginx
+    annotations: {}
+    host: hyperdx.example.com
+    tls: []
+    # - secretName: hyperdx-tls
+    #   hosts:
+    #     - hyperdx.example.com
+
+# ClickStack subchart overrides (only used when observability.enabled=true).
+# See https://github.com/clickhouse/ClickStack-helm-charts for full reference.
+clickstack: {}
+
+# ------------------------------------------------------------------------------
 # LiteLLM Proxy (optional subchart)
 # When enabled, deploys a LiteLLM proxy alongside the Gateway and injects
 # OPENAI_API_BASE into the Gateway container so all LLM SDK calls route through

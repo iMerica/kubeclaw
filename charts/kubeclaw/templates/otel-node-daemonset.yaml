@@ -1,0 +1,82 @@
+{{- if and .Values.observability.enabled .Values.observability.nodeCollector.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "kubeclaw.nodeCollectorName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    {{- include "kubeclaw.nodeCollectorSelectorLabels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "kubeclaw.nodeCollectorSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubeclaw.nodeCollectorSelectorLabels" . | nindent 8 }}
+      annotations:
+        {{- include "kubeclaw.nodeCollectorConfigChecksum" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "kubeclaw.nodeCollectorName" . }}
+      {{- with .Values.observability.nodeCollector.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: otel-collector
+          image: {{ .Values.observability.nodeCollector.image.repository }}:{{ .Values.observability.nodeCollector.image.tag }}
+          imagePullPolicy: {{ .Values.observability.nodeCollector.image.pullPolicy }}
+          args:
+            - --config=/etc/otel/otel-config.yaml
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          ports:
+            - name: health
+              containerPort: 13133
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            periodSeconds: 10
+            failureThreshold: 3
+          # Runs as root to read /var/log/pods on the host.
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            readOnlyRootFilesystem: true
+          resources:
+            {{- toYaml .Values.observability.nodeCollector.resources | nindent 12 }}
+          volumeMounts:
+            - name: otel-config
+              mountPath: /etc/otel
+              readOnly: true
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+      volumes:
+        - name: otel-config
+          configMap:
+            name: {{ include "kubeclaw.nodeCollectorName" . }}
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+            type: ""
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+            type: ""
+{{- end }}

@@ -62,6 +62,17 @@ graph TB
             chrome[fa:fa-window-maximize Chromium :9222]
         end
 
+        subgraph clickstack ["ClickStack — Wide Events"]
+            otelgw[fa:fa-tower-broadcast OTel Collector]
+            clickhouse[(fa:fa-database ClickHouse)]
+            hyperdx[fa:fa-chart-line HyperDX UI]
+            otelgw -->|write| clickhouse
+            hyperdx -->|query| clickhouse
+        end
+
+        otelnode[fa:fa-microchip OTel Node · DaemonSet]
+        otelcluster[fa:fa-cubes OTel Cluster · Deployment]
+
         svc[[fa:fa-diagram-project Gateway Service :18789]]
         chromesvc[[fa:fa-diagram-project Chromium Service :9222]]
         litellm[fa:fa-route LiteLLM Proxy :4000]
@@ -84,6 +95,9 @@ graph TB
     gw ---|state| pvc
     gw -->|outbound| msg
     litellm -->|HTTPS| llm
+    gw -->|OTLP| otelgw
+    otelnode -->|OTLP| otelgw
+    otelcluster -->|OTLP| otelgw
 ```
 
 ## What You Get
@@ -96,6 +110,7 @@ graph TB
 | **Split workspace volume** | Separate PVC for workspace via `persistence.splitVolumes` |
 | **Chromium Deployment** | Browser automation via standalone Deployment + ClusterIP Service on port 9222 (cluster-internal) |
 | **LiteLLM proxy subchart** | Per-agent virtual keys, budget caps, model fallback routing, and semantic caching |
+| **Wide Events observability** | Logs, metrics, traces, and Kubernetes events unified in [ClickHouse](https://clickhouse.com/) via the [Wide Events](https://charity.wtf/2019/02/05/logs-vs-structured-events/) pattern — no separate logging, metrics, and tracing backends. Ships with [HyperDX](https://hyperdx.io/) for search and dashboards, and [OpenTelemetry](https://opentelemetry.io/) collectors for zero-config cluster-wide collection |
 | **Egress DNS filter** | NextDNS-style DNS filtering via [Blocky](https://0xerr0r.github.io/blocky/) — threat blocklists (HaGeZi, StevenBlack), country TLD blocking, and query logging |
 | **NetworkPolicy** | Scaffolding for locking down traffic |
 | **Diagnostics CronJob** | Periodic `openclaw doctor` runs |

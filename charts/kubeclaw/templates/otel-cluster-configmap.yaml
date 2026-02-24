@@ -1,0 +1,55 @@
+{{- if and .Values.observability.enabled .Values.observability.clusterCollector.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubeclaw.clusterCollectorName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    {{- include "kubeclaw.clusterCollectorSelectorLabels" . | nindent 4 }}
+data:
+  otel-config.yaml: |
+    receivers:
+      k8s_events:
+        auth_type: serviceAccount
+      k8s_cluster:
+        auth_type: serviceAccount
+        collection_interval: 30s
+
+    processors:
+      batch:
+        send_batch_size: 1024
+        timeout: 5s
+      k8sattributes:
+        auth_type: serviceAccount
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.namespace.name
+            - k8s.node.name
+            - k8s.deployment.name
+            - k8s.statefulset.name
+            - k8s.daemonset.name
+
+    exporters:
+      otlp:
+        endpoint: {{ include "kubeclaw.otelGatewayGrpcEndpoint" . | quote }}
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        logs:
+          receivers: [k8s_events]
+          processors: [k8sattributes, batch]
+          exporters: [otlp]
+        metrics:
+          receivers: [k8s_cluster]
+          processors: [k8sattributes, batch]
+          exporters: [otlp]
+      telemetry:
+        logs:
+          level: info
+      extensions: []
+{{- end }}

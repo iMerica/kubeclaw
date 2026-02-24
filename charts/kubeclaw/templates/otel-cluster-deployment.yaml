@@ -1,0 +1,68 @@
+{{- if and .Values.observability.enabled .Values.observability.clusterCollector.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubeclaw.clusterCollectorName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    {{- include "kubeclaw.clusterCollectorSelectorLabels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "kubeclaw.clusterCollectorSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubeclaw.clusterCollectorSelectorLabels" . | nindent 8 }}
+      annotations:
+        {{- include "kubeclaw.clusterCollectorConfigChecksum" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "kubeclaw.clusterCollectorName" . }}
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+      containers:
+        - name: otel-collector
+          image: {{ .Values.observability.clusterCollector.image.repository }}:{{ .Values.observability.clusterCollector.image.tag }}
+          imagePullPolicy: {{ .Values.observability.clusterCollector.image.pullPolicy }}
+          args:
+            - --config=/etc/otel/otel-config.yaml
+          ports:
+            - name: health
+              containerPort: 13133
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            {{- toYaml .Values.observability.clusterCollector.resources | nindent 12 }}
+          volumeMounts:
+            - name: otel-config
+              mountPath: /etc/otel
+              readOnly: true
+      volumes:
+        - name: otel-config
+          configMap:
+            name: {{ include "kubeclaw.clusterCollectorName" . }}
+{{- end }}

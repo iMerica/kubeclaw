@@ -237,3 +237,66 @@ Triggers rollout of the egress-filter Deployment when config changes.
 checksum/blocky-config: {{ include (print $.Template.BasePath "/egress-filter-configmap.yaml") . | sha256sum }}
 {{- end }}
 {{- end }}
+
+{{/*
+Name of the OTel Node Collector DaemonSet.
+*/}}
+{{- define "kubeclaw.nodeCollectorName" -}}
+{{- printf "%s-otel-node" (include "kubeclaw.fullname" .) }}
+{{- end }}
+
+{{/*
+Selector labels for the OTel Node Collector DaemonSet.
+*/}}
+{{- define "kubeclaw.nodeCollectorSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "kubeclaw.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: otel-node-collector
+{{- end }}
+
+{{/*
+Name of the OTel Cluster Collector Deployment.
+*/}}
+{{- define "kubeclaw.clusterCollectorName" -}}
+{{- printf "%s-otel-cluster" (include "kubeclaw.fullname" .) }}
+{{- end }}
+
+{{/*
+Selector labels for the OTel Cluster Collector Deployment.
+*/}}
+{{- define "kubeclaw.clusterCollectorSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "kubeclaw.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: otel-cluster-collector
+{{- end }}
+
+{{/*
+OTel Collector gateway endpoint (ClickStack subchart).
+The ClickStack subchart deploys an OTel Collector with a Service named
+"<release>-clickstack-otel-collector". OTLP HTTP is on port 4318.
+*/}}
+{{- define "kubeclaw.otelGatewayEndpoint" -}}
+{{- printf "http://%s-clickstack-otel-collector:4318" .Release.Name }}
+{{- end }}
+
+{{/*
+OTel Collector gateway gRPC endpoint (ClickStack subchart).
+OTLP gRPC is on port 4317.
+*/}}
+{{- define "kubeclaw.otelGatewayGrpcEndpoint" -}}
+{{- printf "%s-clickstack-otel-collector:4317" .Release.Name }}
+{{- end }}
+
+{{/*
+Checksum annotation for the OTel Node Collector ConfigMap.
+*/}}
+{{- define "kubeclaw.nodeCollectorConfigChecksum" -}}
+checksum/otel-node-config: {{ include (print $.Template.BasePath "/otel-node-configmap.yaml") . | sha256sum }}
+{{- end }}
+
+{{/*
+Checksum annotation for the OTel Cluster Collector ConfigMap.
+*/}}
+{{- define "kubeclaw.clusterCollectorConfigChecksum" -}}
+checksum/otel-cluster-config: {{ include (print $.Template.BasePath "/otel-cluster-configmap.yaml") . | sha256sum }}
+{{- end }}

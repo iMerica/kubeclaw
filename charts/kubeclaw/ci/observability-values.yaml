@@ -1,0 +1,25 @@
+# CI test values — observability enabled.
+# Used by chart-testing (ct install) and CI dry-run steps.
+secret:
+  create: true
+  data:
+    OPENCLAW_GATEWAY_TOKEN: "ci-test-token"
+
+litellm:
+  masterkey: "sk-ci-test-key"
+
+tailscale:
+  ssh:
+    authKey: "tskey-auth-ci-example"
+
+observability:
+  enabled: true
+  gateway:
+    enabled: true
+    serviceName: openclaw-gateway
+  nodeCollector:
+    enabled: true
+  clusterCollector:
+    enabled: true
+  ingress:
+    enabled: false
