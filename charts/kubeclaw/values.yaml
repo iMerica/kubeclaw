@@ -365,6 +365,9 @@ egressFilter:
     upstream:
       default:
         - 10.96.0.10
+    ports:
+      dns: 5353
+      http: 4000
     blocking:
       blackLists:
         blockAll:
@@ -526,7 +529,11 @@ observability:
 
 # ClickStack subchart overrides (only used when observability.enabled=true).
 # See https://github.com/clickhouse/ClickStack-helm-charts for full reference.
-clickstack: {}
+clickstack:
+  global:
+    # The upstream default is "local-path", which does not exist on most clusters.
+    # Empty string uses the cluster's default StorageClass.
+    storageClassName: ""
 
 # ------------------------------------------------------------------------------
 # LiteLLM Proxy (optional subchart)

@@ -38,7 +38,12 @@ data:
         tls:
           insecure: true
 
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+
     service:
+      extensions: [health_check]
       pipelines:
         logs:
           receivers: [k8s_events]
@@ -51,5 +56,4 @@ data:
       telemetry:
         logs:
           level: info
-      extensions: []
 {{- end }}
