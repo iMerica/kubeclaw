@@ -28,8 +28,6 @@ Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.
 
 ---
 
-> **Alpha** — APIs and value keys may change between minor releases. Pin `--version` in CI.
-
 ## Prerequisites
 
 - **Helm 3.12+** and **Kubernetes 1.25+**
