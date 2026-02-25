@@ -33,7 +33,39 @@ spec:
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
+            runAsGroup: 1000
             fsGroup: 1000
+          initContainers:
+            # Fix PVC directory permissions. Many volume drivers mount with
+            # root ownership, and the Gateway binary attempts chmod 700 on
+            # ~/.openclaw at startup. Without this the diagnostics container
+            # hits EPERM.
+            - name: fix-permissions
+              image: {{ include "kubeclaw.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  chmod 700 /data || true
+              volumeMounts:
+                - name: {{ include "kubeclaw.statePvcName" . }}
+                  mountPath: /data
+                  {{- if .Values.persistence.splitVolumes }}
+                  subPath: state
+                  {{- end }}
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 100m
+                  memory: 32Mi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                allowPrivilegeEscalation: false
           containers:
             - name: diagnostics
               image: {{ include "kubeclaw.image" . }}
@@ -60,6 +92,8 @@ spec:
                 - name: {{ include "kubeclaw.workspacePvcName" . }}
                   mountPath: /home/node/.openclaw/workspace
                 {{- end }}
+                - name: tmp
+                  mountPath: /tmp
               resources:
                 {{- toYaml .Values.diagnostics.resources | nindent 16 }}
               securityContext:
@@ -83,4 +117,7 @@ spec:
               persistentVolumeClaim:
                 claimName: {{ include "kubeclaw.workspacePvcName" . }}-{{ include "kubeclaw.gatewayName" . }}-0
             {{- end }}
+            - name: tmp
+              emptyDir:
+                sizeLimit: 50Mi
 {{- end }}
