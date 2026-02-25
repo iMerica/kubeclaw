@@ -63,7 +63,13 @@ spec:
                 {{- toYaml .Values.diagnostics.resources | nindent 16 }}
               securityContext:
                 runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
                 allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
           # Reference existing PVCs created by the StatefulSet volumeClaimTemplates.
           # The PVC names are: <fullname>-state-<statefulset-pod-ordinal>
           # For a single-replica StatefulSet, pod ordinal is always 0.

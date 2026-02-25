@@ -190,6 +190,16 @@ Image pinning policy: each chart release is validated against a candidate image,
 | [Restore Runbook](docs/runbooks/restore.md) | Backup & recovery procedures |
 | [Full Documentation](https://kubeclaw.ai/docs) | Complete reference at kubeclaw.ai |
 
+## Community
+
+| | |
+|---|---|
+| [Vision](VISION.md) | Project direction and priorities |
+| [Contributing](CONTRIBUTING.md) | How to propose and ship changes |
+| [Security Policy](SECURITY.md) | Private vulnerability reporting process |
+| [Code of Conduct](CODE_OF_CONDUCT.md) | Community expectations |
+| [Support](SUPPORT.md) | Where to ask for help |
+
 ## KubeClaw Enterprise
 
 Need multi-tenancy, enterprise egress controls, SSO, policy-as-code, CSI-backed secrets, backup hooks, or signed OCI distribution? See [kubeclaw.ai](https://kubeclaw.ai).

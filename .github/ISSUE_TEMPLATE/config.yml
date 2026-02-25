@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability report
+    url: https://github.com/iMerica/kubeclaw/security/policy
+    about: Please report vulnerabilities privately via SECURITY.md
+  - name: Support guide
+    url: https://github.com/iMerica/kubeclaw/blob/master/SUPPORT.md
+    about: Where to ask usage and troubleshooting questions

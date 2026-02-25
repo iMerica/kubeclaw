@@ -1,0 +1,55 @@
+name: Feature request
+description: Suggest an improvement for KubeClaw OSS.
+title: "[feature] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the user problem first, then the proposed solution.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      placeholder: What operator/user problem are you trying to solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: What do you want to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: Any alternatives or workarounds you considered
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Security
+        - Observability
+        - Diagnostics
+        - Install/Upgrade UX
+        - Docs
+        - CI/Release
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Expected impact
+      placeholder: Reliability, security, operability, or UX improvements
+    validations:
+      required: true

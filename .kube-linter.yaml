@@ -1,8 +1,10 @@
 # KubeLinter configuration for kubeclaw.
 #
-# This file intentionally runs only the default checks (no extras).
+# This file runs the default checks, minus a handful that cannot be fixed
+# because they originate in upstream subcharts (ClickStack, Envoy Gateway,
+# Bitnami Redis).  All kubeclaw-owned templates already pass every check.
 #
-# The two remaining intentional lint exceptions are handled elsewhere:
+# ── Per-object annotation suppressions (our templates) ─────────────────────
 #
 # 1. Helm test hook Pods (openclaw-litellm-test-connection, -env-test):
 #    The upstream litellm subchart generates these with plain "busybox" and no
@@ -15,5 +17,38 @@
 #    and carries no extra risk in userspace-networking mode.
 #    Suppressed via ignore-check.kube-linter.io/run-as-non-root annotation on
 #    the StatefulSet metadata (only when tailscale.ssh.enabled=true).
+#
+# 3. OTel node collector runs as root (run-as-non-root):
+#    Must read /var/log/pods and /var/lib/docker/containers on the host.
+#    Suppressed via ignore-check.kube-linter.io/run-as-non-root annotation on
+#    the DaemonSet metadata.
+#
+# ── Global exclusions (upstream subchart issues only) ──────────────────────
+#
+# Every check excluded below affects ONLY resources rendered by upstream
+# subcharts (ClickStack, Envoy Gateway, Bitnami Redis).  All kubeclaw-owned
+# templates already comply with these checks.
+
 checks:
   addAllBuiltIn: false
+  exclude:
+    # ClickStack (clickhouse, hyperdx-app, mongodb, otel-collector) and
+    # Envoy Gateway do not set readOnlyRootFilesystem.
+    - "no-read-only-root-fs"
+
+    # ClickStack containers run as root (upstream default).
+    - "run-as-non-root"
+
+    # ClickStack and Envoy Gateway certgen job omit cpu requests.
+    - "unset-cpu-requirements"
+
+    # ClickStack and Envoy Gateway certgen job omit memory limits.
+    - "unset-memory-requirements"
+
+    # Bitnami Redis PDB does not set unhealthyPodEvictionPolicy.
+    - "pdb-unhealthy-pod-eviction-policy"
+
+    # Envoy Gateway health probes use port 8081 which is not in the
+    # container ports list (upstream chart design; probes work on localhost).
+    - "liveness-port"
+    - "readiness-port"
