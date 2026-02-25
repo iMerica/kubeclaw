@@ -1,6 +1,5 @@
 
 # KubeClaw Vision
-OpenClaw on Kubernetes for skeptics and perfectionists.
 
 
 KubeClaw is production-grade OpenClaw on Kubernetes.

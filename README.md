@@ -11,7 +11,6 @@
 
 <p align="center">
 Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.
-<br><strong>OpenClaw on Kubernetes for skeptics and perfectionists.</strong>
 </p>
 
 <p align="center">
@@ -27,6 +26,10 @@ Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.
 </p>
 
 ---
+
+## Why KubeClaw
+
+KubeClaw is OpenClaw with guardrails: secure defaults, pinned images, predictable upgrades, egress filtering, and batteries-included observability so production feels deterministic. Where OpenClaw can feel like a black box in prod, KubeClaw makes behavior visible and controllable by default: Wide Events (structured, high-cardinality events that subsume logs, metrics, and traces), deterministic image pinning, and a default-deny stance on outbound access via Blocky-backed egress controls with explicit allow/deny lists and query logging. The result is fewer trust gaps: what ran, what changed, what it called, and what it emitted are all auditable.
 
 ## Quick Start
 
