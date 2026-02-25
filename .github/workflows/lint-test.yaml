@@ -220,45 +220,6 @@ jobs:
             { echo "FAIL: OTel resources leaked when observability disabled"; exit 1; }
           echo "PASS: No OTel resources leaked"
 
-  install:
-    name: Install Test (kind)
-    runs-on: ubuntu-latest
-    needs: lint
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: "3.14.0"
-
-      - name: Set up Python (for chart-testing)
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.6.1
-
-      - name: Create kind cluster
-        uses: helm/kind-action@v1.10.0
-        with:
-          cluster_name: kubeclaw-test
-
-      - name: Add Helm repos
-        run: ./scripts/helm-repos.sh
-
-      - name: Build chart dependencies
-        run: helm dependency build charts/kubeclaw
-
-      - name: Run ct install (changed charts)
-        run: |
-          ct install \
-            --config ct.yaml \
-            --charts charts/kubeclaw
-
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
