@@ -7,8 +7,8 @@ entries:
         fingerprint: <GPG_FINGERPRINT>
         url: https://kubeclaw.dev/gpg.asc
     apiVersion: v2
-    appVersion: 0.1.0
-    created: "2026-02-25T03:59:03.043243656Z"
+    appVersion: 0.1.1
+    created: "2026-02-25T05:52:20.122630857Z"
     dependencies:
     - alias: litellm
       condition: litellm.enabled
@@ -25,11 +25,10 @@ entries:
       name: gateway-helm
       repository: oci://docker.io/envoyproxy
       version: v1.3.0
-    description: 'Helm chart for deploying a single OpenClaw AI automation Gateway
-      on Kubernetes. Provides a stateful single-replica Gateway with durable PVC-backed
-      storage, WebSocket-capable Ingress, health probes, optional Chromium sidecar,
-      and GitOps-friendly desired-config management via initContainer. '
-    digest: 7eaec96f9739799e5a52a1b9620c2a7d7109fc8dbf703be087ca16c52ee1c927
+    description: 'KubeClaw is production-grade OpenClaw on Kubernetes. It is designed
+      for operators who want a secure, observable, and reliable deployment path without
+      giving up flexibility. '
+    digest: ae1f0a19aa778189d9ae0758778a336741499b6872d729cf5582e9db8adba641
     home: https://github.com/iMerica/kubeclaw
     keywords:
     - kubeclaw
@@ -46,6 +45,6 @@ entries:
     - https://github.com/iMerica/kubeclaw
     type: application
     urls:
-    - https://iMerica.github.io/kubeclaw/kubeclaw-0.1.0.tgz
-    version: 0.1.0
-generated: "2026-02-25T03:59:03.017555255Z"
+    - https://iMerica.github.io/kubeclaw/kubeclaw-0.1.1.tgz
+    version: 0.1.1
+generated: "2026-02-25T05:52:20.097638443Z"
