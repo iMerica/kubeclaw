@@ -395,7 +395,7 @@ egressFilter:
 
   # Prometheus metrics endpoint on :4000/metrics.
   metrics:
-    enabled: false
+    enabled: true
 
   # Escape hatch: provide a complete Blocky config.yml. When set, all other
   # egressFilter settings (except image, replicas, resources, securityContext)
@@ -431,7 +431,7 @@ egressFilter:
 # Output is written to pod logs (stream to your logging stack).
 # ------------------------------------------------------------------------------
 diagnostics:
-  enabled: false
+  enabled: true
   # Cron schedule (default: hourly).
   schedule: "0 * * * *"
   # Concurrency policy: Forbid prevents overlapping runs.
@@ -454,7 +454,7 @@ diagnostics:
 #            port 18789 onto your tailnet (no public ingress needed).
 #   ssh    — adds a Tailscale sidecar container with --ssh so operators can
 #            SSH into the pod from any enrolled tailnet device.
-# Both are disabled by default.
+# Both are enabled by default.
 # ------------------------------------------------------------------------------
 tailscale:
   expose:
@@ -504,7 +504,7 @@ tailscale:
 # Observability — Wide Events (ClickStack)
 # Deploys ClickHouse + HyperDX + OTel Collector (ClickStack subchart) plus
 # KubeClaw-specific OTel collectors (DaemonSet for node logs/metrics,
-# Deployment for k8s events/cluster metrics). Disabled by default.
+# Deployment for k8s events/cluster metrics).
 # ------------------------------------------------------------------------------
 observability:
   # Master toggle — enables the ClickStack subchart and OTel collectors.
@@ -557,7 +557,7 @@ observability:
 
   # Optional Ingress for the HyperDX UI.
   ingress:
-    enabled: false
+    enabled: true
     className: nginx
     annotations: {}
     host: hyperdx.example.com
@@ -661,7 +661,7 @@ litellm:
 
   # Redis subchart toggle. Enable for semantic caching.
   redis:
-    enabled: false
+    enabled: true
 
   # Security context for the LiteLLM proxy container.
   # readOnlyRootFilesystem=true is safe: the upstream chart detects this flag

@@ -62,7 +62,7 @@ graph TB
             chrome[fa:fa-window-maximize Chromium :9222]
         end
 
-        subgraph clickstack ["ClickStack — Wide Events"]
+        subgraph clickstack ["ClickStack (Wide Events)"]
             otelgw[fa:fa-tower-broadcast OTel Collector]
             clickhouse[(fa:fa-database ClickHouse)]
             hyperdx[fa:fa-chart-line HyperDX UI]
@@ -111,8 +111,8 @@ graph TB
 | **Split workspace volume** | Separate PVC for workspace via `persistence.splitVolumes` |
 | **Chromium Deployment** | Browser automation via standalone Deployment + ClusterIP Service on port 9222 (cluster-internal) |
 | **LiteLLM proxy subchart** | Per-agent virtual keys, budget caps, model fallback routing, and semantic caching |
-| **Wide Events observability** | Logs, metrics, traces, and Kubernetes events unified in [ClickHouse](https://clickhouse.com/) via the [Wide Events](https://charity.wtf/2019/02/05/logs-vs-structured-events/) pattern — no separate logging, metrics, and tracing backends. Ships with [HyperDX](https://hyperdx.io/) for search and dashboards, and [OpenTelemetry](https://opentelemetry.io/) collectors for zero-config cluster-wide collection |
-| **Egress DNS filter** | NextDNS-style DNS filtering via [Blocky](https://0xerr0r.github.io/blocky/) — threat blocklists (HaGeZi, StevenBlack), country TLD blocking, and query logging |
+| **Wide Events observability** | Logs, metrics, traces, and Kubernetes events unified in [ClickHouse](https://clickhouse.com/) via the [Wide Events](https://charity.wtf/2019/02/05/logs-vs-structured-events/) pattern, replacing separate logging, metrics, and tracing backends. Ships with [HyperDX](https://hyperdx.io/) for search and dashboards, and [OpenTelemetry](https://opentelemetry.io/) collectors for zero-config cluster-wide collection |
+| **Egress DNS filter** | NextDNS-style DNS filtering via [Blocky](https://0xerr0r.github.io/blocky/), including threat blocklists (HaGeZi, StevenBlack), country TLD blocking, and query logging |
 | **NetworkPolicy** | Scaffolding for locking down traffic |
 | **Diagnostics CronJob** | Periodic `openclaw doctor` runs |
 | **Tailscale integration** | Expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`) |
@@ -158,12 +158,12 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 | `egressFilter.denylists` | *(threats + malware)* | Named blocklist groups with URLs fetched by Blocky |
 | `egressFilter.allowlists` | `[]` | Domains that are never blocked (overrides denylists) |
 | `networkPolicy.enabled` | `false` | Enable NetworkPolicy |
-| `diagnostics.enabled` | `false` | Enable diagnostics CronJob |
+| `diagnostics.enabled` | `true` | Enable diagnostics CronJob |
 | `observability.enabled` | `true` | Deploy the ClickStack (ClickHouse + HyperDX + OTel Collector) and KubeClaw OTel collectors |
 | `observability.gateway.enabled` | `true` | Inject OTEL env vars into the Gateway for application-level trace/log export |
 | `observability.nodeCollector.enabled` | `true` | DaemonSet collecting pod logs and host metrics from every node |
 | `observability.clusterCollector.enabled` | `true` | Deployment collecting Kubernetes events and cluster-level metrics |
-| `observability.ingress.enabled` | `false` | Expose the HyperDX UI via Ingress |
+| `observability.ingress.enabled` | `true` | Expose the HyperDX UI via Ingress |
 | `litellm.enabled` | `true` | Deploy LiteLLM proxy alongside the Gateway |
 | `litellm.masterkey` | `""` | LiteLLM master key (required when enabled, must start with `sk-`) |
 | `litellm.proxy_config` | *(see values.yaml)* | LiteLLM `config.yaml` contents as a YAML object |
