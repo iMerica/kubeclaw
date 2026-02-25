@@ -23,7 +23,7 @@ dependencies:
     version: "v1.3.0"
     repository: "oci://docker.io/envoyproxy"
     condition: gatewayAPI.controller.enabled
-    alias: envoyGateway
+    alias: envoy-gateway
 keywords:
   - kubeclaw
   - openclaw

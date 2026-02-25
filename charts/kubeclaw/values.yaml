@@ -251,7 +251,7 @@ gatewayAPI:
     gatewayClassName: envoy
 
 # Envoy Gateway subchart overrides (only when gatewayAPI.controller.enabled=true).
-envoyGateway: {}
+envoy-gateway: {}
 
 # ------------------------------------------------------------------------------
 # NetworkPolicy
