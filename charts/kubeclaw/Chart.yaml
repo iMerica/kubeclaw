@@ -19,6 +19,11 @@ dependencies:
     repository: "https://clickhouse.github.io/ClickStack-helm-charts"
     condition: observability.enabled
     alias: clickstack
+  - name: gateway-helm
+    version: "v1.3.0"
+    repository: "oci://docker.io/envoyproxy"
+    condition: gatewayAPI.controller.enabled
+    alias: envoyGateway
 keywords:
   - kubeclaw
   - openclaw

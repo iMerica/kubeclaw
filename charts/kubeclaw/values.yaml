@@ -222,8 +222,9 @@ ingress:
 # Mutually exclusive with ingress.enabled in intent, though both can coexist.
 # ------------------------------------------------------------------------------
 gatewayAPI:
-  enabled: false
-  # Gateway class — must match your cluster's GatewayClass (e.g. envoy, istio, cilium)
+  enabled: true
+  # Gateway class — must match your cluster's GatewayClass (e.g. envoy, istio, cilium).
+  # When controller.enabled=true and this is empty, defaults to controller.gatewayClassName.
   gatewayClassName: ""
   # Hostname for all routes
   host: openclaw.example.com
@@ -239,6 +240,18 @@ gatewayAPI:
   #     - name: openclaw-tls
   # Optional annotations on the Gateway resource
   annotations: {}
+  # Install Gateway API CRDs as chart-managed resources.
+  # Not needed when controller.enabled=true (Envoy Gateway bundles its own).
+  crds:
+    install: false
+  # Deploy Envoy Gateway as a subchart. Creates a GatewayClass automatically.
+  # Users with an existing controller (Istio, Cilium) leave this false.
+  controller:
+    enabled: true
+    gatewayClassName: envoy
+
+# Envoy Gateway subchart overrides (only when gatewayAPI.controller.enabled=true).
+envoyGateway: {}
 
 # ------------------------------------------------------------------------------
 # NetworkPolicy

@@ -51,10 +51,10 @@ graph TB
     end
 
     subgraph cluster ["Kubernetes Cluster"]
-        ingress[fa:fa-shield-halved Ingress]
+        ingress[fa:fa-shield-halved Ingress / K8s Gateway API]
 
-        subgraph gwpod ["Gateway StatefulSet · replicas: 1"]
-            gw[fa:fa-server Gateway :18789]
+        subgraph gwpod ["OpenClaw Gateway StatefulSet · replicas: 1"]
+            gw[fa:fa-server OpenClaw Gateway :18789]
             ts[fa:fa-lock Tailscale SSH]
         end
 
@@ -107,6 +107,7 @@ graph TB
 | **StatefulSet** | Durable PVC-backed storage at `/home/node/.openclaw` |
 | **GitOps-friendly config** | Declare desired `openclaw.json`; chart handles merge or overwrite via initContainer |
 | **WebSocket-ready Ingress** | Configurable TLS |
+| **K8s Gateway API routing** | Single-hostname path-based routing for all services via `gateway.networking.k8s.io/v1` HTTPRoutes; optional bundled Envoy Gateway controller |
 | **Split workspace volume** | Separate PVC for workspace via `persistence.splitVolumes` |
 | **Chromium Deployment** | Browser automation via standalone Deployment + ClusterIP Service on port 9222 (cluster-internal) |
 | **LiteLLM proxy subchart** | Per-agent virtual keys, budget caps, model fallback routing, and semantic caching |
@@ -141,6 +142,12 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 | `image.digest` | `sha256:ce271192cd70250d16fc5911903d9953467a40faf8b34e87cbd042e6b49b6036` | Immutable digest used with the tag to prevent drift |
 | `ingress.enabled` | `false` | Enable Ingress with WebSocket timeouts |
 | `ingress.host` | `""` | Ingress hostname |
+| `gatewayAPI.enabled` | `true` | Enable K8s Gateway API routing (alternative to Ingress) |
+| `gatewayAPI.gatewayClassName` | `""` | GatewayClass name (e.g. `envoy`, `istio`, `cilium`); auto-resolved when `controller.enabled` |
+| `gatewayAPI.host` | `openclaw.example.com` | Hostname for all HTTPRoutes |
+| `gatewayAPI.controller.enabled` | `true` | Deploy Envoy Gateway as a subchart with auto-created GatewayClass |
+| `gatewayAPI.controller.gatewayClassName` | `envoy` | GatewayClass name created by the bundled controller |
+| `gatewayAPI.crds.install` | `false` | Install Gateway API CRDs via hook Job (for BYO-controller setups without CRDs) |
 | `persistence.size` | `5Gi` | PVC size for Gateway state |
 | `persistence.splitVolumes` | `false` | Separate PVC for workspace |
 | `config.desired` | `""` | Desired `openclaw.json` (JSON5) |

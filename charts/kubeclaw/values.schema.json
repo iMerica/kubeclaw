@@ -78,6 +78,33 @@
         }
       }
     },
+    "gatewayAPI": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "gatewayClassName": { "type": "string" },
+        "host": { "type": "string" },
+        "routes": { "type": "object" },
+        "tls": { "type": "object" },
+        "annotations": { "type": "object" },
+        "crds": {
+          "type": "object",
+          "properties": {
+            "install": { "type": "boolean" }
+          }
+        },
+        "controller": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "gatewayClassName": { "type": "string" }
+          }
+        }
+      }
+    },
+    "envoyGateway": {
+      "type": "object"
+    },
     "ingress": {
       "type": "object",
       "properties": {

@@ -114,6 +114,99 @@ ingress:
 
 > **WebSocket timeouts**: The Control UI uses long-lived WebSocket connections. The default ingress-nginx proxy timeout (60s) will disconnect idle WebSocket sessions. The annotations above set timeouts to 3600s.
 
+### K8s Gateway API Routing
+
+The chart supports [Gateway API](https://gateway-api.sigs.k8s.io/) (`gateway.networking.k8s.io/v1`) as an alternative to Ingress, providing single-hostname path-based routing for all KubeClaw services.
+
+> **Naming note**: "Gateway API" refers to the Kubernetes routing standard. "OpenClaw Gateway" refers to the application StatefulSet.
+
+#### Path A — Bundled controller (local / simple clusters)
+
+One command, no prerequisites. The chart deploys Envoy Gateway as a subchart and creates a GatewayClass automatically:
+
+```sh
+helm install kubeclaw charts/kubeclaw \
+  --namespace kubeclaw --create-namespace \
+  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)" \
+  --set litellm.masterkey="sk-$(openssl rand -hex 16)" \
+  --set tailscale.ssh.authKey="tskey-auth-..." \
+  --set gatewayAPI.enabled=true \
+  --set gatewayAPI.controller.enabled=true \
+  --set gatewayAPI.host=kubeclaw.local
+```
+
+This deploys Envoy Gateway, creates a `GatewayClass` named `envoy`, and wires up all HTTPRoutes. No manual CRD or controller installation required.
+
+#### Path B — BYO controller (Istio, Cilium, etc.)
+
+If your cluster already has a Gateway API controller, just point to its GatewayClass:
+
+```sh
+helm install kubeclaw charts/kubeclaw \
+  --namespace kubeclaw --create-namespace \
+  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)" \
+  --set litellm.masterkey="sk-$(openssl rand -hex 16)" \
+  --set tailscale.ssh.authKey="tskey-auth-..." \
+  --set gatewayAPI.enabled=true \
+  --set gatewayAPI.gatewayClassName=istio \
+  --set gatewayAPI.host=kubeclaw.example.com
+```
+
+If your cluster doesn't have Gateway API CRDs installed, add `--set gatewayAPI.crds.install=true` to install them via a pre-install hook Job.
+
+#### Accessing the services
+
+The Gateway API controller creates a data-plane Service. On Docker Desktop this gets `localhost`; on kind/k3d you may need to port-forward:
+
+```sh
+# Find the Envoy data-plane Service
+ENVOY_SVC=$(kubectl get svc -A -l gateway.networking.k8s.io/gateway-name=kubeclaw-gateway-api \
+  -o jsonpath='{.items[0].metadata.namespace}/{.items[0].metadata.name}')
+
+# If LoadBalancer is pending (kind/k3d), port-forward to it:
+kubectl port-forward -n "${ENVOY_SVC%%/*}" "svc/${ENVOY_SVC##*/}" 8080:80
+```
+
+Add `kubeclaw.local` to `/etc/hosts`:
+
+```
+127.0.0.1 kubeclaw.local
+```
+
+Then open (replace `8080` with `80` if LoadBalancer is working):
+
+| Service | URL |
+|---------|-----|
+| OpenClaw Gateway (Canvas UI) | `http://kubeclaw.local:8080/` |
+| HyperDX (Observability) | `http://kubeclaw.local:8080/o11y/` |
+| LiteLLM (Proxy Dashboard) | `http://kubeclaw.local:8080/litellm/` |
+| Egress Filter (Blocky API) | `http://kubeclaw.local:8080/filtering/` |
+
+> **Note**: The OpenClaw Gateway UI requires an authenticated URL. Generate one with:
+> ```sh
+> kubectl -n kubeclaw exec statefulset/kubeclaw-gateway -- \
+>   node dist/index.js dashboard --no-open
+> ```
+> Then append the token query parameter to the URLs above.
+
+#### Route customization
+
+Override the default path prefixes in `values.yaml`:
+
+```yaml
+gatewayAPI:
+  enabled: true
+  gatewayClassName: envoy   # or omit when controller.enabled=true
+  host: kubeclaw.local
+  routes:
+    openclaw: /
+    o11y: /o11y
+    litellm: /litellm
+    filtering: /filtering
+```
+
+Subpath routes (`/o11y`, `/litellm`, `/filtering`) automatically strip the prefix before forwarding to the backend, so the services see requests as if they were routed to `/`.
+
 ### Desired Config (GitOps)
 
 Mount an `openclaw.json` (JSON5) config via ConfigMap, applied at pod start:

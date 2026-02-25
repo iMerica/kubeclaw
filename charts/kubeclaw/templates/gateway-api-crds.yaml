@@ -1,0 +1,90 @@
+{{- if and .Values.gatewayAPI.enabled .Values.gatewayAPI.crds.install }}
+{{/*
+Gateway API CRD installer — runs as a pre-install/pre-upgrade hook Job.
+Applies the upstream standard-channel CRDs from the official release.
+For users who bring their own controller but don't have CRDs installed.
+Not needed when controller.enabled=true (Envoy Gateway bundles its own CRDs).
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-gateway-api-crds
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "kubeclaw.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway-api-crds
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ include "kubeclaw.fullname" . }}-gateway-api-crds
+      containers:
+        - name: install-crds
+          image: bitnami/kubectl:latest
+          command:
+            - sh
+            - -c
+            - |
+              kubectl apply --server-side -f \
+                https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-gateway-api-crds
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-11"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-gateway-api-crds
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-11"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+rules:
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-gateway-api-crds
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-11"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kubeclaw.fullname" . }}-gateway-api-crds
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ include "kubeclaw.fullname" . }}-gateway-api-crds
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

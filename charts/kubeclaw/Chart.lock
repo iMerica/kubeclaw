@@ -5,5 +5,8 @@ dependencies:
 - name: clickstack
   repository: https://clickhouse.github.io/ClickStack-helm-charts
   version: 1.1.1
-digest: sha256:f0ea2f29254626abfe314720a34d6d00df06aa91e50e2f277b66a755bff327e3
-generated: "2026-02-23T21:20:16.492707-06:00"
+- name: gateway-helm
+  repository: oci://docker.io/envoyproxy
+  version: v1.3.0
+digest: sha256:d7160f4306354a28af59ba451711b3721a067b86f47006723b96b7507aa42f23
+generated: "2026-02-24T19:29:58.163561-06:00"

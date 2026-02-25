@@ -12,6 +12,26 @@ Validate required secrets when features are enabled.
     {{- fail "litellm.enabled is true but neither litellm.masterkey nor litellm.masterkeySecretName is set" }}
   {{- end }}
 {{- end }}
+{{- if .Values.gatewayAPI.enabled }}
+  {{- if and (not .Values.gatewayAPI.gatewayClassName) (not .Values.gatewayAPI.controller.enabled) }}
+    {{- fail "gatewayAPI.enabled is true but neither gatewayAPI.gatewayClassName nor gatewayAPI.controller.enabled is set" }}
+  {{- end }}
+  {{- if and .Values.gatewayAPI.crds.install .Values.gatewayAPI.controller.enabled }}
+    {{- fail "gatewayAPI.crds.install and gatewayAPI.controller.enabled are mutually exclusive — the Envoy Gateway subchart bundles its own CRDs" }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Resolve the effective gatewayClassName.
+When gatewayClassName is empty and controller.enabled is true, default to controller.gatewayClassName.
+*/}}
+{{- define "kubeclaw.gatewayClassName" -}}
+{{- if .Values.gatewayAPI.gatewayClassName }}
+{{- .Values.gatewayAPI.gatewayClassName }}
+{{- else if .Values.gatewayAPI.controller.enabled }}
+{{- .Values.gatewayAPI.controller.gatewayClassName }}
+{{- end }}
 {{- end }}
 
 {{/*
