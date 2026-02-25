@@ -73,8 +73,54 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | Key | Required | Notes |
 |-----|----------|-------|
 | `secret.data.OPENCLAW_GATEWAY_TOKEN` | Yes | Strong random string. Treat as a password. |
+| `tailscale.ssh.authKey` | Yes (unless `authKeySecretName` set) | Tailscale auth key for SSH sidecar |
+| `litellm.masterkey` | Yes (when `litellm.enabled`) | Must start with `sk-` |
 | `image.repository` | Yes | Gateway container image repository |
 | `image.tag` | Yes | Pin to a specific tag in production |
+
+### All values
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `secret.data.OPENCLAW_GATEWAY_TOKEN` | *none* | **Required.** Gateway auth token |
+| `image.repository` | `ghcr.io/openclaw/openclaw` | Gateway container image |
+| `image.tag` | `2026.2.21` | Release tag validated for this chart version |
+| `image.digest` | `sha256:ce271...` | Immutable digest used with the tag to prevent drift |
+| `ingress.enabled` | `false` | Enable Ingress with WebSocket timeouts |
+| `ingress.host` | `""` | Ingress hostname |
+| `gatewayAPI.enabled` | `true` | Enable K8s Gateway API routing (alternative to Ingress) |
+| `gatewayAPI.gatewayClassName` | `""` | GatewayClass name; auto-resolved when `controller.enabled` |
+| `gatewayAPI.host` | `openclaw.example.com` | Hostname for all HTTPRoutes |
+| `gatewayAPI.controller.enabled` | `true` | Deploy Envoy Gateway as a subchart with auto-created GatewayClass |
+| `gatewayAPI.controller.gatewayClassName` | `envoy` | GatewayClass name created by the bundled controller |
+| `gatewayAPI.crds.install` | `false` | Install Gateway API CRDs via hook Job (BYO-controller setups) |
+| `persistence.size` | `5Gi` | PVC size for Gateway state |
+| `persistence.splitVolumes` | `false` | Separate PVC for workspace |
+| `config.desired` | `""` | Desired `openclaw.json` (JSON5) |
+| `config.mode` | `merge` | Config strategy: `merge` or `overwrite` |
+| `chromium.enabled` | `true` | Chromium Deployment + ClusterIP Service for CDP |
+| `egressFilter.enabled` | `true` | Deploy Blocky DNS proxy for egress filtering |
+| `egressFilter.blockCountries` | `[RU, CN]` | Country TLDs to block via regex |
+| `egressFilter.denylists` | *(threats + malware)* | Named blocklist groups with URLs fetched by Blocky |
+| `egressFilter.allowlists` | `[]` | Domains that are never blocked (overrides denylists) |
+| `networkPolicy.enabled` | `false` | Enable NetworkPolicy |
+| `diagnostics.enabled` | `true` | Enable diagnostics CronJob |
+| `observability.enabled` | `true` | Deploy ClickStack (ClickHouse + HyperDX + OTel) and KubeClaw OTel collectors |
+| `observability.gateway.enabled` | `true` | Inject OTEL env vars into Gateway for trace/log export |
+| `observability.nodeCollector.enabled` | `true` | DaemonSet collecting pod logs and host metrics |
+| `observability.clusterCollector.enabled` | `true` | Deployment collecting K8s events and cluster metrics |
+| `observability.ingress.enabled` | `true` | Expose HyperDX UI via Ingress |
+| `litellm.enabled` | `true` | Deploy LiteLLM proxy alongside the Gateway |
+| `litellm.masterkey` | `""` | LiteLLM master key (must start with `sk-`) |
+| `litellm.proxy_config` | *(see values.yaml)* | LiteLLM `config.yaml` contents as YAML object |
+| `tailscale.expose.enabled` | `true` | Annotate Service for Tailscale K8s Operator |
+| `tailscale.expose.hostname` | `""` | `tailscale.com/hostname` annotation value |
+| `tailscale.expose.tags` | `""` | `tailscale.com/tags` annotation value |
+| `tailscale.ssh.enabled` | `true` | Tailscale sidecar with `--ssh` for pod shell access |
+| `tailscale.ssh.authKey` | `""` | **Required when `ssh.enabled`.** Inline Tailscale auth key |
+| `tailscale.ssh.authKeySecretName` | `""` | Existing Secret with auth key (alternative to `authKey`) |
+| `tailscale.ssh.hostname` | `""` | Tailnet hostname; defaults to Helm fullname |
+| `tailscale.ssh.persistState` | `false` | Persist Tailscale state via dedicated PVC |
 
 ### Storage
 
