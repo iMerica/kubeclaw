@@ -37,7 +37,7 @@ Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.
 
 ## Why KubeClaw
 
-KubeClaw wraps OpenClaw with the operational guardrails that production deployments need: secure defaults, pinned images, predictable upgrades, egress filtering, and batteries-included observability so production feels deterministic. It uses the cluster as the control plane to make behavior visible and controllable by default — Wide Events for observability, digest pinning to prevent drift, and a default-deny outbound posture via Blocky-backed DNS egress controls with explicit allow/deny lists and query logging. The result is fewer trust gaps: what ran, what changed, what it called, and what it emitted are all auditable.
+KubeClaw wraps OpenClaw with the operational guardrails that production deployments need: secure defaults, pinned images, predictable upgrades, egress filtering, and batteries-included observability so production feels deterministic. It uses the cluster as the control plane to make behavior visible and controllable by default. Wide Events unify observability, digest pinning prevents drift, and Blocky-backed DNS egress controls enforce a default-deny outbound posture with explicit allow/deny lists and query logging. The result is fewer trust gaps: what ran, what changed, what it called, and what it emitted are all auditable.
 
 ## Quick Start
 
@@ -148,7 +148,7 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 
 | Key | Notes |
 |-----|-------|
-| `secret.data.OPENCLAW_GATEWAY_TOKEN` | **Required.** Strong random string — treat as a password |
+| `secret.data.OPENCLAW_GATEWAY_TOKEN` | **Required.** Strong random string; treat as a password |
 | `tailscale.ssh.authKey` | **Required** (unless `authKeySecretName` is set) |
 | `litellm.masterkey` | **Required** when `litellm.enabled` (default). Must start with `sk-` |
 
