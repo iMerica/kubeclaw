@@ -442,10 +442,10 @@ diagnostics:
   resources:
     requests:
       cpu: 50m
-      memory: 128Mi
+      memory: 256Mi
     limits:
       cpu: "500m"
-      memory: 256Mi
+      memory: 512Mi
 
 # ------------------------------------------------------------------------------
 # Tailscale Integration
