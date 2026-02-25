@@ -40,6 +40,9 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Add Helm repos
+        run: ./scripts/helm-repos.sh
+
       - name: Build chart dependencies
         run: helm dependency build charts/kubeclaw
 
@@ -244,6 +247,9 @@ jobs:
         with:
           cluster_name: kubeclaw-test
 
+      - name: Add Helm repos
+        run: ./scripts/helm-repos.sh
+
       - name: Build chart dependencies
         run: helm dependency build charts/kubeclaw
 
@@ -265,6 +271,9 @@ jobs:
         uses: azure/setup-helm@v4
         with:
           version: "3.14.0"
+
+      - name: Add Helm repos
+        run: ./scripts/helm-repos.sh
 
       - name: Build chart dependencies
         run: helm dependency build charts/kubeclaw

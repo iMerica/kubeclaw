@@ -32,6 +32,9 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Add Helm repos
+        run: ./scripts/helm-repos.sh
+
       - name: Build chart dependencies
         run: helm dependency build charts/kubeclaw
 
