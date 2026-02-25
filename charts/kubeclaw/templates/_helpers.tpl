@@ -269,8 +269,6 @@ Name of the OTel Node Collector DaemonSet.
 Selector labels for the OTel Node Collector DaemonSet.
 */}}
 {{- define "kubeclaw.nodeCollectorSelectorLabels" -}}
-app.kubernetes.io/name: {{ include "kubeclaw.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: otel-node-collector
 {{- end }}
 
@@ -285,8 +283,6 @@ Name of the OTel Cluster Collector Deployment.
 Selector labels for the OTel Cluster Collector Deployment.
 */}}
 {{- define "kubeclaw.clusterCollectorSelectorLabels" -}}
-app.kubernetes.io/name: {{ include "kubeclaw.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: otel-cluster-collector
 {{- end }}
 
