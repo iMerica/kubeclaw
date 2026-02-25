@@ -662,6 +662,10 @@ litellm:
   # Redis subchart toggle. Enable for semantic caching.
   redis:
     enabled: true
+    # Bitnami no longer publishes semver tags; only "latest" exists.
+    # Pin by digest so kube-linter does not reject the image.
+    image:
+      digest: "sha256:5179ef5fcc0aee9b3a16e8030ea7b1a81f94033c06e1676c0c4b18c237de2e82"
 
   # Security context for the LiteLLM proxy container.
   # readOnlyRootFilesystem=true is safe: the upstream chart detects this flag
