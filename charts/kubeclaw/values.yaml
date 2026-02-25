@@ -662,10 +662,6 @@ litellm:
   # Redis subchart toggle. Enable for semantic caching.
   redis:
     enabled: true
-    # The upstream bitnami chart defaults to "latest" which fails lint.
-    # Pin to the appVersion shipped with the bundled subchart.
-    image:
-      tag: "8.6.0"
 
   # Security context for the LiteLLM proxy container.
   # readOnlyRootFilesystem=true is safe: the upstream chart detects this flag
