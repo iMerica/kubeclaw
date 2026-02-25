@@ -14,47 +14,70 @@ NAMESPACE="${NAMESPACE:-kubeclaw}"
 
 LABEL_SELECTOR="app.kubernetes.io/instance=${RELEASE}"
 
+# Strip finalizers from all resources of a given kind so they don't block deletion.
+# Usage: strip_finalizers <kind> [--namespace <ns>] [-l <selector>] [--field-selector ...]
+strip_finalizers() {
+  local kind="$1"; shift
+  local names
+  names=$(kubectl get "${kind}" "$@" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null) || return 0
+  for name in ${names}; do
+    kubectl patch "${kind}" "${name}" "$@" --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null || true
+  done
+}
+
 echo "=== KubeClaw Destroy ==="
 echo "Release:   ${RELEASE}"
 echo "Namespace: ${NAMESPACE}"
 echo "Selector:  ${LABEL_SELECTOR}"
 echo ""
 
-# --- 1. Uninstall the Helm release (removes all managed resources) ---
+# --- 1. Strip finalizers from Gateway API resources before anything else ---
+echo ">>> Stripping finalizers from Gateway API resources..."
+for kind in gateway httproute; do
+  strip_finalizers "${kind}" -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" 2>/dev/null || true
+done
+# GatewayClass is cluster-scoped; patch it directly by name.
+kubectl patch gatewayclass envoy --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null || true
+
+# --- 2. Strip finalizers from Envoy Gateway system resources ---
+if kubectl get namespace envoy-gateway-system &>/dev/null; then
+  echo ">>> Stripping finalizers from envoy-gateway-system resources..."
+  for kind in deployment service configmap secret serviceaccount; do
+    strip_finalizers "${kind}" -n envoy-gateway-system
+  done
+fi
+
+# --- 3. Uninstall the Helm release ---
 if helm status "${RELEASE}" -n "${NAMESPACE}" &>/dev/null; then
   echo ">>> Uninstalling Helm release '${RELEASE}'..."
-  # Use a timeout to avoid hanging on stuck finalizers (e.g. Envoy Gateway).
   helm uninstall "${RELEASE}" -n "${NAMESPACE}" --wait --timeout 60s || {
-    echo ">>> helm uninstall timed out or failed; forcing without --wait..."
+    echo ">>> helm uninstall timed out; retrying without hooks..."
     helm uninstall "${RELEASE}" -n "${NAMESPACE}" --no-hooks 2>/dev/null || true
   }
 else
   echo ">>> Helm release '${RELEASE}' not found, skipping uninstall."
 fi
 
-# --- 2. Remove Gateway API resources (these can have finalizers that block deletion) ---
-echo ">>> Cleaning up Gateway API resources..."
+# --- 4. Delete Gateway API resources ---
+echo ">>> Deleting Gateway API resources..."
 for kind in gateway httproute; do
-  kubectl delete "${kind}" -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" --ignore-not-found --timeout=30s 2>/dev/null || true
+  kubectl delete "${kind}" -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" --ignore-not-found --wait=false 2>/dev/null || true
 done
-# GatewayClass is cluster-scoped; delete by name if it was created by the controller subchart.
-kubectl delete gatewayclass envoy --ignore-not-found --timeout=30s 2>/dev/null || true
+kubectl delete gatewayclass envoy --ignore-not-found --wait=false 2>/dev/null || true
 
-# --- 3. Clean up cluster-scoped resources by label ---
+# --- 5. Delete cluster-scoped resources by label ---
 echo ">>> Cleaning up cluster-scoped resources..."
 for kind in clusterrole clusterrolebinding; do
   kubectl delete "${kind}" -l "${LABEL_SELECTOR}" --ignore-not-found --wait=false 2>/dev/null || true
 done
 
-# --- 4. Delete Envoy Gateway system namespace if it exists ---
-# The Envoy Gateway subchart creates an envoy-gateway-system namespace with a
-# running controller. This must be removed or the controller pod lingers.
+# --- 6. Delete Envoy Gateway system namespace ---
 if kubectl get namespace envoy-gateway-system &>/dev/null; then
   echo ">>> Deleting envoy-gateway-system namespace..."
-  kubectl delete namespace envoy-gateway-system --timeout=60s 2>/dev/null || true
+  kubectl delete namespace envoy-gateway-system --wait=false 2>/dev/null || true
 fi
 
-# --- 6. Delete all namespaced resources by instance label (catches subchart resources too) ---
+# --- 7. Delete all namespaced resources by instance label ---
 RESOURCE_TYPES=(
   statefulset
   deployment
@@ -76,7 +99,7 @@ for kind in "${RESOURCE_TYPES[@]}"; do
   kubectl delete "${kind}" -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" --ignore-not-found --wait=false 2>/dev/null || true
 done
 
-# --- 7. Delete PVCs by StatefulSet naming convention (in case labels were stripped) ---
+# --- 8. Delete PVCs by StatefulSet naming convention (in case labels were stripped) ---
 # Patterns cover: primary state, split workspace, and Tailscale state (persistState=true)
 for pattern in "${RELEASE}-kubeclaw-state" "${RELEASE}-kubeclaw-workspace" "ts-state-${RELEASE}-kubeclaw"; do
   pvcs=$(kubectl get pvc -n "${NAMESPACE}" -o name 2>/dev/null | grep "${pattern}" || true)
@@ -86,11 +109,11 @@ for pattern in "${RELEASE}-kubeclaw-state" "${RELEASE}-kubeclaw-workspace" "ts-s
   fi
 done
 
-# --- 8. Wait for all pods to terminate ---
+# --- 9. Wait for pods to terminate ---
 echo ">>> Waiting for pods to terminate..."
-kubectl wait pod -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" --for=delete --timeout=120s 2>/dev/null || true
+kubectl wait pod -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" --for=delete --timeout=60s 2>/dev/null || true
 
-# --- 9. Verify nothing remains ---
+# --- 10. Verify nothing remains ---
 echo ""
 echo "=== Verification ==="
 remaining=$(kubectl get all,secret,configmap,pvc,ingress,networkpolicy,serviceaccount \
