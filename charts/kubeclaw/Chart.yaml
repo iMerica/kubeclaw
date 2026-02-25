@@ -1,10 +1,9 @@
 apiVersion: v2
 name: kubeclaw
 description: >
-  Helm chart for deploying a single OpenClaw AI automation Gateway on Kubernetes.
-  Provides a stateful single-replica Gateway with durable PVC-backed storage,
-  WebSocket-capable Ingress, health probes, optional Chromium sidecar, and
-  GitOps-friendly desired-config management via initContainer.
+  KubeClaw is production-grade OpenClaw on Kubernetes.
+  It is designed for operators who want a secure, observable, and reliable
+  deployment path without giving up flexibility.
 type: application
 version: 0.1.0
 appVersion: "latest"

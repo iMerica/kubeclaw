@@ -23,7 +23,7 @@ Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.
 <a href="https://github.com/iMerica/kubeclaw/pkgs/container/kubeclaw"><img src="https://img.shields.io/badge/OCI-ghcr.io-purple?logo=github" alt="OCI Registry"></a>
 <a href="https://github.com/iMerica/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://img.shields.io/badge/Trivy-scanned-1904DA?logo=aquasec&logoColor=white" alt="Trivy"></a>
 <a href="https://github.com/iMerica/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://img.shields.io/badge/kubeconform-validated-4CAF50" alt="kubeconform"></a>
-<a href="https://github.com/iMerica/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://img.shields.io/badge/kube--linter-passing-ee0000" alt="kube-linter"></a>
+<a href="https://github.com/iMerica/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://img.shields.io/badge/kube--linter-passing-4CAF50" alt="kube-linter"></a>
 </p>
 
 ---
