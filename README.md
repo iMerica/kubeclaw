@@ -19,6 +19,7 @@ Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.
 <a href="https://github.com/iMerica/kubeclaw/blob/master/charts/kubeclaw/Chart.yaml"><img src="https://img.shields.io/badge/k8s-1.25%2B-326ce5?logo=kubernetes&logoColor=white" alt="Kubernetes 1.25+"></a>
 <a href="https://github.com/iMerica/kubeclaw/blob/master/charts/kubeclaw/Chart.yaml"><img src="https://img.shields.io/badge/Helm-3.12%2B-0f1689?logo=helm&logoColor=white" alt="Helm 3.12+"></a>
 <a href="https://github.com/iMerica/kubeclaw/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue" alt="License"></a>
+<a href="https://github.com/iMerica/kubeclaw/releases"><img src="https://img.shields.io/badge/status-alpha-orange" alt="Alpha"></a>
 <a href="https://github.com/iMerica/kubeclaw/pkgs/container/kubeclaw"><img src="https://img.shields.io/badge/OCI-ghcr.io-purple?logo=github" alt="OCI Registry"></a>
 <a href="https://github.com/iMerica/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://img.shields.io/badge/Trivy-scanned-1904DA?logo=aquasec&logoColor=white" alt="Trivy"></a>
 <a href="https://github.com/iMerica/kubeclaw/actions/workflows/lint-test.yaml"><img src="https://img.shields.io/badge/kubeconform-validated-4CAF50" alt="kubeconform"></a>
@@ -26,6 +27,15 @@ Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.
 </p>
 
 ---
+
+> **Alpha** — APIs and value keys may change between minor releases. Pin `--version` in CI.
+
+## Prerequisites
+
+- **Helm 3.12+** and **Kubernetes 1.25+**
+- A `ReadWriteOnce`-capable StorageClass (cluster default is used if unset)
+- A Tailscale auth key if `tailscale.ssh` is enabled (default)
+- Gateway API CRDs if using `gatewayAPI` with a BYO controller (the bundled Envoy Gateway controller installs them automatically)
 
 ## Why KubeClaw
 
@@ -136,51 +146,15 @@ helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
 
 ## Configuration
 
-All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubeclaw/values.yaml).
+All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubeclaw/values.yaml). The minimum required values are:
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `secret.data.OPENCLAW_GATEWAY_TOKEN` | *none* | **Required.** Gateway auth token |
-| `image.repository` | `ghcr.io/openclaw/openclaw` | Gateway container image |
-| `image.tag` | `2026.2.21` | Release tag validated for this chart version |
-| `image.digest` | `sha256:ce271192cd70250d16fc5911903d9953467a40faf8b34e87cbd042e6b49b6036` | Immutable digest used with the tag to prevent drift |
-| `ingress.enabled` | `false` | Enable Ingress with WebSocket timeouts |
-| `ingress.host` | `""` | Ingress hostname |
-| `gatewayAPI.enabled` | `true` | Enable K8s Gateway API routing (alternative to Ingress) |
-| `gatewayAPI.gatewayClassName` | `""` | GatewayClass name (e.g. `envoy`, `istio`, `cilium`); auto-resolved when `controller.enabled` |
-| `gatewayAPI.host` | `openclaw.example.com` | Hostname for all HTTPRoutes |
-| `gatewayAPI.controller.enabled` | `true` | Deploy Envoy Gateway as a subchart with auto-created GatewayClass |
-| `gatewayAPI.controller.gatewayClassName` | `envoy` | GatewayClass name created by the bundled controller |
-| `gatewayAPI.crds.install` | `false` | Install Gateway API CRDs via hook Job (for BYO-controller setups without CRDs) |
-| `persistence.size` | `5Gi` | PVC size for Gateway state |
-| `persistence.splitVolumes` | `false` | Separate PVC for workspace |
-| `config.desired` | `""` | Desired `openclaw.json` (JSON5) |
-| `config.mode` | `merge` | Config strategy: `merge` or `overwrite` |
-| `chromium.enabled` | `true` | Chromium Deployment + ClusterIP Service for CDP |
-| `egressFilter.enabled` | `true` | Deploy Blocky DNS proxy for egress filtering |
-| `egressFilter.blockCountries` | `[RU, CN]` | Country TLDs to block via regex (supports RU, CN, IR, KP, BY) |
-| `egressFilter.denylists` | *(threats + malware)* | Named blocklist groups with URLs fetched by Blocky |
-| `egressFilter.allowlists` | `[]` | Domains that are never blocked (overrides denylists) |
-| `networkPolicy.enabled` | `false` | Enable NetworkPolicy |
-| `diagnostics.enabled` | `true` | Enable diagnostics CronJob |
-| `observability.enabled` | `true` | Deploy the ClickStack (ClickHouse + HyperDX + OTel Collector) and KubeClaw OTel collectors |
-| `observability.gateway.enabled` | `true` | Inject OTEL env vars into the Gateway for application-level trace/log export |
-| `observability.nodeCollector.enabled` | `true` | DaemonSet collecting pod logs and host metrics from every node |
-| `observability.clusterCollector.enabled` | `true` | Deployment collecting Kubernetes events and cluster-level metrics |
-| `observability.ingress.enabled` | `true` | Expose the HyperDX UI via Ingress |
-| `litellm.enabled` | `true` | Deploy LiteLLM proxy alongside the Gateway |
-| `litellm.masterkey` | `""` | LiteLLM master key (required when enabled, must start with `sk-`) |
-| `litellm.proxy_config` | *(see values.yaml)* | LiteLLM `config.yaml` contents as a YAML object |
-| `tailscale.expose.enabled` | `true` | Annotate the Service for the Tailscale K8s Operator to proxy port 18789 onto your tailnet |
-| `tailscale.expose.hostname` | `""` | `tailscale.com/hostname` annotation value |
-| `tailscale.expose.tags` | `""` | `tailscale.com/tags` annotation value (e.g. `tag:k8s,tag:kubeclaw`) |
-| `tailscale.ssh.enabled` | `true` | Add a Tailscale sidecar with `--ssh` for pod shell access from any tailnet device |
-| `tailscale.ssh.authKey` | `""` | **Required when `ssh.enabled`.** Inline Tailscale auth key, unless `authKeySecretName` is set |
-| `tailscale.ssh.authKeySecretName` | `""` | Existing Secret containing the auth key (alternative to `authKey`) |
-| `tailscale.ssh.hostname` | `""` | Tailnet hostname for the sidecar; defaults to the Helm fullname |
-| `tailscale.ssh.persistState` | `false` | Persist Tailscale state across restarts via a dedicated PVC (emptyDir when false) |
+| Key | Notes |
+|-----|-------|
+| `secret.data.OPENCLAW_GATEWAY_TOKEN` | **Required.** Strong random string — treat as a password |
+| `tailscale.ssh.authKey` | **Required** (unless `authKeySecretName` is set) |
+| `litellm.masterkey` | **Required** when `litellm.enabled` (default). Must start with `sk-` |
 
-Full reference and advanced examples: [kubeclaw.ai/docs](https://kubeclaw.ai/docs)
+Full configuration reference, advanced examples, and per-feature setup: **[Install Guide](docs/oss/README.md)** &middot; [kubeclaw.ai/docs](https://kubeclaw.ai/docs)
 
 Image pinning policy: each chart release is validated against a candidate image, then the chart defaults are updated to the exact `image.tag` + `image.digest` before publishing.
 
