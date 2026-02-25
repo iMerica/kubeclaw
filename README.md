@@ -10,7 +10,8 @@
 </div>
 
 <p align="center">
-<strong>Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.</strong><br>
+Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.
+<br><strong>OpenClaw on Kubernetes for skeptics and perfectionists.</strong>
 </p>
 
 <p align="center">
