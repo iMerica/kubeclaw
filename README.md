@@ -42,12 +42,22 @@ KubeClaw wraps OpenClaw with the operational guardrails that production deployme
 ## Quick Start
 
 ```sh
+# Local dev (port-forward starts automatically):
+TS_AUTHKEY="tskey-auth-..." OPENAI_API_KEY="sk-..." ./scripts/install.sh
+
+# Or via OCI directly:
 helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --namespace kubeclaw --create-namespace \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)" \
   --set secret.data.OPENAI_API_KEY="sk-..." \
   --set tailscale.ssh.authKey="tskey-auth-..." \
   --set litellm.masterkey="sk-$(openssl rand -hex 16)"
+```
+
+After `helm install`, access the dashboard via port-forward:
+
+```sh
+kubectl port-forward -n kubeclaw svc/kubeclaw-gateway 18789:18789 &
 ```
 
 ## Architecture

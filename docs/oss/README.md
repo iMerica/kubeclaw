@@ -48,21 +48,43 @@ helm template kubeclaw charts/kubeclaw --set litellm.enabled=true
 
 ## Day-0: First Connect
 
-After install, the Gateway runs at `ClusterIP:18789`. Access via port-forward:
+The Gateway Service is `ClusterIP` by default, so it is not reachable outside the cluster without port-forwarding, Ingress, or Gateway API routing.
+
+### Using `install.sh` (recommended for local dev)
+
+`scripts/install.sh` automatically starts a background port-forward after install and prints an authenticated dashboard URL rewritten to `localhost`:
 
 ```sh
-kubectl port-forward -n kubeclaw svc/my-kubeclaw 18789:18789
+./scripts/install.sh
+# ...
+# Port-forward running (PID 12345). Stop with: kill 12345
+# Open in your browser: http://localhost:18789/?token=...
 ```
 
-**Important**: Generate an authenticated URL before opening the UI:
+Override the local port with `LOCAL_PORT=8080 ./scripts/install.sh`.
+
+### Manual port-forward
+
 ```sh
-kubectl -n kubeclaw exec statefulset/my-kubeclaw -- \
+kubectl port-forward -n kubeclaw svc/kubeclaw-gateway 18789:18789 &
+```
+
+Then generate an authenticated URL:
+
+```sh
+kubectl -n kubeclaw exec statefulset/kubeclaw-gateway -c gateway -- \
   node dist/index.js dashboard --no-open
 ```
 
-Use the generated URL (with token) instead of plain localhost:18789. Opening without the token will show "unauthorized" errors.
+The output contains a `Dashboard URL` with a token query parameter. Replace the host portion with `localhost:18789` (or whichever local port you forwarded to). Opening without the token shows "unauthorized" errors.
 
-For external access, enable Ingress (see below).
+### Production access
+
+For access beyond `localhost`, configure one of:
+
+- **K8s Gateway API** (default, `gatewayAPI.enabled: true`): see [K8s Gateway API Routing](#k8s-gateway-api-routing) below
+- **Ingress** (`ingress.enabled: true`): see [Enabling Ingress](#enabling-ingress) below
+- **Tailscale** (`tailscale.expose.enabled: true`): exposes the service on your tailnet without any public endpoint
 
 ## Configuration Reference
 

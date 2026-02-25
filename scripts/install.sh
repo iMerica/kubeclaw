@@ -97,12 +97,13 @@ kubectl get pods -n "${NAMESPACE}" -l "app.kubernetes.io/instance=${RELEASE}"
 # --- Wait for Gateway to be fully ready and print dashboard URL ---
 echo ""
 echo ">>> Waiting for Gateway to become ready..."
+DASHBOARD_URL=""
 MAX_ATTEMPTS=30
 for i in $(seq 1 "${MAX_ATTEMPTS}"); do
   URL=$(kubectl -n "${NAMESPACE}" exec "${RELEASE}-gateway-0" -c gateway -- \
     node dist/index.js dashboard --no-open 2>/dev/null | grep "Dashboard URL:" || true)
   if [[ -n "${URL}" ]]; then
-    echo "Open this URL in your browser: ${URL#*Dashboard URL: }"
+    DASHBOARD_URL="${URL#*Dashboard URL: }"
     break
   fi
   if [[ "${i}" -eq "${MAX_ATTEMPTS}" ]]; then
@@ -113,3 +114,27 @@ for i in $(seq 1 "${MAX_ATTEMPTS}"); do
   fi
   sleep 2
 done
+
+# --- Port-forward for local access ---
+LOCAL_PORT="${LOCAL_PORT:-18789}"
+
+echo ""
+echo ">>> Starting port-forward (localhost:${LOCAL_PORT} -> ${RELEASE}-gateway:18789)..."
+kubectl port-forward -n "${NAMESPACE}" "svc/${RELEASE}-gateway" "${LOCAL_PORT}:18789" &
+PF_PID=$!
+
+# Give port-forward a moment to bind
+sleep 2
+if kill -0 "${PF_PID}" 2>/dev/null; then
+  echo "Port-forward running (PID ${PF_PID}). Stop with: kill ${PF_PID}"
+else
+  echo "WARNING: Port-forward failed to start. Run manually:"
+  echo "  kubectl port-forward -n ${NAMESPACE} svc/${RELEASE}-gateway ${LOCAL_PORT}:18789"
+fi
+
+if [[ -n "${DASHBOARD_URL}" ]]; then
+  # Rewrite the dashboard URL to use localhost
+  LOCAL_URL=$(echo "${DASHBOARD_URL}" | sed "s|http://[^/]*|http://localhost:${LOCAL_PORT}|")
+  echo ""
+  echo "Open in your browser: ${LOCAL_URL}"
+fi
