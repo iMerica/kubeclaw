@@ -30,10 +30,9 @@ Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.
 
 ## Prerequisites
 
-- **Helm 3.12+** and **Kubernetes 1.25+**
-- A `ReadWriteOnce`-capable StorageClass (cluster default is used if unset)
-- A Tailscale auth key if `tailscale.ssh` is enabled (default)
-- Gateway API CRDs if using `gatewayAPI` with a BYO controller (the bundled Envoy Gateway controller installs them automatically)
+- Any Kubernetes Cluster running 1.25+
+- **Helm 3.12+** 
+
 
 ## Why KubeClaw
 
