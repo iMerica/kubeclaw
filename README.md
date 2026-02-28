@@ -38,24 +38,6 @@ Production-grade <a href="https://openclaw.ai">OpenClaw</a> on Kubernetes.
 
 KubeClaw wraps OpenClaw with the operational guardrails that production deployments need: secure defaults, pinned images, predictable upgrades, egress filtering, and batteries-included observability so production feels deterministic. It uses the cluster as the control plane to make behavior visible and controllable by default. Wide Events unify observability, digest pinning prevents drift, and Blocky-backed DNS egress controls enforce a default-deny outbound posture with explicit allow/deny lists and query logging. The result is fewer trust gaps: what ran, what changed, what it called, and what it emitted are all auditable.
 
-## Quick Start
-
-```sh
-
-# Using OCI directly:
-helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
-  --namespace kubeclaw --create-namespace \
-  --set secret.data.OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)" \
-  --set secret.data.OPENAI_API_KEY="sk-..." \
-  --set tailscale.ssh.authKey="tskey-auth-..." \
-  --set litellm.masterkey="sk-$(openssl rand -hex 16)"
-```
-
-After `helm install`, access the dashboard via port-forward:
-
-```sh
-kubectl port-forward -n kubeclaw svc/kubeclaw-gateway 18789:18789 &
-```
 
 ## Architecture
 
