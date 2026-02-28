@@ -76,10 +76,14 @@ trap cleanup EXIT
 
 # ── Interactive detection ─────────────────────────────────────────────────────
 INTERACTIVE=true
+PROMPT_FD=0
 if [[ ! -t 0 ]]; then
-  # stdin is a pipe (curl | bash) — reopen from tty if available
-  if [[ -e /dev/tty ]]; then
-    exec </dev/tty
+  # stdin is a pipe (e.g. curl | bash). Never replace fd 0 here because Bash is
+  # still reading this script from stdin; redirecting it can stall execution.
+  # Instead, open /dev/tty on a dedicated fd for prompt reads.
+  if [[ -e /dev/tty ]] && exec 3</dev/tty; then
+    INTERACTIVE=true
+    PROMPT_FD=3
   else
     INTERACTIVE=false
   fi
@@ -101,7 +105,7 @@ prompt() {
     [[ -n "$default" ]] && display_default=" ${DIM}[${default}]${RESET}"
     printf "  %s›%s %s%s: " "${CYAN}" "${RESET}" "$question" "$display_default"
     local answer
-    read -r answer
+    read -r -u "$PROMPT_FD" answer
     answer="${answer:-$default}"
     eval "$varname=\"\$answer\""
   else
@@ -115,7 +119,7 @@ prompt_secret() {
   if [[ "$INTERACTIVE" == true ]]; then
     printf "  %s›%s %s: " "${CYAN}" "${RESET}" "$question"
     local answer
-    read -rs answer
+    read -r -s -u "$PROMPT_FD" answer
     echo ""
     eval "$varname=\"\$answer\""
   else
@@ -132,7 +136,7 @@ prompt_yn() {
     [[ "$default" == "n" ]] && yn_hint="y/N"
     printf "  %s›%s %s ${DIM}[%s]${RESET}: " "${CYAN}" "${RESET}" "$question" "$yn_hint"
     local answer
-    read -r answer
+    read -r -u "$PROMPT_FD" answer
     answer="${answer:-$default}"
     case "$answer" in
       [Yy]*) eval "$varname=true" ;;
@@ -160,7 +164,7 @@ prompt_choice() {
     done
     printf "  %s›%s Choice ${DIM}[1]${RESET}: " "${CYAN}" "${RESET}"
     local answer
-    read -r answer
+    read -r -u "$PROMPT_FD" answer
     answer="${answer:-1}"
     if [[ "$answer" =~ ^[0-9]+$ ]] && [[ "$answer" -ge 1 ]] && [[ "$answer" -le ${#options[@]} ]]; then
       eval "$varname=\"\${options[$((answer - 1))]}\""

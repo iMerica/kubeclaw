@@ -11,8 +11,15 @@ set -euo pipefail
 # --- Configuration (edit these or override via environment) ---
 RELEASE="${RELEASE:-kubeclaw}"
 NAMESPACE="${NAMESPACE:-kubeclaw}"
+ENVOY_GATEWAY_NAMESPACE="${ENVOY_GATEWAY_NAMESPACE:-envoy-gateway-system}"
+ENVOY_GATEWAY_CONTROLLER_NAME="${ENVOY_GATEWAY_CONTROLLER_NAME:-gateway.envoyproxy.io/gatewayclass-controller}"
 
 LABEL_SELECTOR="app.kubernetes.io/instance=${RELEASE}"
+
+# Return all GatewayClass names managed by the Envoy Gateway controller.
+get_envoy_gatewayclasses() {
+  kubectl get gatewayclass -o jsonpath="{range .items[?(@.spec.controllerName==\"${ENVOY_GATEWAY_CONTROLLER_NAME}\")]}{.metadata.name}{' '}{end}" 2>/dev/null || true
+}
 
 # Strip finalizers from all resources of a given kind so they don't block deletion.
 # Usage: strip_finalizers <kind> [--namespace <ns>] [-l <selector>] [--field-selector ...]
@@ -36,14 +43,16 @@ echo ">>> Stripping finalizers from Gateway API resources..."
 for kind in gateway httproute; do
   strip_finalizers "${kind}" -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" 2>/dev/null || true
 done
-# GatewayClass is cluster-scoped; patch it directly by name.
-kubectl patch gatewayclass envoy --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null || true
+# GatewayClass is cluster-scoped; strip finalizers from all Envoy-managed classes.
+for gatewayclass in $(get_envoy_gatewayclasses); do
+  kubectl patch gatewayclass "${gatewayclass}" --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null || true
+done
 
 # --- 2. Strip finalizers from Envoy Gateway system resources ---
-if kubectl get namespace envoy-gateway-system &>/dev/null; then
-  echo ">>> Stripping finalizers from envoy-gateway-system resources..."
+if kubectl get namespace "${ENVOY_GATEWAY_NAMESPACE}" &>/dev/null; then
+  echo ">>> Stripping finalizers from ${ENVOY_GATEWAY_NAMESPACE} resources..."
   for kind in deployment service configmap secret serviceaccount; do
-    strip_finalizers "${kind}" -n envoy-gateway-system
+    strip_finalizers "${kind}" -n "${ENVOY_GATEWAY_NAMESPACE}"
   done
 fi
 
@@ -63,7 +72,9 @@ echo ">>> Deleting Gateway API resources..."
 for kind in gateway httproute; do
   kubectl delete "${kind}" -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" --ignore-not-found --wait=false 2>/dev/null || true
 done
-kubectl delete gatewayclass envoy --ignore-not-found --wait=false 2>/dev/null || true
+for gatewayclass in $(get_envoy_gatewayclasses); do
+  kubectl delete gatewayclass "${gatewayclass}" --ignore-not-found --wait=false 2>/dev/null || true
+done
 
 # --- 5. Delete cluster-scoped resources by label ---
 echo ">>> Cleaning up cluster-scoped resources..."
@@ -72,9 +83,9 @@ for kind in clusterrole clusterrolebinding; do
 done
 
 # --- 6. Delete Envoy Gateway system namespace ---
-if kubectl get namespace envoy-gateway-system &>/dev/null; then
-  echo ">>> Deleting envoy-gateway-system namespace..."
-  kubectl delete namespace envoy-gateway-system --wait=false 2>/dev/null || true
+if kubectl get namespace "${ENVOY_GATEWAY_NAMESPACE}" &>/dev/null; then
+  echo ">>> Deleting ${ENVOY_GATEWAY_NAMESPACE} namespace..."
+  kubectl delete namespace "${ENVOY_GATEWAY_NAMESPACE}" --wait=false 2>/dev/null || true
 fi
 
 # --- 7. Delete all namespaced resources by instance label ---
