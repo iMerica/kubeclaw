@@ -542,7 +542,8 @@ spinner_start "Installing KubeClaw (this may take a few minutes)..."
 
 HELM_OUTPUT=""
 HELM_EXIT=0
-HELM_OUTPUT=$(eval "${HELM_CMD[@]}" 2>&1) || HELM_EXIT=$?
+# Run Helm directly from the array; avoid eval re-parsing args/secrets.
+HELM_OUTPUT=$("${HELM_CMD[@]}" 2>&1) || HELM_EXIT=$?
 
 spinner_stop
 
@@ -652,7 +653,7 @@ if [[ "$TAILSCALE_ENABLED" == true ]]; then
   info "SSH access:      ssh ${RELEASE}-gateway (once Tailscale connects)"
 fi
 info "Uninstall:       helm uninstall $RELEASE -n $NAMESPACE"
-info "Documentation:   https://docs.kubeclaw.ai"
+info "Documentation:   https://kubeclaw.ai/docs"
 echo ""
 hr
 printf "  %s%sKubeClaw is ready. Happy building! 🦞%s\n" "${BOLD}" "${GREEN}" "${RESET}"
