@@ -318,6 +318,30 @@ checksum/otel-cluster-config: {{ include (print $.Template.BasePath "/otel-clust
 {{- end }}
 
 {{/*
+Name of the skills-init ConfigMap.
+*/}}
+{{- define "kubeclaw.skillsConfigmapName" -}}
+{{- printf "%s-skills-config" (include "kubeclaw.fullname" .) }}
+{{- end }}
+
+{{/*
+Name of the Obsidian vault PVC (used in volumeClaimTemplates metadata).
+*/}}
+{{- define "kubeclaw.obsidianPvcName" -}}
+{{- printf "%s-obsidian" (include "kubeclaw.fullname" .) }}
+{{- end }}
+
+{{/*
+Checksum annotation for the skills ConfigMap.
+Triggers rollout when skills config changes.
+*/}}
+{{- define "kubeclaw.skillsConfigChecksum" -}}
+{{- if .Values.skills.enabled }}
+checksum/skills-config: {{ include (print $.Template.BasePath "/skills-configmap.yaml") . | sha256sum }}
+{{- end }}
+{{- end }}
+
+{{/*
 Name of the Gateway API Gateway resource.
 */}}
 {{- define "kubeclaw.gatewayAPIName" -}}

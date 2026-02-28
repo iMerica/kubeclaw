@@ -33,6 +33,7 @@ spec:
         {{- end }}
       annotations:
         {{- include "kubeclaw.configChecksum" . | nindent 8 }}
+        {{- include "kubeclaw.skillsConfigChecksum" . | nindent 8 }}
         {{- if .Values.litellm.enabled }}
         checksum/litellm-config: {{ .Values.litellm.proxy_config | toJson | sha256sum }}
         {{- end }}
@@ -69,7 +70,7 @@ spec:
       # ---------------------------------------------------------------------------
       # initContainers
       # ---------------------------------------------------------------------------
-      {{- if or .Values.config.desired .Values.egressFilter.enabled }}
+      {{- if or .Values.config.desired .Values.egressFilter.enabled .Values.skills.enabled }}
       initContainers:
         {{- if .Values.config.desired }}
         # config-init: merges or overwrites openclaw.json on the PVC.
@@ -143,6 +144,47 @@ spec:
             limits:
               cpu: 100m
               memory: 32Mi
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+        {{- end }}
+        {{- if .Values.skills.enabled }}
+        # skills-init: downloads SKILL.md files and merges skills config into
+        # openclaw.json. Runs after config-init so skills config layers on top.
+        - name: skills-init
+          image: {{ include "kubeclaw.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "/skills-init/install.sh"]
+          env:
+            - name: SKILL_COUNT
+              value: {{ len .Values.skills.list | quote }}
+            {{- range $i, $skill := .Values.skills.list }}
+            - name: SKILL_{{ $i }}_NAME
+              value: {{ $skill.name | quote }}
+            - name: SKILL_{{ $i }}_REGISTRY
+              value: {{ $skill.registry | quote }}
+            - name: SKILL_{{ $i }}_SLUG
+              value: {{ $skill.slug | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: {{ include "kubeclaw.statePvcName" . }}
+              mountPath: /data
+              {{- if .Values.persistence.splitVolumes }}
+              subPath: state
+              {{- end }}
+            - name: skills-init-config
+              mountPath: /skills-init
+              readOnly: true
+            {{- if .Values.config.desired }}
+            - name: init-script
+              mountPath: /scripts
+              readOnly: true
+            {{- end }}
+            - name: skills-tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.skills.initResources | nindent 12 }}
           securityContext:
             runAsNonRoot: true
             readOnlyRootFilesystem: true
@@ -226,6 +268,10 @@ spec:
               mountPath: /etc/resolv.conf
               subPath: resolv.conf
               readOnly: true
+            {{- end }}
+            {{- if .Values.obsidian.enabled }}
+            - name: {{ include "kubeclaw.obsidianPvcName" . }}
+              mountPath: {{ .Values.obsidian.mountPath }}
             {{- end }}
           securityContext:
             runAsNonRoot: true
@@ -383,6 +429,15 @@ spec:
           emptyDir:
             sizeLimit: 1Mi
         {{- end }}
+        {{- if .Values.skills.enabled }}
+        - name: skills-init-config
+          configMap:
+            name: {{ include "kubeclaw.skillsConfigmapName" . }}
+            defaultMode: 0555
+        - name: skills-tmp
+          emptyDir:
+            sizeLimit: 200Mi
+        {{- end }}
         {{- if and .Values.tailscale.ssh.enabled (not .Values.tailscale.ssh.persistState) }}
         - name: ts-state
           emptyDir: {}
@@ -414,6 +469,18 @@ spec:
         resources:
           requests:
             storage: {{ .Values.persistence.workspace.size }}
+    {{- end }}
+    {{- if .Values.obsidian.enabled }}
+    - metadata:
+        name: {{ include "kubeclaw.obsidianPvcName" . }}
+      spec:
+        accessModes: {{ toYaml .Values.obsidian.persistence.accessModes | nindent 10 }}
+        {{- if .Values.obsidian.persistence.storageClass }}
+        storageClassName: {{ .Values.obsidian.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.obsidian.persistence.size }}
     {{- end }}
     {{- if and .Values.tailscale.ssh.enabled .Values.tailscale.ssh.persistState }}
     - metadata:

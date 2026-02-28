@@ -97,6 +97,7 @@ graph TB
         litellm[fa:fa-route LiteLLM Proxy :4000]
         egressfilter[fa:fa-filter Egress Filter :53]
         pvc[(fa:fa-database PVC)]
+        obsidianpvc[(fa:fa-book Obsidian Vault)]
     end
 
     subgraph external [" "]
@@ -112,6 +113,7 @@ graph TB
     gw -->|HTTP| litellm
     gw -.->|DNS| egressfilter
     gw ---|state| pvc
+    gw ---|tasks| obsidianpvc
     gw -->|outbound| msg
     litellm -->|HTTPS| llm
     gw -->|OTLP| otelgw
@@ -134,6 +136,8 @@ graph TB
 | **Egress DNS filter** | NextDNS-style DNS filtering via [Blocky](https://0xerr0r.github.io/blocky/), including threat blocklists (HaGeZi, StevenBlack), country TLD blocking, and query logging |
 | **NetworkPolicy** | Scaffolding for locking down traffic |
 | **Diagnostics CronJob** | Periodic `openclaw doctor` runs |
+| **Skills system** | Declarative skill install at deploy time; supports playbooks, clawhub, and npm registries |
+| **Obsidian vault** | PVC-backed markdown vault mounted at `/vaults/obsidian`; wired to the Obsidian skill for task management |
 | **Tailscale integration** | Expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`) |
 
 

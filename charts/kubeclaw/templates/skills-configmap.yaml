@@ -1,0 +1,164 @@
+{{- if .Values.skills.enabled }}
+# ConfigMap: skills configuration and install script.
+# The skills-init initContainer downloads SKILL.md files and merges
+# skills.json into openclaw.json before the Gateway starts.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubeclaw.skillsConfigmapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+data:
+  skills.json: |
+    {
+      "skills": {
+        "load": {
+          "watch": {{ .Values.skills.watch }},
+          "extraDirs": {{ if .Values.obsidian.enabled }}{{ append .Values.skills.extraDirs "/vaults" | toJson }}{{ else }}{{ .Values.skills.extraDirs | toJson }}{{ end }}
+        },
+        "install": {
+          "nodeManager": {{ .Values.skills.nodeManager | quote }}
+        },
+        "entries": {
+          {{- $first := true }}
+          {{- range .Values.skills.list }}
+          {{- if .enabled }}
+          {{- if not $first }},{{ end }}
+          {{ .name | quote }}: {
+            "enabled": true
+            {{- if .config }},
+            "config": {{ .config | toJson }}
+            {{- end }}
+          }
+          {{- $first = false }}
+          {{- end }}
+          {{- end }}
+        }
+      }
+    }
+
+  install.sh: |
+    #!/bin/sh
+    set -eu
+
+    SKILLS_DIR=/data/skills
+    SKILLS_JSON=/skills-init/skills.json
+    CONFIG_DEST=/data/openclaw.json
+
+    echo "skills-init: installing skills"
+
+    # Download SKILL.md for each skill
+    i=0
+    while [ "$i" -lt "${SKILL_COUNT:-0}" ]; do
+      eval "SKILL_NAME=\${SKILL_${i}_NAME:-}"
+      eval "SKILL_REGISTRY=\${SKILL_${i}_REGISTRY:-}"
+      eval "SKILL_SLUG=\${SKILL_${i}_SLUG:-}"
+
+      if [ -z "$SKILL_NAME" ] || [ -z "$SKILL_REGISTRY" ] || [ -z "$SKILL_SLUG" ]; then
+        echo "skills-init: skipping skill $i (missing name/registry/slug)"
+        i=$((i + 1))
+        continue
+      fi
+
+      SKILL_OUT_DIR="${SKILLS_DIR}/${SKILL_NAME}"
+      mkdir -p "$SKILL_OUT_DIR"
+
+      echo "skills-init: installing ${SKILL_NAME} from ${SKILL_REGISTRY}/${SKILL_SLUG}"
+
+      case "$SKILL_REGISTRY" in
+        playbooks)
+          URL="https://raw.githubusercontent.com/playbooks-ai/skills/main/${SKILL_SLUG}/SKILL.md"
+          node -e "
+            const https = require('https');
+            const fs = require('fs');
+            const url = '${URL}';
+            https.get(url, { headers: { 'User-Agent': 'kubeclaw-skills-init' } }, (res) => {
+              if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                https.get(res.headers.location, { headers: { 'User-Agent': 'kubeclaw-skills-init' } }, (res2) => {
+                  let data = '';
+                  res2.on('data', (c) => data += c);
+                  res2.on('end', () => {
+                    if (res2.statusCode !== 200) { console.error('HTTP ' + res2.statusCode); process.exit(1); }
+                    fs.writeFileSync('${SKILL_OUT_DIR}/SKILL.md', data);
+                    console.log('Downloaded SKILL.md for ${SKILL_NAME}');
+                  });
+                });
+              } else {
+                let data = '';
+                res.on('data', (c) => data += c);
+                res.on('end', () => {
+                  if (res.statusCode !== 200) { console.error('HTTP ' + res.statusCode); process.exit(1); }
+                  fs.writeFileSync('${SKILL_OUT_DIR}/SKILL.md', data);
+                  console.log('Downloaded SKILL.md for ${SKILL_NAME}');
+                });
+              }
+            }).on('error', (e) => { console.error(e.message); process.exit(1); });
+          "
+          ;;
+        clawhub)
+          URL="https://clawhub.ai/skills/${SKILL_SLUG}/SKILL.md"
+          node -e "
+            const https = require('https');
+            const fs = require('fs');
+            const url = '${URL}';
+            https.get(url, { headers: { 'User-Agent': 'kubeclaw-skills-init' } }, (res) => {
+              if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                https.get(res.headers.location, { headers: { 'User-Agent': 'kubeclaw-skills-init' } }, (res2) => {
+                  let data = '';
+                  res2.on('data', (c) => data += c);
+                  res2.on('end', () => {
+                    if (res2.statusCode !== 200) { console.error('HTTP ' + res2.statusCode); process.exit(1); }
+                    fs.writeFileSync('${SKILL_OUT_DIR}/SKILL.md', data);
+                    console.log('Downloaded SKILL.md for ${SKILL_NAME}');
+                  });
+                });
+              } else {
+                let data = '';
+                res.on('data', (c) => data += c);
+                res.on('end', () => {
+                  if (res.statusCode !== 200) { console.error('HTTP ' + res.statusCode); process.exit(1); }
+                  fs.writeFileSync('${SKILL_OUT_DIR}/SKILL.md', data);
+                  console.log('Downloaded SKILL.md for ${SKILL_NAME}');
+                });
+              }
+            }).on('error', (e) => { console.error(e.message); process.exit(1); });
+          "
+          ;;
+        npm)
+          cd /tmp
+          npm pack "$SKILL_SLUG" --pack-destination /tmp 2>/dev/null
+          TARBALL=$(ls /tmp/*.tgz 2>/dev/null | head -1)
+          if [ -n "$TARBALL" ]; then
+            tar xzf "$TARBALL" -C /tmp
+            if [ -f /tmp/package/SKILL.md ]; then
+              cp /tmp/package/SKILL.md "$SKILL_OUT_DIR/SKILL.md"
+              echo "Extracted SKILL.md for ${SKILL_NAME} from npm"
+            else
+              echo "WARNING: SKILL.md not found in npm package ${SKILL_SLUG}"
+            fi
+            rm -rf /tmp/package /tmp/*.tgz
+          else
+            echo "WARNING: npm pack failed for ${SKILL_SLUG}"
+          fi
+          ;;
+        *)
+          echo "WARNING: unknown registry '${SKILL_REGISTRY}' for skill '${SKILL_NAME}'"
+          ;;
+      esac
+
+      i=$((i + 1))
+    done
+
+    # Merge skills.json into openclaw.json
+    echo "skills-init: merging skills config into openclaw.json"
+    if [ ! -f "$CONFIG_DEST" ]; then
+      echo "No existing config found; copying skills.json as-is"
+      cp "$SKILLS_JSON" "$CONFIG_DEST"
+    else
+      node /scripts/merge-json5.js "$CONFIG_DEST" "$SKILLS_JSON" > "${CONFIG_DEST}.tmp"
+      mv "${CONFIG_DEST}.tmp" "$CONFIG_DEST"
+    fi
+
+    echo "skills-init: complete"
+{{- end }}

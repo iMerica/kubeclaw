@@ -262,6 +262,73 @@
     "clickstack": {
       "type": "object"
     },
+    "skills": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "nodeManager": {
+          "type": "string",
+          "enum": ["npm", "yarn", "pnpm"]
+        },
+        "watch": { "type": "boolean" },
+        "extraDirs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "list": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "registry", "slug"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "registry": {
+                "type": "string",
+                "enum": ["playbooks", "clawhub", "npm"]
+              },
+              "slug": {
+                "type": "string",
+                "minLength": 1
+              },
+              "enabled": { "type": "boolean" },
+              "config": { "type": "object" },
+              "env": { "type": "object" }
+            }
+          }
+        },
+        "initResources": { "type": "object" }
+      }
+    },
+    "obsidian": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "mountPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "persistence": {
+          "type": "object",
+          "properties": {
+            "storageClass": { "type": "string" },
+            "size": {
+              "type": "string",
+              "pattern": "^[0-9]+(Ki|Mi|Gi|Ti|Pi|Ei|m|k|M|G|T|P|E)?$"
+            },
+            "accessModes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
+              }
+            }
+          }
+        }
+      }
+    },
     "litellm": {
       "type": "object",
       "properties": {

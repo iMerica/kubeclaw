@@ -154,6 +154,60 @@ config:
   mode: merge
 
 # ------------------------------------------------------------------------------
+# Skills
+# Declarative skill installation at deploy time. A skills-init initContainer
+# downloads each skill's SKILL.md from its registry and places it under
+# /home/node/.openclaw/skills/<name>/. The Gateway discovers skills on startup.
+#
+# Supported registries: playbooks, clawhub, npm
+# Docs: https://docs.openclaw.ai/tools/skills
+# ------------------------------------------------------------------------------
+skills:
+  enabled: true
+  nodeManager: npm
+  watch: true
+  extraDirs: []
+
+  # Skills to install. Each entry becomes a skills.entries.<name> block in
+  # openclaw.json and a SKILL.md download target.
+  list:
+    - name: obsidian
+      registry: playbooks
+      slug: openclaw/skills/obsidian
+      enabled: true
+      config:
+        vaultPath: /vaults/obsidian
+    # Example — adding Trello in a future release:
+    # - name: trello
+    #   registry: playbooks
+    #   slug: openclaw/skills/trello
+    #   enabled: true
+    #   env:
+    #     TRELLO_API_KEY: "${TRELLO_API_KEY}"
+
+  initResources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# ------------------------------------------------------------------------------
+# Obsidian Vault
+# Provisions a PVC for a markdown vault. Mounted read-write into the Gateway
+# at /vaults/obsidian. The Obsidian skill is configured to use this path.
+# ------------------------------------------------------------------------------
+obsidian:
+  enabled: true
+  mountPath: /vaults/obsidian
+  persistence:
+    storageClass: ""
+    size: 5Gi
+    accessModes:
+      - ReadWriteOnce
+
+# ------------------------------------------------------------------------------
 # Node.js runtime options
 # NODE_OPTIONS is passed to every `node` invocation in the Gateway container.
 # Increase --max-old-space-size (in MiB) if the Gateway hits a JavaScript heap
@@ -234,6 +288,7 @@ gatewayAPI:
     o11y: /o11y
     litellm: /litellm
     filtering: /filtering
+    obsidian: /obsidian
   # TLS configuration
   tls: {}
   #   certificateRefs:
