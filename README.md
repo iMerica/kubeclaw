@@ -143,7 +143,13 @@ graph TB
 
 ## Install
 
-### Via OCI
+### One-line installer (recommended)
+
+```sh
+curl -fsSL https://kubeclaw.ai/install.sh | bash
+```
+
+### Via OCI (manual)
 
 ```sh
 helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
