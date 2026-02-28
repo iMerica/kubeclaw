@@ -103,6 +103,40 @@ graph TB
     otelcluster -->|OTLP| otelgw
 ```
 
+## Install
+
+### One-line installer (recommended)
+
+```sh
+curl -fsSL https://kubeclaw.ai/install.sh | bash
+```
+
+### Via OCI (manual)
+
+```sh
+helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
+  --version 0.1.0 \
+  --namespace kubeclaw \
+  --create-namespace \
+  --set secret.data.OPENCLAW_GATEWAY_TOKEN=change-me
+
+```
+
+## Configuration
+
+All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubeclaw/values.yaml). The minimum required values are:
+
+| Key | Notes |
+|-----|-------|
+| `secret.data.OPENCLAW_GATEWAY_TOKEN` | **Required.** Strong random string; treat as a password |
+| `tailscale.ssh.authKey` | **Required** (unless `authKeySecretName` is set) |
+| `litellm.masterkey` | **Required** when `litellm.enabled` (default). Must start with `sk-` |
+
+Full configuration reference, advanced examples, and per-feature setup: **[Install Guide](docs/oss/README.md)** &middot; [kubeclaw.ai/docs](https://kubeclaw.ai/docs)
+
+Image pinning policy: each chart release is validated against a candidate image, then the chart defaults are updated to the exact `image.tag` + `image.digest` before publishing.
+
+
 ## What You Get
 
 | Feature | Description |
@@ -122,38 +156,6 @@ graph TB
 | **Obsidian vault** | PVC-backed markdown vault mounted at `/vaults/obsidian`; wired to the Obsidian skill for task management |
 | **Tailscale integration** | Expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`) |
 
-
-## Install
-
-### One-line installer (recommended)
-
-```sh
-curl -fsSL https://kubeclaw.ai/install.sh | bash
-```
-
-### Via OCI (manual)
-
-```sh
-helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
-  --version 0.1.0 \
-  --namespace kubeclaw \
-  --create-namespace \
-  --set secret.data.OPENCLAW_GATEWAY_TOKEN=change-me
-```
-
-## Configuration
-
-All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubeclaw/values.yaml). The minimum required values are:
-
-| Key | Notes |
-|-----|-------|
-| `secret.data.OPENCLAW_GATEWAY_TOKEN` | **Required.** Strong random string; treat as a password |
-| `tailscale.ssh.authKey` | **Required** (unless `authKeySecretName` is set) |
-| `litellm.masterkey` | **Required** when `litellm.enabled` (default). Must start with `sk-` |
-
-Full configuration reference, advanced examples, and per-feature setup: **[Install Guide](docs/oss/README.md)** &middot; [kubeclaw.ai/docs](https://kubeclaw.ai/docs)
-
-Image pinning policy: each chart release is validated against a candidate image, then the chart defaults are updated to the exact `image.tag` + `image.digest` before publishing.
 
 ## Docs
 
