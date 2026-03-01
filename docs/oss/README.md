@@ -114,7 +114,7 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `ingress.host` | `""` | Ingress hostname |
 | `gatewayAPI.enabled` | `true` | Enable K8s Gateway API routing (alternative to Ingress) |
 | `gatewayAPI.gatewayClassName` | `""` | GatewayClass name; auto-resolved when `controller.enabled` |
-| `gatewayAPI.host` | `openclaw.example.com` | Hostname for all HTTPRoutes |
+| `gatewayAPI.host` | `""` | Hostname for all HTTPRoutes. Empty = match all (local dev friendly). Set to a real domain for production. |
 | `gatewayAPI.controller.enabled` | `true` | Deploy Envoy Gateway as a subchart with auto-created GatewayClass |
 | `gatewayAPI.controller.gatewayClassName` | `envoy` | GatewayClass name created by the bundled controller |
 | `gatewayAPI.crds.install` | `false` | Install Gateway API CRDs via hook Job (BYO-controller setups) |
@@ -203,13 +203,10 @@ helm install kubeclaw charts/kubeclaw \
   --namespace kubeclaw --create-namespace \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN="$(openssl rand -hex 32)" \
   --set litellm.masterkey="sk-$(openssl rand -hex 16)" \
-  --set tailscale.ssh.authKey="tskey-auth-..." \
-  --set gatewayAPI.enabled=true \
-  --set gatewayAPI.controller.enabled=true \
-  --set gatewayAPI.host=kubeclaw.local
+  --set tailscale.ssh.authKey="tskey-auth-..."
 ```
 
-This deploys Envoy Gateway, creates a `GatewayClass` named `envoy`, and wires up all HTTPRoutes. No manual CRD or controller installation required.
+This deploys Envoy Gateway, creates a `GatewayClass` named `envoy`, and wires up all HTTPRoutes. No manual CRD or controller installation required. With the default empty `gatewayAPI.host`, routes match any hostname — `http://127.0.0.1/` works immediately for local dev. Set `gatewayAPI.host` to a real domain for production.
 
 #### Path B — BYO controller (Istio, Cilium, etc.)
 
@@ -241,27 +238,21 @@ ENVOY_SVC=$(kubectl get svc -A -l gateway.networking.k8s.io/gateway-name=kubecla
 kubectl port-forward -n "${ENVOY_SVC%%/*}" "svc/${ENVOY_SVC##*/}" 8080:80
 ```
 
-Add `kubeclaw.local` to `/etc/hosts`:
-
-```
-127.0.0.1 kubeclaw.local
-```
-
-Then open (replace `8080` with `80` if LoadBalancer is working):
+With the default empty `gatewayAPI.host`, no `/etc/hosts` entry is needed — routes match any hostname:
 
 | Service | URL |
 |---------|-----|
-| OpenClaw Gateway (Canvas UI) | `http://kubeclaw.local:8080/` |
-| HyperDX (Observability) | `http://kubeclaw.local:8080/o11y/` |
-| LiteLLM (Proxy Dashboard) | `http://kubeclaw.local:8080/litellm/` |
-| Egress Filter (Blocky API) | `http://kubeclaw.local:8080/filtering/` |
+| OpenClaw Gateway (Canvas UI) | `http://127.0.0.1/#token=YOUR_TOKEN` |
+| HyperDX (Observability) | `http://127.0.0.1/o11y/` |
+| LiteLLM (Proxy Dashboard) | `http://127.0.0.1/litellm/` |
+| Egress Filter (Blocky API) | `http://127.0.0.1/filtering/` |
 
-> **Note**: The OpenClaw Gateway UI requires an authenticated URL. Generate one with:
+Replace `127.0.0.1` with `127.0.0.1:8080` if using port-forward instead of a working LoadBalancer.
+
+> **Note**: The OpenClaw Gateway UI requires a token. Pass it via the URL fragment (`#token=...`) or paste it in Control UI settings. Find it with:
 > ```sh
-> kubectl -n kubeclaw exec statefulset/kubeclaw-gateway -- \
->   node dist/index.js dashboard --no-open
+> kubectl -n kubeclaw get secret kubeclaw -o jsonpath='{.data.OPENCLAW_GATEWAY_TOKEN}' | base64 -d
 > ```
-> Then append the token query parameter to the URLs above.
 
 #### Route customization
 
@@ -271,7 +262,7 @@ Override the default path prefixes in `values.yaml`:
 gatewayAPI:
   enabled: true
   gatewayClassName: envoy   # or omit when controller.enabled=true
-  host: kubeclaw.local
+  host: ""                  # empty = match all; set a domain for production
   routes:
     openclaw: /
     o11y: /o11y
@@ -315,8 +306,9 @@ github:
   enabled: true
   auth:
     token: ghp_your_token_here
-    # OR: tokenSecretName/tokenSecretKey for an existing Secret
 ```
+
+The token is merged into the main Secret as `GH_TOKEN` and `GITHUB_TOKEN`. Users who bring their own Secret via `secret.existingSecretName` should include these keys there.
 
 After deploy:
 
@@ -382,7 +374,7 @@ litellm:
       master_key: "os.environ/PROXY_MASTER_KEY"
 ```
 
-The `masterkey` value (or a reference via `masterkeySecretName`) is enforced by the chart's JSON schema. `helm install` will fail if `litellm.enabled=true` and neither is set.
+The `masterkey` value is required when `litellm.enabled=true` and is enforced by the chart's JSON schema. It is merged into the main Secret as `LITELLM_API_KEY`.
 
 #### Model fallback routing
 

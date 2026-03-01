@@ -128,7 +128,7 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 | Key | Notes |
 |-----|-------|
 | `secret.data.OPENCLAW_GATEWAY_TOKEN` | **Required.** Strong random string; treat as a password |
-| `tailscale.ssh.authKey` | **Required** (unless `authKeySecretName` is set) |
+| `tailscale.ssh.authKey` | **Required** when `tailscale.ssh.enabled` (unless `authKeySecretName` is set) |
 | `litellm.masterkey` | **Required** when `litellm.enabled` (default). Must start with `sk-` |
 
 Full configuration reference, advanced examples, and per-feature setup: **[Install Guide](docs/oss/README.md)** &middot; [kubeclaw.ai/docs](https://kubeclaw.ai/docs)
