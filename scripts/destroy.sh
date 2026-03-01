@@ -16,9 +16,16 @@ ENVOY_GATEWAY_CONTROLLER_NAME="${ENVOY_GATEWAY_CONTROLLER_NAME:-gateway.envoypro
 
 LABEL_SELECTOR="app.kubernetes.io/instance=${RELEASE}"
 
-# Return all GatewayClass names managed by the Envoy Gateway controller.
+# Return GatewayClass names managed by this Helm release and Envoy controller.
 get_envoy_gatewayclasses() {
-  kubectl get gatewayclass -o jsonpath="{range .items[?(@.spec.controllerName==\"${ENVOY_GATEWAY_CONTROLLER_NAME}\")]}{.metadata.name}{' '}{end}" 2>/dev/null || true
+  local names
+  names=$(kubectl get gatewayclass -l "${LABEL_SELECTOR}" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null) || return 0
+  for name in ${names}; do
+    controller=$(kubectl get gatewayclass "${name}" -o jsonpath='{.spec.controllerName}' 2>/dev/null || true)
+    if [[ "${controller}" == "${ENVOY_GATEWAY_CONTROLLER_NAME}" ]]; then
+      printf "%s " "${name}"
+    fi
+  done
 }
 
 # Strip finalizers from all resources of a given kind so they don't block deletion.
@@ -26,9 +33,24 @@ get_envoy_gatewayclasses() {
 strip_finalizers() {
   local kind="$1"; shift
   local names
+  local namespace_args=()
+  local args=("$@")
+  local i
+
   names=$(kubectl get "${kind}" "$@" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null) || return 0
+
+  # Keep only namespace flags for per-object patch calls; selectors are invalid with a named patch.
+  for ((i=0; i<${#args[@]}; i++)); do
+    if [[ "${args[$i]}" == "-n" || "${args[$i]}" == "--namespace" ]]; then
+      if (( i + 1 < ${#args[@]} )); then
+        namespace_args=("${args[$i]}" "${args[$((i + 1))]}")
+      fi
+      break
+    fi
+  done
+
   for name in ${names}; do
-    kubectl patch "${kind}" "${name}" "$@" --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null || true
+    kubectl patch "${kind}" "${name}" "${namespace_args[@]}" --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null || true
   done
 }
 
@@ -38,14 +60,10 @@ echo "Namespace: ${NAMESPACE}"
 echo "Selector:  ${LABEL_SELECTOR}"
 echo ""
 
-# --- 1. Strip finalizers from Gateway API resources before anything else ---
-echo ">>> Stripping finalizers from Gateway API resources..."
+# --- 1. Strip finalizers from namespaced Gateway API resources before uninstall ---
+echo ">>> Stripping finalizers from namespaced Gateway API resources..."
 for kind in gateway httproute; do
   strip_finalizers "${kind}" -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" 2>/dev/null || true
-done
-# GatewayClass is cluster-scoped; strip finalizers from all Envoy-managed classes.
-for gatewayclass in $(get_envoy_gatewayclasses); do
-  kubectl patch gatewayclass "${gatewayclass}" --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null || true
 done
 
 # --- 2. Strip finalizers from Envoy Gateway system resources ---
@@ -72,7 +90,14 @@ echo ">>> Deleting Gateway API resources..."
 for kind in gateway httproute; do
   kubectl delete "${kind}" -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" --ignore-not-found --wait=false 2>/dev/null || true
 done
+# Give namespaced Gateway API resources a chance to disappear so GatewayClass finalizer can clear naturally.
+kubectl wait gateway -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" --for=delete --timeout=60s 2>/dev/null || true
+kubectl wait httproute -n "${NAMESPACE}" -l "${LABEL_SELECTOR}" --for=delete --timeout=60s 2>/dev/null || true
+
 for gatewayclass in $(get_envoy_gatewayclasses); do
+  kubectl delete gatewayclass "${gatewayclass}" --ignore-not-found --wait=false 2>/dev/null || true
+  # If finalizer is still present after Gateway deletion, clear it as a fallback.
+  kubectl patch gatewayclass "${gatewayclass}" --type=merge -p '{"metadata":{"finalizers":null}}' 2>/dev/null || true
   kubectl delete gatewayclass "${gatewayclass}" --ignore-not-found --wait=false 2>/dev/null || true
 done
 
