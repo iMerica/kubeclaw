@@ -28,11 +28,13 @@ spec:
     metadata:
       labels:
         {{- include "kubeclaw.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: gateway
         {{- with .Values.pod.labels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       annotations:
         {{- include "kubeclaw.configChecksum" . | nindent 8 }}
+        {{- include "kubeclaw.envConfigChecksum" . | nindent 8 }}
         {{- include "kubeclaw.skillsConfigChecksum" . | nindent 8 }}
         {{- include "kubeclaw.toolsConfigChecksum" . | nindent 8 }}
         {{- if .Values.litellm.enabled }}
@@ -184,6 +186,9 @@ spec:
         {{- end }}
         {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
         # tools-init: installs selected CLIs into a shared tools volume.
+        # Runs as root so it can write to the emptyDir mount at /tools
+        # regardless of how the runtime initialises mount-point ownership.
+        # The gateway container mounts this volume readOnly.
         - name: tools-init
           image: {{ include "kubeclaw.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -215,12 +220,6 @@ spec:
               value: {{ .Values.tools.clis.asana.version | quote }}
             - name: ASANA_CLI_DOWNLOAD_URL_TEMPLATE
               value: {{ .Values.tools.clis.asana.downloadUrlTemplate | quote }}
-            - name: NOTION_CLI_ENABLED
-              value: {{ .Values.tools.clis.notion.enabled | quote }}
-            - name: NOTION_CLI_VERSION
-              value: {{ .Values.tools.clis.notion.version | quote }}
-            - name: NOTION_CLI_DOWNLOAD_URL_TEMPLATE
-              value: {{ .Values.tools.clis.notion.downloadUrlTemplate | quote }}
             - name: TRELLO_CLI_ENABLED
               value: {{ .Values.tools.clis.trello.enabled | quote }}
             - name: TRELLO_CLI_VERSION
@@ -236,7 +235,9 @@ spec:
           resources:
             {{- toYaml .Values.tools.init.resources | nindent 12 }}
           securityContext:
-            runAsNonRoot: true
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
         {{- end }}
@@ -301,20 +302,7 @@ spec:
             - name: PATH
               value: "{{ .Values.tools.init.binDir }}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             {{- end }}
-            {{- if .Values.nodeOptions }}
-            - name: NODE_OPTIONS
-              value: {{ .Values.nodeOptions | quote }}
-            {{- end }}
-            {{- with .Values.extraEnv }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
             {{- if and .Values.observability.enabled .Values.observability.gateway.enabled }}
-            - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: {{ include "kubeclaw.otelGatewayEndpoint" . | quote }}
-            - name: OTEL_EXPORTER_OTLP_PROTOCOL
-              value: "http/protobuf"
-            - name: OTEL_SERVICE_NAME
-              value: {{ .Values.observability.gateway.serviceName | quote }}
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -330,68 +318,12 @@ spec:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.node.name=$(NODE_NAME){{- if .Values.observability.gateway.resourceAttributes }},{{ .Values.observability.gateway.resourceAttributes }}{{- end }}"
             {{- end }}
-            {{- if .Values.litellm.enabled }}
-            - name: LITELLM_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kubeclaw.litellmMasterkeySecretName" . }}
-                  key: {{ include "kubeclaw.litellmMasterkeySecretKey" . }}
-            - name: OPENAI_API_BASE
-              value: {{ include "kubeclaw.litellmBaseUrl" . | quote }}
-            {{- end }}
-            {{- if and .Values.github.enabled (or .Values.github.auth.token .Values.github.auth.tokenSecretName) }}
-            - name: GH_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kubeclaw.githubAuthSecretName" . }}
-                  key: {{ include "kubeclaw.githubAuthSecretKey" . }}
-            - name: GITHUB_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kubeclaw.githubAuthSecretName" . }}
-                  key: {{ include "kubeclaw.githubAuthSecretKey" . }}
-            {{- end }}
-            {{- if and .Values.jira.enabled (or .Values.jira.auth.token .Values.jira.auth.tokenSecretName) }}
-            - name: JIRA_API_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kubeclaw.jiraAuthSecretName" . }}
-                  key: {{ include "kubeclaw.jiraAuthSecretKey" . }}
-            {{- end }}
-            {{- if and .Values.linear.enabled (or .Values.linear.auth.token .Values.linear.auth.tokenSecretName) }}
-            - name: LINEAR_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kubeclaw.linearAuthSecretName" . }}
-                  key: {{ include "kubeclaw.linearAuthSecretKey" . }}
-            {{- end }}
-            {{- if and .Values.asana.enabled (or .Values.asana.auth.token .Values.asana.auth.tokenSecretName) }}
-            - name: ASANA_PAT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kubeclaw.asanaAuthSecretName" . }}
-                  key: {{ include "kubeclaw.asanaAuthSecretKey" . }}
-            {{- end }}
-            {{- if and .Values.notion.enabled (or .Values.notion.auth.token .Values.notion.auth.tokenSecretName) }}
-            - name: NOTION_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kubeclaw.notionAuthSecretName" . }}
-                  key: {{ include "kubeclaw.notionAuthSecretKey" . }}
-            {{- end }}
-            {{- if and .Values.trello.enabled (or .Values.trello.auth.apiKey .Values.trello.auth.token .Values.trello.auth.tokenSecretName) }}
-            - name: TRELLO_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kubeclaw.trelloAuthSecretName" . }}
-                  key: {{ include "kubeclaw.trelloApiKeySecretKey" . }}
-            - name: TRELLO_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "kubeclaw.trelloAuthSecretName" . }}
-                  key: {{ include "kubeclaw.trelloTokenSecretKey" . }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
           envFrom:
+            - configMapRef:
+                name: {{ include "kubeclaw.fullname" . }}-env
             - secretRef:
                 name: {{ include "kubeclaw.secretName" . }}
           volumeMounts:
@@ -607,10 +539,10 @@ spec:
             defaultMode: 0555
         - name: tools-bin
           emptyDir:
-            sizeLimit: 256Mi
+            sizeLimit: 512Mi
         - name: tools-tmp
           emptyDir:
-            sizeLimit: 256Mi
+            sizeLimit: 512Mi
         {{- end }}
         {{- if and .Values.tailscale.ssh.enabled (not .Values.tailscale.ssh.persistState) }}
         - name: ts-state

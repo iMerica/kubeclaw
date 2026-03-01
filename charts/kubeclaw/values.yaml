@@ -172,10 +172,10 @@ tools:
     resources:
       requests:
         cpu: 50m
-        memory: 64Mi
+        memory: 128Mi
       limits:
         cpu: 500m
-        memory: 256Mi
+        memory: 512Mi
   # CLI catalog. Add more tools here over time.
   clis:
     github:
@@ -201,14 +201,9 @@ tools:
       version: "1.2.0"
       # Arch: x86_64 | arm64
       downloadUrlTemplate: "https://github.com/timwehrle/asana/releases/download/v{{version}}/asana_Linux_{{arch}}.tar.gz"
-    notion:
-      enabled: true
-      version: "0.3.0"
-      # Arch: amd64 | arm64
-      downloadUrlTemplate: "https://github.com/4ier/notion-cli/releases/download/v{{version}}/notion-cli_{{version}}_linux_{{arch}}.tar.gz"
     trello:
       enabled: true
-      version: "0.13.0"
+      version: "1.5.0"
 
 # ------------------------------------------------------------------------------
 # GitHub Integration
@@ -220,11 +215,8 @@ github:
   enabled: true
   auth:
     # Optional inline GitHub token. Prefer fine-grained PAT scoped to needed repos.
+    # Merged into the main Secret as GH_TOKEN and GITHUB_TOKEN.
     token: ""
-    # Optional existing Secret name/key for GitHub token.
-    # If set, this takes precedence over github.auth.token.
-    tokenSecretName: ""
-    tokenSecretKey: "GH_TOKEN"
 
 # ------------------------------------------------------------------------------
 # JIRA Integration
@@ -234,9 +226,8 @@ github:
 jira:
   enabled: true
   auth:
+    # Optional inline JIRA API token. Merged into the main Secret as JIRA_API_TOKEN.
     token: ""
-    tokenSecretName: ""
-    tokenSecretKey: "JIRA_API_TOKEN"
 
 # ------------------------------------------------------------------------------
 # Linear Integration
@@ -245,9 +236,8 @@ jira:
 linear:
   enabled: true
   auth:
+    # Optional inline Linear API key. Merged into the main Secret as LINEAR_API_KEY.
     token: ""
-    tokenSecretName: ""
-    tokenSecretKey: "LINEAR_API_KEY"
 
 # ------------------------------------------------------------------------------
 # Asana Integration
@@ -256,20 +246,8 @@ linear:
 asana:
   enabled: true
   auth:
+    # Optional inline Asana PAT. Merged into the main Secret as ASANA_PAT.
     token: ""
-    tokenSecretName: ""
-    tokenSecretKey: "ASANA_PAT"
-
-# ------------------------------------------------------------------------------
-# Notion Integration
-# Notion skill + notion-cli authentication.
-# ------------------------------------------------------------------------------
-notion:
-  enabled: true
-  auth:
-    token: ""
-    tokenSecretName: ""
-    tokenSecretKey: "NOTION_TOKEN"
 
 # ------------------------------------------------------------------------------
 # Trello Integration
@@ -278,11 +256,10 @@ notion:
 trello:
   enabled: true
   auth:
+    # Optional inline Trello API key. Merged into the main Secret as TRELLO_API_KEY.
     apiKey: ""
+    # Optional inline Trello token. Merged into the main Secret as TRELLO_TOKEN.
     token: ""
-    tokenSecretName: ""
-    apiKeySecretKey: "TRELLO_API_KEY"
-    tokenSecretKey: "TRELLO_TOKEN"
 
 # ------------------------------------------------------------------------------
 # Skills
@@ -323,10 +300,6 @@ skills:
     - name: asana
       registry: playbooks
       slug: openclaw/skills/asana
-      enabled: true
-    - name: notion
-      registry: playbooks
-      slug: openclaw/skills/notion
       enabled: true
     - name: trello
       registry: playbooks
@@ -802,13 +775,8 @@ litellm:
     tag: "main-v1.61.0"
 
   # Master key for the LiteLLM proxy API. Must start with "sk-".
-  # Set this or provide masterkeySecretName below.
+  # Merged into the main Secret as LITELLM_API_KEY.
   masterkey: ""
-
-  # Reference an existing Secret instead of setting masterkey above.
-  # The Secret must contain the key named in masterkeySecretKey.
-  masterkeySecretName: ""
-  masterkeySecretKey: "masterkey"
 
   # Secrets mounted as environment variables on the LiteLLM proxy pod.
   # The default entry forwards provider API keys (e.g. OPENAI_API_KEY) from

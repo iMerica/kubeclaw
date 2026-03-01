@@ -127,6 +127,55 @@ for i in $(seq 1 "${MAX_ATTEMPTS}"); do
   sleep 2
 done
 
+# --- Wait for K8s Gateway API to become PROGRAMMED ---
+GW_NAME="${RELEASE}-gateway-api"
+echo ""
+echo ">>> Waiting for K8s Gateway API to become programmed..."
+GW_PROGRAMMED=false
+for i in $(seq 1 30); do
+  PROGRAMMED=$(kubectl get gateway "${GW_NAME}" -n "${NAMESPACE}" \
+    -o jsonpath='{.status.conditions[?(@.type=="Programmed")].status}' 2>/dev/null || echo "")
+  if [[ "${PROGRAMMED}" == "True" ]]; then
+    GW_PROGRAMMED=true
+    break
+  fi
+  sleep 2
+done
+
+if [[ "${GW_PROGRAMMED}" == true ]]; then
+  echo "Gateway '${GW_NAME}' is programmed."
+else
+  echo "WARNING: Gateway '${GW_NAME}' is not yet programmed."
+  echo "  Check status: kubectl describe gateway ${GW_NAME} -n ${NAMESPACE}"
+fi
+
+# --- Print accessible routes ---
+GW_HOST=$(kubectl get gateway "${GW_NAME}" -n "${NAMESPACE}" \
+  -o jsonpath='{.spec.listeners[0].hostname}' 2>/dev/null || echo "")
+GW_ADDR=$(kubectl get gateway "${GW_NAME}" -n "${NAMESPACE}" \
+  -o jsonpath='{.status.addresses[0].value}' 2>/dev/null || echo "")
+GW_PORT=$(kubectl get svc -n "${NAMESPACE}" \
+  -l "gateway.envoyproxy.io/owning-gateway-name=${GW_NAME}" \
+  -o jsonpath='{.items[0].spec.ports[0].port}' 2>/dev/null || echo "80")
+
+echo ""
+echo "=== Routes ==="
+ROUTES=$(kubectl get httproute -n "${NAMESPACE}" -l "app.kubernetes.io/instance=${RELEASE}" \
+  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.rules[0].matches[0].path.value}{"\t"}{.spec.rules[0].backendRefs[0].name}:{.spec.rules[0].backendRefs[0].port}{"\n"}{end}' 2>/dev/null || echo "")
+
+if [[ -n "${ROUTES}" ]]; then
+  printf "%-30s %-15s %s\n" "ROUTE" "PATH" "BACKEND"
+  while IFS=$'\t' read -r name path backend; do
+    [[ -z "${name}" ]] && continue
+    printf "%-30s %-15s %s\n" "${name}" "${path}" "${backend}"
+  done <<< "${ROUTES}"
+  echo ""
+  if [[ -n "${GW_HOST}" && -n "${GW_ADDR}" ]]; then
+    echo "Gateway address: ${GW_ADDR}:${GW_PORT} (Host: ${GW_HOST})"
+    echo "  curl -H 'Host: ${GW_HOST}' http://${GW_ADDR}:${GW_PORT}/"
+  fi
+fi
+
 # --- Port-forward for local access ---
 LOCAL_PORT="${LOCAL_PORT:-18789}"
 

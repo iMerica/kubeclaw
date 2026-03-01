@@ -80,12 +80,14 @@ spec:
                   node dist/index.js doctor --yes
                   echo "=== openclaw status --all ==="
                   node dist/index.js status --all
+              {{- if .Values.diagnostics.nodeOptions }}
               env:
-                {{- if .Values.diagnostics.nodeOptions }}
                 - name: NODE_OPTIONS
                   value: {{ .Values.diagnostics.nodeOptions | quote }}
-                {{- end }}
+              {{- end }}
               envFrom:
+                - configMapRef:
+                    name: {{ include "kubeclaw.fullname" . }}-env
                 - secretRef:
                     name: {{ include "kubeclaw.secretName" . }}
               volumeMounts:

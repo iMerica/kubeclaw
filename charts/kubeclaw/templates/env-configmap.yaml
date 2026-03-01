@@ -1,0 +1,25 @@
+{{- /*
+Non-sensitive computed environment variables shared by the Gateway StatefulSet
+and the Diagnostics CronJob via envFrom: configMapRef. Keeping these in a
+ConfigMap avoids duplicating conditional logic across every pod-producing
+template.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-env
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+data:
+  {{- if .Values.litellm.enabled }}
+  OPENAI_API_BASE: {{ include "kubeclaw.litellmBaseUrl" . | quote }}
+  {{- end }}
+  {{- if and .Values.observability.enabled .Values.observability.gateway.enabled }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ include "kubeclaw.otelGatewayEndpoint" . | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+  OTEL_SERVICE_NAME: {{ .Values.observability.gateway.serviceName | quote }}
+  {{- end }}
+  {{- if .Values.nodeOptions }}
+  NODE_OPTIONS: {{ .Values.nodeOptions | quote }}
+  {{- end }}

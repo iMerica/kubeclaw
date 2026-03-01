@@ -159,20 +159,6 @@
                 }
               }
             },
-            "notion": {
-              "type": "object",
-              "properties": {
-                "enabled": { "type": "boolean" },
-                "version": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "downloadUrlTemplate": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
-            },
             "trello": {
               "type": "object",
               "properties": {
@@ -194,12 +180,7 @@
         "auth": {
           "type": "object",
           "properties": {
-            "token": { "type": "string" },
-            "tokenSecretName": { "type": "string" },
-            "tokenSecretKey": {
-              "type": "string",
-              "minLength": 1
-            }
+            "token": { "type": "string" }
           }
         }
       }
@@ -211,12 +192,7 @@
         "auth": {
           "type": "object",
           "properties": {
-            "token": { "type": "string" },
-            "tokenSecretName": { "type": "string" },
-            "tokenSecretKey": {
-              "type": "string",
-              "minLength": 1
-            }
+            "token": { "type": "string" }
           }
         }
       }
@@ -228,12 +204,7 @@
         "auth": {
           "type": "object",
           "properties": {
-            "token": { "type": "string" },
-            "tokenSecretName": { "type": "string" },
-            "tokenSecretKey": {
-              "type": "string",
-              "minLength": 1
-            }
+            "token": { "type": "string" }
           }
         }
       }
@@ -245,29 +216,7 @@
         "auth": {
           "type": "object",
           "properties": {
-            "token": { "type": "string" },
-            "tokenSecretName": { "type": "string" },
-            "tokenSecretKey": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
-        }
-      }
-    },
-    "notion": {
-      "type": "object",
-      "properties": {
-        "enabled": { "type": "boolean" },
-        "auth": {
-          "type": "object",
-          "properties": {
-            "token": { "type": "string" },
-            "tokenSecretName": { "type": "string" },
-            "tokenSecretKey": {
-              "type": "string",
-              "minLength": 1
-            }
+            "token": { "type": "string" }
           }
         }
       }
@@ -280,16 +229,7 @@
           "type": "object",
           "properties": {
             "apiKey": { "type": "string" },
-            "token": { "type": "string" },
-            "tokenSecretName": { "type": "string" },
-            "apiKeySecretKey": {
-              "type": "string",
-              "minLength": 1
-            },
-            "tokenSecretKey": {
-              "type": "string",
-              "minLength": 1
-            }
+            "token": { "type": "string" }
           }
         }
       }
@@ -555,12 +495,6 @@
           "type": "boolean"
         },
         "masterkey": {
-          "type": "string"
-        },
-        "masterkeySecretName": {
-          "type": "string"
-        },
-        "masterkeySecretKey": {
           "type": "string"
         },
         "environmentSecrets": {

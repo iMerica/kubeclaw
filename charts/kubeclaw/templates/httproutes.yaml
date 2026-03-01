@@ -54,8 +54,8 @@ spec:
               type: ReplacePrefixMatch
               replacePrefixMatch: /
       backendRefs:
-        - name: {{ .Release.Name }}-clickstack-hyperdx
-          port: 8080
+        - name: {{ .Release.Name }}-clickstack-app
+          port: 3000
 {{- end }}
 {{- if .Values.litellm.enabled }}
 ---

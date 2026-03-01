@@ -8,8 +8,8 @@ Validate required secrets when features are enabled.
   {{- end }}
 {{- end }}
 {{- if .Values.litellm.enabled }}
-  {{- if and (not .Values.litellm.masterkey) (not .Values.litellm.masterkeySecretName) }}
-    {{- fail "litellm.enabled is true but neither litellm.masterkey nor litellm.masterkeySecretName is set" }}
+  {{- if not .Values.litellm.masterkey }}
+    {{- fail "litellm.enabled is true but litellm.masterkey is not set" }}
   {{- end }}
 {{- end }}
 {{- if .Values.gatewayAPI.enabled }}
@@ -155,6 +155,15 @@ checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sh
 {{- end }}
 
 {{/*
+Checksum annotation for the env ConfigMap.
+Triggers rollout when computed env vars change.
+Usage: {{ include "kubeclaw.envConfigChecksum" . }}
+*/}}
+{{- define "kubeclaw.envConfigChecksum" -}}
+checksum/env-config: {{ include (print $.Template.BasePath "/env-configmap.yaml") . | sha256sum }}
+{{- end }}
+
+{{/*
 Image string helper.
 */}}
 {{- define "kubeclaw.image" -}}
@@ -188,122 +197,6 @@ Tailscale sidecar hostname. Falls back to kubeclaw.fullname.
 {{- end }}
 
 {{/*
-Name of the Secret holding the GitHub auth token.
-Returns tokenSecretName if set, otherwise "<fullname>-github-auth".
-*/}}
-{{- define "kubeclaw.githubAuthSecretName" -}}
-{{- if .Values.github.auth.tokenSecretName }}
-{{- .Values.github.auth.tokenSecretName }}
-{{- else }}
-{{- printf "%s-github-auth" (include "kubeclaw.fullname" .) }}
-{{- end }}
-{{- end }}
-
-{{/*
-Key within the GitHub auth Secret.
-*/}}
-{{- define "kubeclaw.githubAuthSecretKey" -}}
-{{- default "GH_TOKEN" .Values.github.auth.tokenSecretKey }}
-{{- end }}
-
-{{/*
-Name of the Secret holding the JIRA auth token.
-*/}}
-{{- define "kubeclaw.jiraAuthSecretName" -}}
-{{- if .Values.jira.auth.tokenSecretName }}
-{{- .Values.jira.auth.tokenSecretName }}
-{{- else }}
-{{- printf "%s-jira-auth" (include "kubeclaw.fullname" .) }}
-{{- end }}
-{{- end }}
-
-{{/*
-Key within the JIRA auth Secret.
-*/}}
-{{- define "kubeclaw.jiraAuthSecretKey" -}}
-{{- default "JIRA_API_TOKEN" .Values.jira.auth.tokenSecretKey }}
-{{- end }}
-
-{{/*
-Name of the Secret holding the Linear auth token.
-*/}}
-{{- define "kubeclaw.linearAuthSecretName" -}}
-{{- if .Values.linear.auth.tokenSecretName }}
-{{- .Values.linear.auth.tokenSecretName }}
-{{- else }}
-{{- printf "%s-linear-auth" (include "kubeclaw.fullname" .) }}
-{{- end }}
-{{- end }}
-
-{{/*
-Key within the Linear auth Secret.
-*/}}
-{{- define "kubeclaw.linearAuthSecretKey" -}}
-{{- default "LINEAR_API_KEY" .Values.linear.auth.tokenSecretKey }}
-{{- end }}
-
-{{/*
-Name of the Secret holding the Asana auth token.
-*/}}
-{{- define "kubeclaw.asanaAuthSecretName" -}}
-{{- if .Values.asana.auth.tokenSecretName }}
-{{- .Values.asana.auth.tokenSecretName }}
-{{- else }}
-{{- printf "%s-asana-auth" (include "kubeclaw.fullname" .) }}
-{{- end }}
-{{- end }}
-
-{{/*
-Key within the Asana auth Secret.
-*/}}
-{{- define "kubeclaw.asanaAuthSecretKey" -}}
-{{- default "ASANA_PAT" .Values.asana.auth.tokenSecretKey }}
-{{- end }}
-
-{{/*
-Name of the Secret holding the Notion auth token.
-*/}}
-{{- define "kubeclaw.notionAuthSecretName" -}}
-{{- if .Values.notion.auth.tokenSecretName }}
-{{- .Values.notion.auth.tokenSecretName }}
-{{- else }}
-{{- printf "%s-notion-auth" (include "kubeclaw.fullname" .) }}
-{{- end }}
-{{- end }}
-
-{{/*
-Key within the Notion auth Secret.
-*/}}
-{{- define "kubeclaw.notionAuthSecretKey" -}}
-{{- default "NOTION_TOKEN" .Values.notion.auth.tokenSecretKey }}
-{{- end }}
-
-{{/*
-Name of the Secret holding the Trello auth credentials.
-*/}}
-{{- define "kubeclaw.trelloAuthSecretName" -}}
-{{- if .Values.trello.auth.tokenSecretName }}
-{{- .Values.trello.auth.tokenSecretName }}
-{{- else }}
-{{- printf "%s-trello-auth" (include "kubeclaw.fullname" .) }}
-{{- end }}
-{{- end }}
-
-{{/*
-Key within the Trello auth Secret for the API key.
-*/}}
-{{- define "kubeclaw.trelloApiKeySecretKey" -}}
-{{- default "TRELLO_API_KEY" .Values.trello.auth.apiKeySecretKey }}
-{{- end }}
-
-{{/*
-Key within the Trello auth Secret for the token.
-*/}}
-{{- define "kubeclaw.trelloTokenSecretKey" -}}
-{{- default "TRELLO_TOKEN" .Values.trello.auth.tokenSecretKey }}
-{{- end }}
-
-{{/*
 LiteLLM proxy base URL.
 Returns the in-cluster URL of the LiteLLM proxy service on port 4000.
 The alias "litellm" in Chart.yaml causes the subchart Service to be named
@@ -311,25 +204,6 @@ The alias "litellm" in Chart.yaml causes the subchart Service to be named
 */}}
 {{- define "kubeclaw.litellmBaseUrl" -}}
 {{- printf "http://%s-litellm:4000/v1" .Release.Name }}
-{{- end }}
-
-{{/*
-Name of the Secret holding the LiteLLM master key.
-Returns the user-provided secret name or the auto-generated default.
-*/}}
-{{- define "kubeclaw.litellmMasterkeySecretName" -}}
-{{- if .Values.litellm.masterkeySecretName }}
-{{- .Values.litellm.masterkeySecretName }}
-{{- else }}
-{{- printf "%s-litellm-masterkey" (include "kubeclaw.fullname" .) }}
-{{- end }}
-{{- end }}
-
-{{/*
-Key name within the LiteLLM master key Secret.
-*/}}
-{{- define "kubeclaw.litellmMasterkeySecretKey" -}}
-{{- default "masterkey" .Values.litellm.masterkeySecretKey }}
 {{- end }}
 
 {{/*

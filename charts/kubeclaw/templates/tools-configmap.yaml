@@ -259,46 +259,6 @@ data:
       echo "tools-init: installed asana at $BIN_DIR/asana"
     }
 
-    install_notion_cli() {
-      if [ "${NOTION_CLI_ENABLED:-false}" != "true" ]; then
-        echo "tools-init: notion CLI disabled; skipping"
-        return
-      fi
-
-      VERSION="${NOTION_CLI_VERSION:-}"
-      URL_TEMPLATE="${NOTION_CLI_DOWNLOAD_URL_TEMPLATE:-}"
-      if [ -z "$VERSION" ] || [ -z "$URL_TEMPLATE" ]; then
-        echo "ERROR: notion CLI enabled but version or URL template is missing" >&2
-        exit 1
-      fi
-
-      ARCH="$(map_arch)"
-      URL="$(node -e "
-        const tpl = process.argv[1];
-        const version = process.argv[2];
-        const arch = process.argv[3];
-        process.stdout.write(
-          tpl.replaceAll('{{ "{{version}}" }}', version).replaceAll('{{ "{{arch}}" }}', arch)
-        );
-      " "$URL_TEMPLATE" "$VERSION" "$ARCH")"
-      TAR="/tmp/notion-cli.tgz"
-
-      echo "tools-init: installing notion-cli ${VERSION} for ${ARCH}"
-      download_file "$URL" "$TAR"
-      tar xzf "$TAR" -C /tmp
-
-      NOTION_BIN="$(find /tmp -name 'notion-cli' -type f -perm -u+x 2>/dev/null | head -1)"
-      if [ -z "$NOTION_BIN" ] || [ ! -x "$NOTION_BIN" ]; then
-        echo "ERROR: extracted notion-cli binary not found" >&2
-        exit 1
-      fi
-
-      cp "$NOTION_BIN" "$BIN_DIR/notion-cli"
-      chmod 0555 "$BIN_DIR/notion-cli"
-      rm -f "$TAR"
-      echo "tools-init: installed notion-cli at $BIN_DIR/notion-cli"
-    }
-
     install_trello_cli() {
       if [ "${TRELLO_CLI_ENABLED:-false}" != "true" ]; then
         echo "tools-init: trello CLI disabled; skipping"
@@ -312,7 +272,7 @@ data:
       fi
 
       echo "tools-init: installing trello-cli@${VERSION} via npm"
-      npm install --prefix /tools "trello-cli@${VERSION}" --no-save --no-audit --no-fund 2>&1
+      npm install --prefix /tools --cache /tmp/.npm "trello-cli@${VERSION}" --no-save --no-audit --no-fund 2>&1
       # Symlink the binary into BIN_DIR
       if [ -x /tools/node_modules/.bin/trello ]; then
         ln -sf /tools/node_modules/.bin/trello "$BIN_DIR/trello"
@@ -329,7 +289,6 @@ data:
     install_jira_cli
     install_linear_cli
     install_asana_cli
-    install_notion_cli
     install_trello_cli
 
     echo "tools-init: complete"
