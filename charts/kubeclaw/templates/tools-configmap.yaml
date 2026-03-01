@@ -98,7 +98,239 @@ data:
       echo "tools-init: installed gh at $BIN_DIR/gh"
     }
 
+    map_arch_uname() {
+      case "$(uname -m)" in
+        x86_64) echo "x86_64" ;;
+        aarch64|arm64) echo "arm64" ;;
+        *)
+          echo "ERROR: unsupported architecture: $(uname -m)" >&2
+          exit 1
+          ;;
+      esac
+    }
+
+    map_arch_rust() {
+      case "$(uname -m)" in
+        x86_64) echo "x86_64" ;;
+        aarch64|arm64) echo "aarch64" ;;
+        *)
+          echo "ERROR: unsupported architecture: $(uname -m)" >&2
+          exit 1
+          ;;
+      esac
+    }
+
+    install_jira_cli() {
+      if [ "${JIRA_CLI_ENABLED:-false}" != "true" ]; then
+        echo "tools-init: jira CLI disabled; skipping"
+        return
+      fi
+
+      VERSION="${JIRA_CLI_VERSION:-}"
+      URL_TEMPLATE="${JIRA_CLI_DOWNLOAD_URL_TEMPLATE:-}"
+      if [ -z "$VERSION" ] || [ -z "$URL_TEMPLATE" ]; then
+        echo "ERROR: jira CLI enabled but version or URL template is missing" >&2
+        exit 1
+      fi
+
+      ARCH="$(map_arch_uname)"
+      URL="$(node -e "
+        const tpl = process.argv[1];
+        const version = process.argv[2];
+        const arch = process.argv[3];
+        process.stdout.write(
+          tpl.replaceAll('{{ "{{version}}" }}', version).replaceAll('{{ "{{arch}}" }}', arch)
+        );
+      " "$URL_TEMPLATE" "$VERSION" "$ARCH")"
+      TAR="/tmp/jira.tgz"
+
+      echo "tools-init: installing jira ${VERSION} for ${ARCH}"
+      download_file "$URL" "$TAR"
+      tar xzf "$TAR" -C /tmp
+
+      JIRA_BIN="/tmp/jira_${VERSION}_linux_${ARCH}/bin/jira"
+      if [ ! -x "$JIRA_BIN" ]; then
+        # Some releases use a flat layout
+        JIRA_BIN="/tmp/bin/jira"
+      fi
+      if [ ! -x "$JIRA_BIN" ]; then
+        echo "ERROR: extracted jira binary not found" >&2
+        exit 1
+      fi
+
+      cp "$JIRA_BIN" "$BIN_DIR/jira"
+      chmod 0555 "$BIN_DIR/jira"
+      rm -f "$TAR"
+      echo "tools-init: installed jira at $BIN_DIR/jira"
+    }
+
+    install_linear_cli() {
+      if [ "${LINEAR_CLI_ENABLED:-false}" != "true" ]; then
+        echo "tools-init: linear CLI disabled; skipping"
+        return
+      fi
+
+      VERSION="${LINEAR_CLI_VERSION:-}"
+      URL_TEMPLATE="${LINEAR_CLI_DOWNLOAD_URL_TEMPLATE:-}"
+      if [ -z "$VERSION" ] || [ -z "$URL_TEMPLATE" ]; then
+        echo "ERROR: linear CLI enabled but version or URL template is missing" >&2
+        exit 1
+      fi
+
+      ARCH="$(map_arch_rust)"
+      URL="$(node -e "
+        const tpl = process.argv[1];
+        const version = process.argv[2];
+        const arch = process.argv[3];
+        process.stdout.write(
+          tpl.replaceAll('{{ "{{version}}" }}', version).replaceAll('{{ "{{arch}}" }}', arch)
+        );
+      " "$URL_TEMPLATE" "$VERSION" "$ARCH")"
+      TAR="/tmp/linear.tar.xz"
+
+      echo "tools-init: installing linear ${VERSION} for ${ARCH}"
+      download_file "$URL" "$TAR"
+      # Use node to decompress xz since busybox tar may lack xz support
+      node -e "
+        const { execSync } = require('child_process');
+        const fs = require('fs');
+        try {
+          execSync('tar xJf /tmp/linear.tar.xz -C /tmp', { stdio: 'inherit' });
+        } catch (e) {
+          // Fallback: try with node zlib (xz not available), report error
+          console.error('tar xJf failed — xz decompression not available');
+          process.exit(1);
+        }
+      "
+
+      LINEAR_BIN="/tmp/linear"
+      if [ ! -x "$LINEAR_BIN" ]; then
+        # Try nested directory
+        LINEAR_BIN="$(find /tmp -name 'linear' -type f -perm -u+x 2>/dev/null | head -1)"
+      fi
+      if [ -z "$LINEAR_BIN" ] || [ ! -x "$LINEAR_BIN" ]; then
+        echo "ERROR: extracted linear binary not found" >&2
+        exit 1
+      fi
+
+      cp "$LINEAR_BIN" "$BIN_DIR/linear"
+      chmod 0555 "$BIN_DIR/linear"
+      rm -f "$TAR"
+      echo "tools-init: installed linear at $BIN_DIR/linear"
+    }
+
+    install_asana_cli() {
+      if [ "${ASANA_CLI_ENABLED:-false}" != "true" ]; then
+        echo "tools-init: asana CLI disabled; skipping"
+        return
+      fi
+
+      VERSION="${ASANA_CLI_VERSION:-}"
+      URL_TEMPLATE="${ASANA_CLI_DOWNLOAD_URL_TEMPLATE:-}"
+      if [ -z "$VERSION" ] || [ -z "$URL_TEMPLATE" ]; then
+        echo "ERROR: asana CLI enabled but version or URL template is missing" >&2
+        exit 1
+      fi
+
+      ARCH="$(map_arch_uname)"
+      URL="$(node -e "
+        const tpl = process.argv[1];
+        const version = process.argv[2];
+        const arch = process.argv[3];
+        process.stdout.write(
+          tpl.replaceAll('{{ "{{version}}" }}', version).replaceAll('{{ "{{arch}}" }}', arch)
+        );
+      " "$URL_TEMPLATE" "$VERSION" "$ARCH")"
+      TAR="/tmp/asana.tgz"
+
+      echo "tools-init: installing asana ${VERSION} for ${ARCH}"
+      download_file "$URL" "$TAR"
+      tar xzf "$TAR" -C /tmp
+
+      ASANA_BIN="$(find /tmp -name 'asana' -type f -perm -u+x 2>/dev/null | head -1)"
+      if [ -z "$ASANA_BIN" ] || [ ! -x "$ASANA_BIN" ]; then
+        echo "ERROR: extracted asana binary not found" >&2
+        exit 1
+      fi
+
+      cp "$ASANA_BIN" "$BIN_DIR/asana"
+      chmod 0555 "$BIN_DIR/asana"
+      rm -f "$TAR"
+      echo "tools-init: installed asana at $BIN_DIR/asana"
+    }
+
+    install_notion_cli() {
+      if [ "${NOTION_CLI_ENABLED:-false}" != "true" ]; then
+        echo "tools-init: notion CLI disabled; skipping"
+        return
+      fi
+
+      VERSION="${NOTION_CLI_VERSION:-}"
+      URL_TEMPLATE="${NOTION_CLI_DOWNLOAD_URL_TEMPLATE:-}"
+      if [ -z "$VERSION" ] || [ -z "$URL_TEMPLATE" ]; then
+        echo "ERROR: notion CLI enabled but version or URL template is missing" >&2
+        exit 1
+      fi
+
+      ARCH="$(map_arch)"
+      URL="$(node -e "
+        const tpl = process.argv[1];
+        const version = process.argv[2];
+        const arch = process.argv[3];
+        process.stdout.write(
+          tpl.replaceAll('{{ "{{version}}" }}', version).replaceAll('{{ "{{arch}}" }}', arch)
+        );
+      " "$URL_TEMPLATE" "$VERSION" "$ARCH")"
+      TAR="/tmp/notion-cli.tgz"
+
+      echo "tools-init: installing notion-cli ${VERSION} for ${ARCH}"
+      download_file "$URL" "$TAR"
+      tar xzf "$TAR" -C /tmp
+
+      NOTION_BIN="$(find /tmp -name 'notion-cli' -type f -perm -u+x 2>/dev/null | head -1)"
+      if [ -z "$NOTION_BIN" ] || [ ! -x "$NOTION_BIN" ]; then
+        echo "ERROR: extracted notion-cli binary not found" >&2
+        exit 1
+      fi
+
+      cp "$NOTION_BIN" "$BIN_DIR/notion-cli"
+      chmod 0555 "$BIN_DIR/notion-cli"
+      rm -f "$TAR"
+      echo "tools-init: installed notion-cli at $BIN_DIR/notion-cli"
+    }
+
+    install_trello_cli() {
+      if [ "${TRELLO_CLI_ENABLED:-false}" != "true" ]; then
+        echo "tools-init: trello CLI disabled; skipping"
+        return
+      fi
+
+      VERSION="${TRELLO_CLI_VERSION:-}"
+      if [ -z "$VERSION" ]; then
+        echo "ERROR: trello CLI enabled but version is missing" >&2
+        exit 1
+      fi
+
+      echo "tools-init: installing trello-cli@${VERSION} via npm"
+      npm install --prefix /tools "trello-cli@${VERSION}" --no-save --no-audit --no-fund 2>&1
+      # Symlink the binary into BIN_DIR
+      if [ -x /tools/node_modules/.bin/trello ]; then
+        ln -sf /tools/node_modules/.bin/trello "$BIN_DIR/trello"
+      elif [ -x /tools/node_modules/trello-cli/bin/trello ]; then
+        ln -sf /tools/node_modules/trello-cli/bin/trello "$BIN_DIR/trello"
+      else
+        echo "ERROR: trello binary not found after npm install" >&2
+        exit 1
+      fi
+      echo "tools-init: installed trello at $BIN_DIR/trello"
+    }
+
     install_github_cli
+    install_jira_cli
+    install_linear_cli
+    install_asana_cli
+    install_notion_cli
+    install_trello_cli
 
     echo "tools-init: complete"
 {{- end }}

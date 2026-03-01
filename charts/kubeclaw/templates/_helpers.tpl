@@ -207,6 +207,103 @@ Key within the GitHub auth Secret.
 {{- end }}
 
 {{/*
+Name of the Secret holding the JIRA auth token.
+*/}}
+{{- define "kubeclaw.jiraAuthSecretName" -}}
+{{- if .Values.jira.auth.tokenSecretName }}
+{{- .Values.jira.auth.tokenSecretName }}
+{{- else }}
+{{- printf "%s-jira-auth" (include "kubeclaw.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Key within the JIRA auth Secret.
+*/}}
+{{- define "kubeclaw.jiraAuthSecretKey" -}}
+{{- default "JIRA_API_TOKEN" .Values.jira.auth.tokenSecretKey }}
+{{- end }}
+
+{{/*
+Name of the Secret holding the Linear auth token.
+*/}}
+{{- define "kubeclaw.linearAuthSecretName" -}}
+{{- if .Values.linear.auth.tokenSecretName }}
+{{- .Values.linear.auth.tokenSecretName }}
+{{- else }}
+{{- printf "%s-linear-auth" (include "kubeclaw.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Key within the Linear auth Secret.
+*/}}
+{{- define "kubeclaw.linearAuthSecretKey" -}}
+{{- default "LINEAR_API_KEY" .Values.linear.auth.tokenSecretKey }}
+{{- end }}
+
+{{/*
+Name of the Secret holding the Asana auth token.
+*/}}
+{{- define "kubeclaw.asanaAuthSecretName" -}}
+{{- if .Values.asana.auth.tokenSecretName }}
+{{- .Values.asana.auth.tokenSecretName }}
+{{- else }}
+{{- printf "%s-asana-auth" (include "kubeclaw.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Key within the Asana auth Secret.
+*/}}
+{{- define "kubeclaw.asanaAuthSecretKey" -}}
+{{- default "ASANA_PAT" .Values.asana.auth.tokenSecretKey }}
+{{- end }}
+
+{{/*
+Name of the Secret holding the Notion auth token.
+*/}}
+{{- define "kubeclaw.notionAuthSecretName" -}}
+{{- if .Values.notion.auth.tokenSecretName }}
+{{- .Values.notion.auth.tokenSecretName }}
+{{- else }}
+{{- printf "%s-notion-auth" (include "kubeclaw.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Key within the Notion auth Secret.
+*/}}
+{{- define "kubeclaw.notionAuthSecretKey" -}}
+{{- default "NOTION_TOKEN" .Values.notion.auth.tokenSecretKey }}
+{{- end }}
+
+{{/*
+Name of the Secret holding the Trello auth credentials.
+*/}}
+{{- define "kubeclaw.trelloAuthSecretName" -}}
+{{- if .Values.trello.auth.tokenSecretName }}
+{{- .Values.trello.auth.tokenSecretName }}
+{{- else }}
+{{- printf "%s-trello-auth" (include "kubeclaw.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Key within the Trello auth Secret for the API key.
+*/}}
+{{- define "kubeclaw.trelloApiKeySecretKey" -}}
+{{- default "TRELLO_API_KEY" .Values.trello.auth.apiKeySecretKey }}
+{{- end }}
+
+{{/*
+Key within the Trello auth Secret for the token.
+*/}}
+{{- define "kubeclaw.trelloTokenSecretKey" -}}
+{{- default "TRELLO_TOKEN" .Values.trello.auth.tokenSecretKey }}
+{{- end }}
+
+{{/*
 LiteLLM proxy base URL.
 Returns the in-cluster URL of the LiteLLM proxy service on port 4000.
 The alias "litellm" in Chart.yaml causes the subchart Service to be named

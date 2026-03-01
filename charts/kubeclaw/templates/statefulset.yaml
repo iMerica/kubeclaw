@@ -197,6 +197,34 @@ spec:
               value: {{ .Values.tools.clis.github.version | quote }}
             - name: GITHUB_CLI_DOWNLOAD_URL_TEMPLATE
               value: {{ .Values.tools.clis.github.downloadUrlTemplate | quote }}
+            - name: JIRA_CLI_ENABLED
+              value: {{ .Values.tools.clis.jira.enabled | quote }}
+            - name: JIRA_CLI_VERSION
+              value: {{ .Values.tools.clis.jira.version | quote }}
+            - name: JIRA_CLI_DOWNLOAD_URL_TEMPLATE
+              value: {{ .Values.tools.clis.jira.downloadUrlTemplate | quote }}
+            - name: LINEAR_CLI_ENABLED
+              value: {{ .Values.tools.clis.linear.enabled | quote }}
+            - name: LINEAR_CLI_VERSION
+              value: {{ .Values.tools.clis.linear.version | quote }}
+            - name: LINEAR_CLI_DOWNLOAD_URL_TEMPLATE
+              value: {{ .Values.tools.clis.linear.downloadUrlTemplate | quote }}
+            - name: ASANA_CLI_ENABLED
+              value: {{ .Values.tools.clis.asana.enabled | quote }}
+            - name: ASANA_CLI_VERSION
+              value: {{ .Values.tools.clis.asana.version | quote }}
+            - name: ASANA_CLI_DOWNLOAD_URL_TEMPLATE
+              value: {{ .Values.tools.clis.asana.downloadUrlTemplate | quote }}
+            - name: NOTION_CLI_ENABLED
+              value: {{ .Values.tools.clis.notion.enabled | quote }}
+            - name: NOTION_CLI_VERSION
+              value: {{ .Values.tools.clis.notion.version | quote }}
+            - name: NOTION_CLI_DOWNLOAD_URL_TEMPLATE
+              value: {{ .Values.tools.clis.notion.downloadUrlTemplate | quote }}
+            - name: TRELLO_CLI_ENABLED
+              value: {{ .Values.tools.clis.trello.enabled | quote }}
+            - name: TRELLO_CLI_VERSION
+              value: {{ .Values.tools.clis.trello.version | quote }}
           volumeMounts:
             - name: tools-init-config
               mountPath: /tools-init
@@ -322,6 +350,46 @@ spec:
                 secretKeyRef:
                   name: {{ include "kubeclaw.githubAuthSecretName" . }}
                   key: {{ include "kubeclaw.githubAuthSecretKey" . }}
+            {{- end }}
+            {{- if and .Values.jira.enabled (or .Values.jira.auth.token .Values.jira.auth.tokenSecretName) }}
+            - name: JIRA_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeclaw.jiraAuthSecretName" . }}
+                  key: {{ include "kubeclaw.jiraAuthSecretKey" . }}
+            {{- end }}
+            {{- if and .Values.linear.enabled (or .Values.linear.auth.token .Values.linear.auth.tokenSecretName) }}
+            - name: LINEAR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeclaw.linearAuthSecretName" . }}
+                  key: {{ include "kubeclaw.linearAuthSecretKey" . }}
+            {{- end }}
+            {{- if and .Values.asana.enabled (or .Values.asana.auth.token .Values.asana.auth.tokenSecretName) }}
+            - name: ASANA_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeclaw.asanaAuthSecretName" . }}
+                  key: {{ include "kubeclaw.asanaAuthSecretKey" . }}
+            {{- end }}
+            {{- if and .Values.notion.enabled (or .Values.notion.auth.token .Values.notion.auth.tokenSecretName) }}
+            - name: NOTION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeclaw.notionAuthSecretName" . }}
+                  key: {{ include "kubeclaw.notionAuthSecretKey" . }}
+            {{- end }}
+            {{- if and .Values.trello.enabled (or .Values.trello.auth.apiKey .Values.trello.auth.token .Values.trello.auth.tokenSecretName) }}
+            - name: TRELLO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeclaw.trelloAuthSecretName" . }}
+                  key: {{ include "kubeclaw.trelloApiKeySecretKey" . }}
+            - name: TRELLO_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeclaw.trelloAuthSecretName" . }}
+                  key: {{ include "kubeclaw.trelloTokenSecretKey" . }}
             {{- end }}
           envFrom:
             - secretRef:
@@ -464,6 +532,15 @@ spec:
               add:
                 - NET_ADMIN
           {{- end }}
+          # On pod shutdown, log out of Tailscale so the device is removed from
+          # the admin console. With ephemeral auth keys the node disappears
+          # immediately; with reusable keys it is marked "logged out".
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - tailscale
+                  - logout
           resources:
             {{- toYaml .Values.tailscale.ssh.resources | nindent 12 }}
           volumeMounts:
@@ -530,10 +607,10 @@ spec:
             defaultMode: 0555
         - name: tools-bin
           emptyDir:
-            sizeLimit: 100Mi
+            sizeLimit: 256Mi
         - name: tools-tmp
           emptyDir:
-            sizeLimit: 100Mi
+            sizeLimit: 256Mi
         {{- end }}
         {{- if and .Values.tailscale.ssh.enabled (not .Values.tailscale.ssh.persistState) }}
         - name: ts-state

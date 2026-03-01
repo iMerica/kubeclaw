@@ -186,6 +186,29 @@ tools:
       #   {{version}} => github CLI version
       #   {{arch}}    => amd64 | arm64
       downloadUrlTemplate: "https://github.com/cli/cli/releases/download/v{{version}}/gh_{{version}}_linux_{{arch}}.tar.gz"
+    jira:
+      enabled: true
+      version: "1.7.0"
+      # Arch: x86_64 | arm64
+      downloadUrlTemplate: "https://github.com/ankitpokhrel/jira-cli/releases/download/v{{version}}/jira_{{version}}_linux_{{arch}}.tar.gz"
+    linear:
+      enabled: true
+      version: "1.10.0"
+      # Arch: x86_64 | aarch64 (Rust target triple)
+      downloadUrlTemplate: "https://github.com/schpet/linear-cli/releases/download/v{{version}}/linear-{{arch}}-unknown-linux-gnu.tar.xz"
+    asana:
+      enabled: true
+      version: "1.2.0"
+      # Arch: x86_64 | arm64
+      downloadUrlTemplate: "https://github.com/timwehrle/asana/releases/download/v{{version}}/asana_Linux_{{arch}}.tar.gz"
+    notion:
+      enabled: true
+      version: "0.3.0"
+      # Arch: amd64 | arm64
+      downloadUrlTemplate: "https://github.com/4ier/notion-cli/releases/download/v{{version}}/notion-cli_{{version}}_linux_{{arch}}.tar.gz"
+    trello:
+      enabled: true
+      version: "0.13.0"
 
 # ------------------------------------------------------------------------------
 # GitHub Integration
@@ -202,6 +225,64 @@ github:
     # If set, this takes precedence over github.auth.token.
     tokenSecretName: ""
     tokenSecretKey: "GH_TOKEN"
+
+# ------------------------------------------------------------------------------
+# JIRA Integration
+# JIRA skill + jira CLI authentication. If no token is configured, the CLI
+# installs but authenticated operations remain unavailable.
+# ------------------------------------------------------------------------------
+jira:
+  enabled: true
+  auth:
+    token: ""
+    tokenSecretName: ""
+    tokenSecretKey: "JIRA_API_TOKEN"
+
+# ------------------------------------------------------------------------------
+# Linear Integration
+# Linear skill + linear CLI authentication.
+# ------------------------------------------------------------------------------
+linear:
+  enabled: true
+  auth:
+    token: ""
+    tokenSecretName: ""
+    tokenSecretKey: "LINEAR_API_KEY"
+
+# ------------------------------------------------------------------------------
+# Asana Integration
+# Asana skill + asana CLI authentication.
+# ------------------------------------------------------------------------------
+asana:
+  enabled: true
+  auth:
+    token: ""
+    tokenSecretName: ""
+    tokenSecretKey: "ASANA_PAT"
+
+# ------------------------------------------------------------------------------
+# Notion Integration
+# Notion skill + notion-cli authentication.
+# ------------------------------------------------------------------------------
+notion:
+  enabled: true
+  auth:
+    token: ""
+    tokenSecretName: ""
+    tokenSecretKey: "NOTION_TOKEN"
+
+# ------------------------------------------------------------------------------
+# Trello Integration
+# Trello skill + trello CLI authentication. Requires both an API key and token.
+# ------------------------------------------------------------------------------
+trello:
+  enabled: true
+  auth:
+    apiKey: ""
+    token: ""
+    tokenSecretName: ""
+    apiKeySecretKey: "TRELLO_API_KEY"
+    tokenSecretKey: "TRELLO_TOKEN"
 
 # ------------------------------------------------------------------------------
 # Skills
@@ -231,13 +312,26 @@ skills:
       enabled: true
       config:
         vaultPath: /vaults/obsidian
-    # Example — adding Trello in a future release:
-    # - name: trello
-    #   registry: playbooks
-    #   slug: openclaw/skills/trello
-    #   enabled: true
-    #   env:
-    #     TRELLO_API_KEY: "${TRELLO_API_KEY}"
+    - name: jira
+      registry: playbooks
+      slug: openclaw/skills/jira
+      enabled: true
+    - name: linear
+      registry: playbooks
+      slug: openclaw/skills/linear
+      enabled: true
+    - name: asana
+      registry: playbooks
+      slug: openclaw/skills/asana
+      enabled: true
+    - name: notion
+      registry: playbooks
+      slug: openclaw/skills/notion
+      enabled: true
+    - name: trello
+      registry: playbooks
+      slug: openclaw/skills/trello
+      enabled: true
 
   initResources:
     requests:
