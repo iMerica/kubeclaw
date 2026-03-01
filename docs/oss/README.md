@@ -1,5 +1,7 @@
 # OpenClaw OSS Chart — Install Guide
 
+[![Chart Version](https://img.shields.io/github/v/tag/iMerica/kubeclaw?filter=v*&label=chart&color=0f7b3f)](https://github.com/iMerica/kubeclaw/releases)
+
 ## Prerequisites
 
 - Kubernetes 1.25+

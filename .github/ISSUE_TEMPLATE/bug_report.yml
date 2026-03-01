@@ -13,7 +13,7 @@ body:
     id: chart_version
     attributes:
       label: Chart version
-      placeholder: 0.1.0
+      placeholder: 0.x.y
     validations:
       required: true
 

@@ -32,6 +32,26 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
+      - name: Extract chart version from Chart.yaml
+        id: chart_version
+        run: |
+          chart_version=$(helm show chart charts/kubeclaw | awk '/^version:/ { print $2; exit }')
+          if [ -z "$chart_version" ]; then
+            echo "Failed to extract chart version from charts/kubeclaw/Chart.yaml"
+            exit 1
+          fi
+          echo "version=$chart_version" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag matches chart version
+        run: |
+          tag_version="${{ steps.version.outputs.version }}"
+          chart_version="${{ steps.chart_version.outputs.version }}"
+          if [ "$tag_version" != "$chart_version" ]; then
+            echo "Tag version ($tag_version) does not match chart version ($chart_version)."
+            echo "Bump charts/kubeclaw/Chart.yaml version in a PR before tagging."
+            exit 1
+          fi
+
       - name: Add Helm repos
         run: ./scripts/helm-repos.sh
 
@@ -45,7 +65,6 @@ jobs:
         run: |
           mkdir -p .cr-release-packages
           helm package charts/kubeclaw \
-            --version "${{ steps.version.outputs.version }}" \
             --app-version "${{ steps.version.outputs.version }}" \
             --destination .cr-release-packages
           ls -la .cr-release-packages/
