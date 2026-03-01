@@ -30,6 +30,9 @@ data:
             {{- if .config }},
             "config": {{ .config | toJson }}
             {{- end }}
+            {{- if .env }},
+            "env": {{ .env | toJson }}
+            {{- end }}
           }
           {{- $first = false }}
           {{- end }}
@@ -68,7 +71,7 @@ data:
 
       case "$SKILL_REGISTRY" in
         playbooks)
-          URL="https://raw.githubusercontent.com/playbooks-ai/skills/main/${SKILL_SLUG}/SKILL.md"
+          URL="https://playbooks.com/skills/${SKILL_SLUG}/SKILL.md"
           node -e "
             const https = require('https');
             const fs = require('fs');
@@ -159,6 +162,36 @@ data:
       node /scripts/merge-json5.js "$CONFIG_DEST" "$SKILLS_JSON" > "${CONFIG_DEST}.tmp"
       mv "${CONFIG_DEST}.tmp" "$CONFIG_DEST"
     fi
+
+    # Ensure stale per-skill env blocks are removed when omitted in values.
+    # This keeps soft-enabled skills from requiring missing env vars.
+    node -e "
+      const fs = require('fs');
+      const cfgPath = process.argv[1];
+      const desiredPath = process.argv[2];
+      const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+      try {
+        const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+        const desired = JSON.parse(fs.readFileSync(desiredPath, 'utf8'));
+        const cfgEntries = cfg?.skills?.entries;
+        const desiredEntries = desired?.skills?.entries;
+        if (!cfgEntries || typeof cfgEntries !== 'object' || !desiredEntries || typeof desiredEntries !== 'object') {
+          process.exit(0);
+        }
+        for (const [name, desiredEntry] of Object.entries(desiredEntries)) {
+          const cfgEntry = cfgEntries[name];
+          if (!cfgEntry || typeof cfgEntry !== 'object') continue;
+          if (hasOwn(desiredEntry, 'env')) {
+            cfgEntry.env = desiredEntry.env;
+          } else {
+            delete cfgEntry.env;
+          }
+        }
+        fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+      } catch (err) {
+        console.warn('skills-init: env cleanup skipped:', err.message);
+      }
+    " "$CONFIG_DEST" "$SKILLS_JSON"
 
     echo "skills-init: complete"
 {{- end }}

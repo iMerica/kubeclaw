@@ -396,7 +396,24 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 8. Obsidian Vault
+# 8. GitHub Automation (optional)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+section "GitHub Automation (optional)"
+hint "Configure a GitHub token so the in-cluster gh CLI + GitHub skill can review PRs and work issues."
+
+GITHUB_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+
+if [[ -n "$GITHUB_TOKEN" ]]; then
+  info "Using GITHUB_TOKEN from environment"
+else
+  prompt_yn "Configure a GitHub token now?" "n" ENABLE_GITHUB_TOKEN
+  if [[ "$ENABLE_GITHUB_TOKEN" == true ]]; then
+    prompt_secret "GitHub token (fine-grained PAT recommended)" GITHUB_TOKEN
+  fi
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 9. Obsidian Vault
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Obsidian Vault"
 hint "KubeClaw can provision a persistent Markdown vault for the Obsidian skill."
@@ -410,7 +427,7 @@ if [[ "$OBSIDIAN_ENABLED" == true ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 9. Storage Class
+# 10. Storage Class
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Storage"
 
@@ -431,7 +448,7 @@ PERSISTENCE_SIZE="5Gi"
 prompt "OpenClaw storage volume size" "$PERSISTENCE_SIZE" PERSISTENCE_SIZE
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 10. Review Summary
+# 11. Review Summary
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Review"
 
@@ -447,6 +464,7 @@ row "LLM Provider:" "${LLM_PROVIDER:-none}"
 row "Gateway Token:" "${OPENCLAW_GATEWAY_TOKEN:0:12}..."
 row "LiteLLM Key:" "${LITELLM_MASTERKEY:0:12}..."
 row "Tailscale:" "$( [[ "$TAILSCALE_ENABLED" == true ]] && echo "enabled" || echo "disabled" )"
+row "GitHub Token:" "$( [[ -n "$GITHUB_TOKEN" ]] && echo "configured" || echo "not set (optional)" )"
 row "Obsidian Vault:" "$( [[ "$OBSIDIAN_ENABLED" == true ]] && echo "enabled (${OBSIDIAN_SIZE})" || echo "disabled" )"
 row "Storage Class:" "${STORAGE_CLASS:-cluster default}"
 row "OpenClaw Storage:" "$PERSISTENCE_SIZE"
@@ -458,7 +476,7 @@ if [[ "$INTERACTIVE" == true ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 11. Build Helm args
+# 12. Build Helm args
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HELM_SETS=(
   --set "secret.create=true"
@@ -482,6 +500,9 @@ fi
 if [[ -n "$OPENROUTER_API_KEY" ]]; then
   HELM_SETS+=(--set "secret.data.OPENROUTER_API_KEY=${OPENROUTER_API_KEY}")
 fi
+if [[ -n "$GITHUB_TOKEN" ]]; then
+  HELM_SETS+=(--set "github.auth.token=${GITHUB_TOKEN}")
+fi
 
 # Tailscale
 if [[ "$TAILSCALE_ENABLED" == true ]]; then
@@ -501,7 +522,7 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 12. Install
+# 13. Install
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Installing KubeClaw"
 
@@ -536,6 +557,7 @@ if [[ "$DRY_RUN" == true ]]; then
   REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(masterkey=)[^ ]*/\1****/g')
   REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(API_KEY=)[^ ]*/\1****/g')
   REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(authKey=)[^ ]*/\1****/g')
+  REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(github\.auth\.token=)[^ ]*/\1****/g')
   printf "  %s%s%s\n" "${DIM}" "$REDACTED_CMD" "${RESET}"
   echo ""
   success "Dry run complete — no changes were made."

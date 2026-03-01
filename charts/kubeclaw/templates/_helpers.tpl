@@ -188,6 +188,25 @@ Tailscale sidecar hostname. Falls back to kubeclaw.fullname.
 {{- end }}
 
 {{/*
+Name of the Secret holding the GitHub auth token.
+Returns tokenSecretName if set, otherwise "<fullname>-github-auth".
+*/}}
+{{- define "kubeclaw.githubAuthSecretName" -}}
+{{- if .Values.github.auth.tokenSecretName }}
+{{- .Values.github.auth.tokenSecretName }}
+{{- else }}
+{{- printf "%s-github-auth" (include "kubeclaw.fullname" .) }}
+{{- end }}
+{{- end }}
+
+{{/*
+Key within the GitHub auth Secret.
+*/}}
+{{- define "kubeclaw.githubAuthSecretKey" -}}
+{{- default "GH_TOKEN" .Values.github.auth.tokenSecretKey }}
+{{- end }}
+
+{{/*
 LiteLLM proxy base URL.
 Returns the in-cluster URL of the LiteLLM proxy service on port 4000.
 The alias "litellm" in Chart.yaml causes the subchart Service to be named
@@ -338,6 +357,23 @@ Triggers rollout when skills config changes.
 {{- define "kubeclaw.skillsConfigChecksum" -}}
 {{- if .Values.skills.enabled }}
 checksum/skills-config: {{ include (print $.Template.BasePath "/skills-configmap.yaml") . | sha256sum }}
+{{- end }}
+{{- end }}
+
+{{/*
+Name of the tools-init ConfigMap.
+*/}}
+{{- define "kubeclaw.toolsConfigmapName" -}}
+{{- printf "%s-tools-config" (include "kubeclaw.fullname" .) }}
+{{- end }}
+
+{{/*
+Checksum annotation for the tools ConfigMap.
+Triggers rollout when tools installer config changes.
+*/}}
+{{- define "kubeclaw.toolsConfigChecksum" -}}
+{{- if and .Values.tools.enabled .Values.tools.init.enabled }}
+checksum/tools-config: {{ include (print $.Template.BasePath "/tools-configmap.yaml") . | sha256sum }}
 {{- end }}
 {{- end }}
 

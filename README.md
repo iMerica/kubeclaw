@@ -152,7 +152,8 @@ Image pinning policy: each chart release is validated against a candidate image,
 | **Egress DNS filter** | NextDNS-style DNS filtering via [Blocky](https://0xerr0r.github.io/blocky/), including threat blocklists (HaGeZi, StevenBlack), country TLD blocking, and query logging |
 | **NetworkPolicy** | Scaffolding for locking down traffic |
 | **Diagnostics CronJob** | Periodic `openclaw doctor` runs |
-| **Skills system** | Declarative skill install at deploy time; supports playbooks, clawhub, and npm registries |
+| **Skills system** | Declarative skill install at deploy time; supports playbooks, clawhub, and npm registries, including a default GitHub skill for PR/issue workflows |
+| **Tools system** | Reusable `tools-init` installer for in-pod CLIs; ships with `gh` by default and is extensible for additional tools |
 | **Obsidian vault** | PVC-backed markdown vault mounted at `/vaults/obsidian`; wired to the Obsidian skill for task management |
 | **Tailscale integration** | Expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`) |
 

@@ -47,6 +47,7 @@ spec:
                 - /bin/sh
                 - -c
                 - |
+                  chown -R 1000:1000 /data || true
                   chmod 700 /data || true
               volumeMounts:
                 - name: {{ include "kubeclaw.statePvcName" . }}
@@ -62,9 +63,9 @@ spec:
                   cpu: 100m
                   memory: 32Mi
               securityContext:
-                runAsNonRoot: true
-                runAsUser: 1000
-                runAsGroup: 1000
+                runAsNonRoot: false
+                runAsUser: 0
+                runAsGroup: 0
                 allowPrivilegeEscalation: false
           containers:
             - name: diagnostics
@@ -79,6 +80,11 @@ spec:
                   node dist/index.js doctor --yes
                   echo "=== openclaw status --all ==="
                   node dist/index.js status --all
+              env:
+                {{- if .Values.diagnostics.nodeOptions }}
+                - name: NODE_OPTIONS
+                  value: {{ .Values.diagnostics.nodeOptions | quote }}
+                {{- end }}
               envFrom:
                 - secretRef:
                     name: {{ include "kubeclaw.secretName" . }}

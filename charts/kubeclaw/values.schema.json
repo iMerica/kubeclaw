@@ -63,6 +63,12 @@
         },
         "splitVolumes": {
           "type": "boolean"
+        },
+        "fixPermissions": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" }
+          }
         }
       }
     },
@@ -75,6 +81,60 @@
         "mode": {
           "type": "string",
           "enum": ["merge", "overwrite"]
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "init": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "binDir": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^/tools(/.*)?$"
+            },
+            "resources": { "type": "object" }
+          }
+        },
+        "clis": {
+          "type": "object",
+          "properties": {
+            "github": {
+              "type": "object",
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "downloadUrlTemplate": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "github": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "token": { "type": "string" },
+            "tokenSecretName": { "type": "string" },
+            "tokenSecretKey": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     },
@@ -172,6 +232,9 @@
           "type": "boolean"
         },
         "schedule": {
+          "type": "string"
+        },
+        "nodeOptions": {
           "type": "string"
         }
       }

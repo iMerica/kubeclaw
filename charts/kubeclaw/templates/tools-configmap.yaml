@@ -1,0 +1,104 @@
+{{- if and .Values.tools.enabled .Values.tools.init.enabled }}
+# ConfigMap: reusable CLI installer script.
+# The tools-init initContainer installs configured CLIs into /tools/bin.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kubeclaw.toolsConfigmapName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+data:
+  install.sh: |
+    #!/bin/sh
+    set -eu
+
+    BIN_DIR="${TOOLS_BIN_DIR:-/tools/bin}"
+    mkdir -p "$BIN_DIR"
+
+    map_arch() {
+      case "$(uname -m)" in
+        x86_64) echo "amd64" ;;
+        aarch64|arm64) echo "arm64" ;;
+        *)
+          echo "ERROR: unsupported architecture: $(uname -m)" >&2
+          exit 1
+          ;;
+      esac
+    }
+
+    download_file() {
+      URL="$1"
+      DEST="$2"
+      node -e "
+        const fs = require('fs');
+        const https = require('https');
+        const url = process.argv[1];
+        const dest = process.argv[2];
+        function fetch(u) {
+          https.get(u, { headers: { 'User-Agent': 'kubeclaw-tools-init' } }, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+              fetch(res.headers.location);
+              return;
+            }
+            if (res.statusCode !== 200) {
+              console.error('HTTP ' + res.statusCode + ' for ' + u);
+              process.exit(1);
+            }
+            const out = fs.createWriteStream(dest);
+            res.pipe(out);
+            out.on('finish', () => out.close(() => process.exit(0)));
+          }).on('error', (e) => {
+            console.error(e.message);
+            process.exit(1);
+          });
+        }
+        fetch(url);
+      " "$URL" "$DEST"
+    }
+
+    install_github_cli() {
+      if [ "${GITHUB_CLI_ENABLED:-false}" != "true" ]; then
+        echo "tools-init: github CLI disabled; skipping"
+        return
+      fi
+
+      VERSION="${GITHUB_CLI_VERSION:-}"
+      URL_TEMPLATE="${GITHUB_CLI_DOWNLOAD_URL_TEMPLATE:-}"
+      if [ -z "$VERSION" ] || [ -z "$URL_TEMPLATE" ]; then
+        echo "ERROR: github CLI enabled but version or URL template is missing" >&2
+        exit 1
+      fi
+
+      ARCH="$(map_arch)"
+      URL="$(node -e "
+        const tpl = process.argv[1];
+        const version = process.argv[2];
+        const arch = process.argv[3];
+        process.stdout.write(
+          tpl.replaceAll('{{ "{{version}}" }}', version).replaceAll('{{ "{{arch}}" }}', arch)
+        );
+      " "$URL_TEMPLATE" "$VERSION" "$ARCH")"
+      TAR="/tmp/gh.tgz"
+
+      echo "tools-init: installing gh ${VERSION} for ${ARCH}"
+      download_file "$URL" "$TAR"
+      tar xzf "$TAR" -C /tmp
+
+      GH_BIN="/tmp/gh_${VERSION}_linux_${ARCH}/bin/gh"
+      if [ ! -x "$GH_BIN" ]; then
+        echo "ERROR: extracted gh binary not found at $GH_BIN" >&2
+        exit 1
+      fi
+
+      cp "$GH_BIN" "$BIN_DIR/gh"
+      chmod 0555 "$BIN_DIR/gh"
+      rm -f "$TAR"
+      rm -rf "/tmp/gh_${VERSION}_linux_${ARCH}"
+      echo "tools-init: installed gh at $BIN_DIR/gh"
+    }
+
+    install_github_cli
+
+    echo "tools-init: complete"
+{{- end }}

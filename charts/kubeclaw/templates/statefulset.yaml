@@ -34,6 +34,7 @@ spec:
       annotations:
         {{- include "kubeclaw.configChecksum" . | nindent 8 }}
         {{- include "kubeclaw.skillsConfigChecksum" . | nindent 8 }}
+        {{- include "kubeclaw.toolsConfigChecksum" . | nindent 8 }}
         {{- if .Values.litellm.enabled }}
         checksum/litellm-config: {{ .Values.litellm.proxy_config | toJson | sha256sum }}
         {{- end }}
@@ -70,8 +71,40 @@ spec:
       # ---------------------------------------------------------------------------
       # initContainers
       # ---------------------------------------------------------------------------
-      {{- if or .Values.config.desired .Values.egressFilter.enabled .Values.skills.enabled }}
+      {{- if or .Values.persistence.fixPermissions.enabled .Values.config.desired .Values.egressFilter.enabled .Values.skills.enabled (and .Values.tools.enabled .Values.tools.init.enabled) }}
       initContainers:
+        {{- if .Values.persistence.fixPermissions.enabled }}
+        # fix-permissions: normalize state dir ownership/mode for secure runtime.
+        - name: fix-permissions
+          image: {{ include "kubeclaw.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              chown -R 1000:1000 /data || true
+              chmod 700 /data || true
+              mkdir -p /data/credentials /data/agents/main/sessions || true
+              chmod 700 /data/credentials /data/agents /data/agents/main /data/agents/main/sessions || true
+          volumeMounts:
+            - name: {{ include "kubeclaw.statePvcName" . }}
+              mountPath: /data
+              {{- if .Values.persistence.splitVolumes }}
+              subPath: state
+              {{- end }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+        {{- end }}
         {{- if .Values.config.desired }}
         # config-init: merges or overwrites openclaw.json on the PVC.
         - name: config-init
@@ -149,9 +182,40 @@ spec:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
         {{- end }}
+        {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
+        # tools-init: installs selected CLIs into a shared tools volume.
+        - name: tools-init
+          image: {{ include "kubeclaw.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "/tools-init/install.sh"]
+          env:
+            - name: TOOLS_BIN_DIR
+              value: {{ .Values.tools.init.binDir | quote }}
+            - name: GITHUB_CLI_ENABLED
+              value: {{ .Values.tools.clis.github.enabled | quote }}
+            - name: GITHUB_CLI_VERSION
+              value: {{ .Values.tools.clis.github.version | quote }}
+            - name: GITHUB_CLI_DOWNLOAD_URL_TEMPLATE
+              value: {{ .Values.tools.clis.github.downloadUrlTemplate | quote }}
+          volumeMounts:
+            - name: tools-init-config
+              mountPath: /tools-init
+              readOnly: true
+            - name: tools-bin
+              mountPath: /tools
+            - name: tools-tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.tools.init.resources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+        {{- end }}
         {{- if .Values.skills.enabled }}
         # skills-init: downloads SKILL.md files and merges skills config into
-        # openclaw.json. Runs after config-init so skills config layers on top.
+        # openclaw.json. Runs after tools-init/config-init so skills and config
+        # can rely on provisioned binaries and desired config layering.
         - name: skills-init
           image: {{ include "kubeclaw.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -205,6 +269,10 @@ spec:
               containerPort: 18789
               protocol: TCP
           env:
+            {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
+            - name: PATH
+              value: "{{ .Values.tools.init.binDir }}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            {{- end }}
             {{- if .Values.nodeOptions }}
             - name: NODE_OPTIONS
               value: {{ .Values.nodeOptions | quote }}
@@ -243,6 +311,18 @@ spec:
             - name: OPENAI_API_BASE
               value: {{ include "kubeclaw.litellmBaseUrl" . | quote }}
             {{- end }}
+            {{- if and .Values.github.enabled (or .Values.github.auth.token .Values.github.auth.tokenSecretName) }}
+            - name: GH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeclaw.githubAuthSecretName" . }}
+                  key: {{ include "kubeclaw.githubAuthSecretKey" . }}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kubeclaw.githubAuthSecretName" . }}
+                  key: {{ include "kubeclaw.githubAuthSecretKey" . }}
+            {{- end }}
           envFrom:
             - secretRef:
                 name: {{ include "kubeclaw.secretName" . }}
@@ -258,6 +338,11 @@ spec:
             {{- end }}
             - name: tmp
               mountPath: /tmp
+            {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
+            - name: tools-bin
+              mountPath: /tools
+              readOnly: true
+            {{- end }}
             {{- if .Values.config.desired }}
             - name: config-src
               mountPath: /config-src
@@ -437,6 +522,18 @@ spec:
         - name: skills-tmp
           emptyDir:
             sizeLimit: 200Mi
+        {{- end }}
+        {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
+        - name: tools-init-config
+          configMap:
+            name: {{ include "kubeclaw.toolsConfigmapName" . }}
+            defaultMode: 0555
+        - name: tools-bin
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: tools-tmp
+          emptyDir:
+            sizeLimit: 100Mi
         {{- end }}
         {{- if and .Values.tailscale.ssh.enabled (not .Values.tailscale.ssh.persistState) }}
         - name: ts-state

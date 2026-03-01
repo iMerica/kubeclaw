@@ -120,6 +120,10 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `persistence.splitVolumes` | `false` | Separate PVC for workspace |
 | `config.desired` | `""` | Desired `openclaw.json` (JSON5) |
 | `config.mode` | `merge` | Config strategy: `merge` or `overwrite` |
+| `tools.enabled` | `true` | Enable reusable `tools-init` CLI installer |
+| `tools.clis.github.enabled` | `true` | Install GitHub CLI (`gh`) in the Gateway pod |
+| `github.enabled` | `true` | Enable GitHub integration wiring (soft-enabled if token not set) |
+| `github.auth.token` | `""` | Optional GitHub token for authenticated `gh` + GitHub skill actions |
 | `chromium.enabled` | `true` | Chromium Deployment + ClusterIP Service for CDP |
 | `egressFilter.enabled` | `true` | Deploy Blocky DNS proxy for egress filtering |
 | `egressFilter.blockCountries` | `[RU, CN]` | Country TLDs to block via regex |
@@ -283,7 +287,7 @@ Mount an `openclaw.json` (JSON5) config via ConfigMap, applied at pod start:
 config:
   desired: |
     {
-      "gateway": { "host": "0.0.0.0" },
+      "gateway": { "bind": "lan" },
       "tools": { "exec": { "enabled": true } }
     }
   mode: merge  # or "overwrite"
@@ -293,6 +297,35 @@ config:
 - `overwrite`: replaces the entire config file
 
 A config change triggers a rolling restart (checksum annotation in pod template).
+
+### Skills, Tools, and GitHub PR Automation
+
+The chart now ships with:
+
+- default `github` skill installation (`skills.list`)
+- reusable `tools-init` CLI provisioning
+- `gh` CLI installed by default (`tools.clis.github.enabled=true`)
+
+To enable authenticated PR/issue workflows, set a GitHub token:
+
+```yaml
+github:
+  enabled: true
+  auth:
+    token: ghp_your_token_here
+    # OR: tokenSecretName/tokenSecretKey for an existing Secret
+```
+
+After deploy:
+
+```sh
+kubectl -n kubeclaw exec statefulset/my-kubeclaw-gateway-0 -c gateway -- gh --version
+kubectl -n kubeclaw exec statefulset/my-kubeclaw-gateway-0 -c gateway -- gh auth status
+```
+
+If no token is configured, install still succeeds (soft-enabled), but authenticated GitHub operations will fail until credentials are provided.
+
+For workflow ideas (webhook-driven PR review, inline comments, summary recommendations), see the OpenClaw cookbook: [Code Review Bot](https://openclawdoc.com/docs/cookbook/code-review-bot/).
 
 ### Chromium Sidecar
 

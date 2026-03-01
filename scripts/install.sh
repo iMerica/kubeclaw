@@ -26,6 +26,9 @@ TS_AUTHKEY="${TS_AUTHKEY:-${TAILSCALE_AUTH_KEY:-}}"
 # Provider API keys — passed to both the Gateway and LiteLLM proxy
 OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 
+# Optional GitHub token for gh CLI + GitHub skill auth in-pod
+GITHUB_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+
 
 # Optional: path to a custom values file layered on top of chart defaults
 VALUES_FILE="${VALUES_FILE:-}"
@@ -67,6 +70,10 @@ HELM_ARGS=(
   --timeout 5m
 )
 
+if [[ -n "${GITHUB_TOKEN}" ]]; then
+  HELM_ARGS+=(--set "github.auth.token=${GITHUB_TOKEN}")
+fi
+
 if [[ -n "${VALUES_FILE}" ]]; then
   if [[ ! -f "${VALUES_FILE}" ]]; then
     echo "ERROR: VALUES_FILE '${VALUES_FILE}' does not exist." >&2
@@ -81,6 +88,11 @@ echo "Release:   ${RELEASE}"
 echo "Namespace: ${NAMESPACE}"
 echo "Chart:     ${CHART_DIR}"
 echo "Tailscale: ${TS_AUTHKEY:0:12}***"
+if [[ -n "${GITHUB_TOKEN}" ]]; then
+  echo "GitHub:    ${GITHUB_TOKEN:0:12}***"
+else
+  echo "GitHub:    not configured (optional)"
+fi
 echo ""
 
 echo ">>> Updating chart dependencies..."

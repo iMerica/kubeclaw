@@ -73,6 +73,10 @@ persistence:
     size: 5Gi
     accessModes:
       - ReadWriteOnce
+  # Normalize state directory ownership/mode on startup.
+  # Helps with CSI drivers that mount PVCs world-readable/writable.
+  fixPermissions:
+    enabled: true
 
 # ------------------------------------------------------------------------------
 # Desired Configuration (GitOps / ConfigMode)
@@ -154,6 +158,52 @@ config:
   mode: merge
 
 # ------------------------------------------------------------------------------
+# Tools
+# Declarative CLI installation at deploy time. A tools-init initContainer
+# installs selected binaries into a shared volume and prepends that path in the
+# OpenClaw Gateway container, so tools are available without custom images.
+# ------------------------------------------------------------------------------
+tools:
+  enabled: true
+  init:
+    enabled: true
+    # Directory mounted into the Gateway PATH (must live under /tools).
+    binDir: /tools/bin
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  # CLI catalog. Add more tools here over time.
+  clis:
+    github:
+      enabled: true
+      # gh CLI release version.
+      version: "2.77.0"
+      # Template variables:
+      #   {{version}} => github CLI version
+      #   {{arch}}    => amd64 | arm64
+      downloadUrlTemplate: "https://github.com/cli/cli/releases/download/v{{version}}/gh_{{version}}_linux_{{arch}}.tar.gz"
+
+# ------------------------------------------------------------------------------
+# GitHub Integration
+# GitHub skill + gh CLI authentication settings. Soft-enabled by default:
+# if no token is configured, install still succeeds and unauthenticated GitHub
+# operations simply remain unavailable.
+# ------------------------------------------------------------------------------
+github:
+  enabled: true
+  auth:
+    # Optional inline GitHub token. Prefer fine-grained PAT scoped to needed repos.
+    token: ""
+    # Optional existing Secret name/key for GitHub token.
+    # If set, this takes precedence over github.auth.token.
+    tokenSecretName: ""
+    tokenSecretKey: "GH_TOKEN"
+
+# ------------------------------------------------------------------------------
 # Skills
 # Declarative skill installation at deploy time. A skills-init initContainer
 # downloads each skill's SKILL.md from its registry and places it under
@@ -171,6 +221,10 @@ skills:
   # Skills to install. Each entry becomes a skills.entries.<name> block in
   # openclaw.json and a SKILL.md download target.
   list:
+    - name: github
+      registry: playbooks
+      slug: openclaw/skills/github
+      enabled: true
     - name: obsidian
       registry: playbooks
       slug: openclaw/skills/obsidian
@@ -489,6 +543,10 @@ diagnostics:
   enabled: true
   # Cron schedule (default: hourly).
   schedule: "0 * * * *"
+  # Optional NODE_OPTIONS override for diagnostics jobs.
+  # Increase max-old-space-size if `openclaw doctor` hits JS heap OOM.
+  # Set to "" to omit NODE_OPTIONS in diagnostics pods.
+  nodeOptions: "--max-old-space-size=1536"
   # Concurrency policy: Forbid prevents overlapping runs.
   concurrencyPolicy: Forbid
   # History limits.
