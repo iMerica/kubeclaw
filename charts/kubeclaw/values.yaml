@@ -401,8 +401,10 @@ gatewayAPI:
   # Gateway class — must match your cluster's GatewayClass (e.g. envoy, istio, cilium).
   # When controller.enabled=true and this is empty, defaults to controller.gatewayClassName.
   gatewayClassName: ""
-  # Hostname for all routes
-  host: openclaw.example.com
+  # Hostname for the Gateway listener and HTTPRoutes. When empty, the Gateway
+  # matches all hostnames — ideal for local dev (http://127.0.0.1/ just works).
+  # Set to a real domain (e.g. "openclaw.example.com") for production.
+  host: ""
   # Route path prefixes (customize if needed)
   routes:
     openclaw: /
