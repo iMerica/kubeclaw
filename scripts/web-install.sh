@@ -397,77 +397,77 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 8. GitHub Automation (optional)
+# 8. Tool Integrations (optional)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-section "GitHub Automation (optional)"
-hint "Configure a GitHub token so the in-cluster gh CLI + GitHub skill can review PRs and work issues."
+section "Tool Integrations (optional)"
+hint "Configure tokens for GitHub, Jira, Linear, Asana, and Trello."
 
+# Read env vars
 GITHUB_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
-
-if [[ -n "$GITHUB_TOKEN" ]]; then
-  info "Using GITHUB_TOKEN from environment"
-else
-  prompt_yn "Configure a GitHub token now?" "n" ENABLE_GITHUB_TOKEN
-  if [[ "$ENABLE_GITHUB_TOKEN" == true ]]; then
-    prompt_secret "GitHub token (fine-grained PAT recommended)" GITHUB_TOKEN
-  fi
-fi
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 9. Project Management Tools (optional)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-section "Project Management Tools (optional)"
-hint "Configure tokens for Jira, Linear, Asana, and Trello integrations."
-echo ""
-
-# Jira
 JIRA_API_TOKEN="${JIRA_API_TOKEN:-}"
-if [[ -n "$JIRA_API_TOKEN" ]]; then
-  info "Using JIRA_API_TOKEN from environment"
-else
-  prompt_yn "Configure a Jira API token now?" "n" ENABLE_JIRA_TOKEN
-  if [[ "$ENABLE_JIRA_TOKEN" == true ]]; then
-    prompt_secret "Jira API token" JIRA_API_TOKEN
-  fi
-fi
-
-# Linear
 LINEAR_API_KEY="${LINEAR_API_KEY:-}"
-if [[ -n "$LINEAR_API_KEY" ]]; then
-  info "Using LINEAR_API_KEY from environment"
-else
-  prompt_yn "Configure a Linear API key now?" "n" ENABLE_LINEAR_TOKEN
-  if [[ "$ENABLE_LINEAR_TOKEN" == true ]]; then
-    prompt_secret "Linear API key" LINEAR_API_KEY
-  fi
-fi
-
-# Asana
 ASANA_PAT="${ASANA_PAT:-}"
-if [[ -n "$ASANA_PAT" ]]; then
-  info "Using ASANA_PAT from environment"
-else
-  prompt_yn "Configure an Asana PAT now?" "n" ENABLE_ASANA_TOKEN
-  if [[ "$ENABLE_ASANA_TOKEN" == true ]]; then
-    prompt_secret "Asana personal access token" ASANA_PAT
-  fi
-fi
-
-# Trello
 TRELLO_API_KEY="${TRELLO_API_KEY:-}"
 TRELLO_TOKEN="${TRELLO_TOKEN:-}"
-if [[ -n "$TRELLO_API_KEY" ]]; then
-  info "Using TRELLO_API_KEY from environment"
-else
-  prompt_yn "Configure Trello credentials now?" "n" ENABLE_TRELLO_TOKEN
-  if [[ "$ENABLE_TRELLO_TOKEN" == true ]]; then
-    prompt_secret "Trello API key" TRELLO_API_KEY
-    prompt_secret "Trello token" TRELLO_TOKEN
+
+# Detect which tokens are already set via environment
+TOOL_ENV_DETECTED=()
+[[ -n "$GITHUB_TOKEN" ]]  && TOOL_ENV_DETECTED+=("GitHub")
+[[ -n "$JIRA_API_TOKEN" ]] && TOOL_ENV_DETECTED+=("Jira")
+[[ -n "$LINEAR_API_KEY" ]] && TOOL_ENV_DETECTED+=("Linear")
+[[ -n "$ASANA_PAT" ]]     && TOOL_ENV_DETECTED+=("Asana")
+[[ -n "$TRELLO_API_KEY" ]] && TOOL_ENV_DETECTED+=("Trello")
+
+if [[ ${#TOOL_ENV_DETECTED[@]} -gt 0 ]]; then
+  info "Detected from environment: ${TOOL_ENV_DETECTED[*]}"
+fi
+
+CONFIGURE_TOOLS=false
+prompt_yn "Configure tool integration tokens now?" "n" CONFIGURE_TOOLS
+
+if [[ "$CONFIGURE_TOOLS" == true ]]; then
+  echo ""
+  # GitHub
+  if [[ -n "$GITHUB_TOKEN" ]]; then
+    info "Using GITHUB_TOKEN from environment"
+  else
+    prompt_secret "GitHub token (fine-grained PAT recommended, or Enter to skip)" GITHUB_TOKEN
+  fi
+
+  # Jira
+  if [[ -n "$JIRA_API_TOKEN" ]]; then
+    info "Using JIRA_API_TOKEN from environment"
+  else
+    prompt_secret "Jira API token (or Enter to skip)" JIRA_API_TOKEN
+  fi
+
+  # Linear
+  if [[ -n "$LINEAR_API_KEY" ]]; then
+    info "Using LINEAR_API_KEY from environment"
+  else
+    prompt_secret "Linear API key (or Enter to skip)" LINEAR_API_KEY
+  fi
+
+  # Asana
+  if [[ -n "$ASANA_PAT" ]]; then
+    info "Using ASANA_PAT from environment"
+  else
+    prompt_secret "Asana personal access token (or Enter to skip)" ASANA_PAT
+  fi
+
+  # Trello
+  if [[ -n "$TRELLO_API_KEY" ]]; then
+    info "Using TRELLO_API_KEY from environment"
+  else
+    prompt_secret "Trello API key (or Enter to skip)" TRELLO_API_KEY
+    if [[ -n "$TRELLO_API_KEY" ]]; then
+      prompt_secret "Trello token" TRELLO_TOKEN
+    fi
   fi
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 10. Obsidian Vault
+# 9. Obsidian Vault
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Obsidian Vault"
 hint "KubeClaw can provision a persistent Markdown vault for the Obsidian skill."
@@ -481,7 +481,7 @@ if [[ "$OBSIDIAN_ENABLED" == true ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 11. Storage Class
+# 10. Storage Class
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Storage"
 
@@ -502,7 +502,7 @@ PERSISTENCE_SIZE="5Gi"
 prompt "OpenClaw storage volume size" "$PERSISTENCE_SIZE" PERSISTENCE_SIZE
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 12. Review Summary
+# 11. Review Summary
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Review"
 
@@ -518,11 +518,23 @@ row "LLM Provider:" "${LLM_PROVIDER:-none}"
 row "Gateway Token:" "${OPENCLAW_GATEWAY_TOKEN:0:12}..."
 row "LiteLLM Key:" "${LITELLM_MASTERKEY:0:12}..."
 row "Tailscale:" "$( [[ "$TAILSCALE_ENABLED" == true ]] && echo "enabled" || echo "disabled" )"
-row "GitHub Token:" "$( [[ -n "$GITHUB_TOKEN" ]] && echo "configured" || echo "not set (optional)" )"
-row "Jira Token:" "$( [[ -n "$JIRA_API_TOKEN" ]] && echo "configured" || echo "not set (optional)" )"
-row "Linear Key:" "$( [[ -n "$LINEAR_API_KEY" ]] && echo "configured" || echo "not set (optional)" )"
-row "Asana PAT:" "$( [[ -n "$ASANA_PAT" ]] && echo "configured" || echo "not set (optional)" )"
-row "Trello:" "$( [[ -n "$TRELLO_API_KEY" ]] && echo "configured" || echo "not set (optional)" )"
+# Build tool tokens summary
+TOOLS_CONFIGURED=()
+TOOLS_NOT_SET=()
+[[ -n "$GITHUB_TOKEN" ]]  && TOOLS_CONFIGURED+=("github")  || TOOLS_NOT_SET+=("github")
+[[ -n "$JIRA_API_TOKEN" ]] && TOOLS_CONFIGURED+=("jira")    || TOOLS_NOT_SET+=("jira")
+[[ -n "$LINEAR_API_KEY" ]] && TOOLS_CONFIGURED+=("linear")  || TOOLS_NOT_SET+=("linear")
+[[ -n "$ASANA_PAT" ]]     && TOOLS_CONFIGURED+=("asana")   || TOOLS_NOT_SET+=("asana")
+[[ -n "$TRELLO_API_KEY" ]] && TOOLS_CONFIGURED+=("trello")  || TOOLS_NOT_SET+=("trello")
+TOOLS_SUMMARY=""
+if [[ ${#TOOLS_CONFIGURED[@]} -gt 0 ]]; then
+  TOOLS_SUMMARY+="$(IFS=', '; echo "${TOOLS_CONFIGURED[*]}") configured"
+fi
+if [[ ${#TOOLS_NOT_SET[@]} -gt 0 ]]; then
+  [[ -n "$TOOLS_SUMMARY" ]] && TOOLS_SUMMARY+=" | "
+  TOOLS_SUMMARY+="$(IFS=', '; echo "${TOOLS_NOT_SET[*]}") not set"
+fi
+row "Tool Tokens:" "$TOOLS_SUMMARY"
 row "Obsidian Vault:" "$( [[ "$OBSIDIAN_ENABLED" == true ]] && echo "enabled (${OBSIDIAN_SIZE})" || echo "disabled" )"
 row "Storage Class:" "${STORAGE_CLASS:-cluster default}"
 row "OpenClaw Storage:" "$PERSISTENCE_SIZE"
@@ -534,7 +546,7 @@ if [[ "$INTERACTIVE" == true ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 13. Generate provider-specific values file (non-OpenAI)
+# 12. Generate provider-specific values file (non-OpenAI)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 VALUES_FILE=""
 HELM_VALUES_FLAGS=()
@@ -669,7 +681,7 @@ YAMLEOF
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 14. Build Helm args
+# 13. Build Helm args
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HELM_SETS=(
   --set "secret.create=true"
@@ -732,7 +744,7 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 15. Install
+# 14. Install
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Installing KubeClaw"
 
@@ -799,7 +811,7 @@ fi
 success "Helm release '$RELEASE' installed"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 16. Post-install
+# 15. Post-install
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Post-Install"
 
