@@ -84,10 +84,9 @@ spec:
             - /bin/sh
             - -c
             - |
+              mkdir -p /data/credentials /data/agents/main/sessions /data/agents/main/agent || true
               chown -R 1000:1000 /data || true
-              chmod 700 /data || true
-              mkdir -p /data/credentials /data/agents/main/sessions || true
-              chmod 700 /data/credentials /data/agents /data/agents/main /data/agents/main/sessions || true
+              chmod 700 /data /data/credentials /data/agents /data/agents/main /data/agents/main/sessions /data/agents/main/agent || true
           volumeMounts:
             - name: {{ include "kubeclaw.statePvcName" . }}
               mountPath: /data

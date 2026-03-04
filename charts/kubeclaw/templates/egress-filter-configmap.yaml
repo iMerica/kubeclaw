@@ -25,6 +25,16 @@ data:
     {{- end }}
     {{- end }}
 
+    # Forward cluster-internal DNS (*.cluster.local) directly to kube-dns.
+    # Without this, Blocky treats .local as a Special-Use Domain (RFC 6762)
+    # and returns NXDOMAIN, breaking Service discovery for the Gateway pod.
+    conditional:
+      mapping:
+        cluster.local: {{ join "," .Values.egressFilter.upstreamDns.default }}
+
+    specialUseDomains:
+      rfc6762-appendixG: false
+
     ports:
       dns: 5353
       http: 4000

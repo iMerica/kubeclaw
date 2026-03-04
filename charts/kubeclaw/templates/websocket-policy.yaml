@@ -1,0 +1,43 @@
+{{- if and .Values.gatewayAPI.enabled .Values.gatewayAPI.controller.enabled }}
+{{- /*
+  Envoy Gateway traffic policies for WebSocket support.
+  The OpenClaw Gateway multiplexes HTTP + WebSocket on a single port.
+  Without these policies, Envoy applies short idle/request timeouts that
+  kill long-lived WebSocket connections, causing "connection error" in the UI.
+
+  ClientTrafficPolicy  — downstream (browser → Envoy) idle timeout
+  BackendTrafficPolicy — upstream (Envoy → OpenClaw Gateway) timeouts + upgrade
+*/ -}}
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: ClientTrafficPolicy
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-websocket
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ include "kubeclaw.gatewayAPIName" . }}
+  timeout:
+    http:
+      idleTimeout: "3600s"
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-websocket
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: {{ include "kubeclaw.fullname" . }}-openclaw
+  timeout:
+    http:
+      connectionIdleTimeout: "3600s"
+{{- end }}

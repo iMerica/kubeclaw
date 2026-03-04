@@ -71,6 +71,7 @@ spinner_stop() {
 
 cleanup() {
   spinner_stop
+  [[ -n "${VALUES_FILE:-}" && -f "${VALUES_FILE:-}" ]] && rm -f "$VALUES_FILE"
 }
 trap cleanup EXIT
 
@@ -197,7 +198,7 @@ LOGO
 show_logo
 hr
 printf "  %sThis installer will walk you through deploying KubeClaw on your cluster.%s\n" "${WHITE}" "${RESET}"
-printf "  %sNo files are written to disk — all secrets are passed via --set flags.%s\n" "${DIM}" "${RESET}"
+printf "  %sNo permanent files are written to disk — all secrets are passed via --set flags.%s\n" "${DIM}" "${RESET}"
 hr
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -413,7 +414,60 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 9. Obsidian Vault
+# 9. Project Management Tools (optional)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+section "Project Management Tools (optional)"
+hint "Configure tokens for Jira, Linear, Asana, and Trello integrations."
+echo ""
+
+# Jira
+JIRA_API_TOKEN="${JIRA_API_TOKEN:-}"
+if [[ -n "$JIRA_API_TOKEN" ]]; then
+  info "Using JIRA_API_TOKEN from environment"
+else
+  prompt_yn "Configure a Jira API token now?" "n" ENABLE_JIRA_TOKEN
+  if [[ "$ENABLE_JIRA_TOKEN" == true ]]; then
+    prompt_secret "Jira API token" JIRA_API_TOKEN
+  fi
+fi
+
+# Linear
+LINEAR_API_KEY="${LINEAR_API_KEY:-}"
+if [[ -n "$LINEAR_API_KEY" ]]; then
+  info "Using LINEAR_API_KEY from environment"
+else
+  prompt_yn "Configure a Linear API key now?" "n" ENABLE_LINEAR_TOKEN
+  if [[ "$ENABLE_LINEAR_TOKEN" == true ]]; then
+    prompt_secret "Linear API key" LINEAR_API_KEY
+  fi
+fi
+
+# Asana
+ASANA_PAT="${ASANA_PAT:-}"
+if [[ -n "$ASANA_PAT" ]]; then
+  info "Using ASANA_PAT from environment"
+else
+  prompt_yn "Configure an Asana PAT now?" "n" ENABLE_ASANA_TOKEN
+  if [[ "$ENABLE_ASANA_TOKEN" == true ]]; then
+    prompt_secret "Asana personal access token" ASANA_PAT
+  fi
+fi
+
+# Trello
+TRELLO_API_KEY="${TRELLO_API_KEY:-}"
+TRELLO_TOKEN="${TRELLO_TOKEN:-}"
+if [[ -n "$TRELLO_API_KEY" ]]; then
+  info "Using TRELLO_API_KEY from environment"
+else
+  prompt_yn "Configure Trello credentials now?" "n" ENABLE_TRELLO_TOKEN
+  if [[ "$ENABLE_TRELLO_TOKEN" == true ]]; then
+    prompt_secret "Trello API key" TRELLO_API_KEY
+    prompt_secret "Trello token" TRELLO_TOKEN
+  fi
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 10. Obsidian Vault
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Obsidian Vault"
 hint "KubeClaw can provision a persistent Markdown vault for the Obsidian skill."
@@ -427,7 +481,7 @@ if [[ "$OBSIDIAN_ENABLED" == true ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 10. Storage Class
+# 11. Storage Class
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Storage"
 
@@ -448,7 +502,7 @@ PERSISTENCE_SIZE="5Gi"
 prompt "OpenClaw storage volume size" "$PERSISTENCE_SIZE" PERSISTENCE_SIZE
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 11. Review Summary
+# 12. Review Summary
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Review"
 
@@ -465,6 +519,10 @@ row "Gateway Token:" "${OPENCLAW_GATEWAY_TOKEN:0:12}..."
 row "LiteLLM Key:" "${LITELLM_MASTERKEY:0:12}..."
 row "Tailscale:" "$( [[ "$TAILSCALE_ENABLED" == true ]] && echo "enabled" || echo "disabled" )"
 row "GitHub Token:" "$( [[ -n "$GITHUB_TOKEN" ]] && echo "configured" || echo "not set (optional)" )"
+row "Jira Token:" "$( [[ -n "$JIRA_API_TOKEN" ]] && echo "configured" || echo "not set (optional)" )"
+row "Linear Key:" "$( [[ -n "$LINEAR_API_KEY" ]] && echo "configured" || echo "not set (optional)" )"
+row "Asana PAT:" "$( [[ -n "$ASANA_PAT" ]] && echo "configured" || echo "not set (optional)" )"
+row "Trello:" "$( [[ -n "$TRELLO_API_KEY" ]] && echo "configured" || echo "not set (optional)" )"
 row "Obsidian Vault:" "$( [[ "$OBSIDIAN_ENABLED" == true ]] && echo "enabled (${OBSIDIAN_SIZE})" || echo "disabled" )"
 row "Storage Class:" "${STORAGE_CLASS:-cluster default}"
 row "OpenClaw Storage:" "$PERSISTENCE_SIZE"
@@ -476,7 +534,142 @@ if [[ "$INTERACTIVE" == true ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 12. Build Helm args
+# 13. Generate provider-specific values file (non-OpenAI)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VALUES_FILE=""
+HELM_VALUES_FLAGS=()
+
+if [[ "$LLM_PROVIDER" == "Anthropic" ]]; then
+  VALUES_FILE=$(mktemp /tmp/kubeclaw-values-XXXXXX.yaml)
+  cat > "$VALUES_FILE" <<'YAMLEOF'
+litellm:
+  proxy_config:
+    model_list:
+      - model_name: "claude-sonnet-4-20250514"
+        litellm_params:
+          model: "anthropic/claude-sonnet-4-20250514"
+          api_key: "os.environ/ANTHROPIC_API_KEY"
+    litellm_settings:
+      drop_params: true
+    router_settings:
+      routing_strategy: "simple-shuffle"
+
+config:
+  desired: |
+    {
+      "gateway": { "mode": "local", "bind": "lan", "trustedProxies": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"] },
+      "browser": {
+        "enabled": true,
+        "defaultProfile": "default",
+        "profiles": {
+          "default": {
+            "cdpUrl": "http://kubeclaw-chromium:9222",
+            "color": "#4285F4"
+          }
+        }
+      },
+      "models": {
+        "mode": "merge",
+        "providers": {
+          "litellm": {
+            "baseUrl": "http://kubeclaw-litellm:4000",
+            "apiKey": "${LITELLM_API_KEY}",
+            "api": "openai-completions",
+            "models": [
+              {
+                "id": "claude-sonnet-4-20250514",
+                "name": "Claude Sonnet 4",
+                "reasoning": false,
+                "input": ["text", "image"],
+                "contextWindow": 200000,
+                "maxTokens": 16384
+              }
+            ]
+          }
+        }
+      },
+      "agents": {
+        "defaults": {
+          "workspace": "/home/node/.openclaw/workspace",
+          "model": {
+            "primary": "litellm/claude-sonnet-4-20250514"
+          },
+          "userTimezone": "UTC",
+          "timeoutSeconds": 600,
+          "maxConcurrent": 1
+        }
+      }
+    }
+YAMLEOF
+  HELM_VALUES_FLAGS+=(-f "$VALUES_FILE")
+
+elif [[ "$LLM_PROVIDER" == "OpenRouter" ]]; then
+  VALUES_FILE=$(mktemp /tmp/kubeclaw-values-XXXXXX.yaml)
+  cat > "$VALUES_FILE" <<'YAMLEOF'
+litellm:
+  proxy_config:
+    model_list:
+      - model_name: "claude-sonnet-4-20250514"
+        litellm_params:
+          model: "openrouter/anthropic/claude-sonnet-4-20250514"
+          api_key: "os.environ/OPENROUTER_API_KEY"
+    litellm_settings:
+      drop_params: true
+    router_settings:
+      routing_strategy: "simple-shuffle"
+
+config:
+  desired: |
+    {
+      "gateway": { "mode": "local", "bind": "lan", "trustedProxies": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"] },
+      "browser": {
+        "enabled": true,
+        "defaultProfile": "default",
+        "profiles": {
+          "default": {
+            "cdpUrl": "http://kubeclaw-chromium:9222",
+            "color": "#4285F4"
+          }
+        }
+      },
+      "models": {
+        "mode": "merge",
+        "providers": {
+          "litellm": {
+            "baseUrl": "http://kubeclaw-litellm:4000",
+            "apiKey": "${LITELLM_API_KEY}",
+            "api": "openai-completions",
+            "models": [
+              {
+                "id": "claude-sonnet-4-20250514",
+                "name": "Claude Sonnet 4",
+                "reasoning": false,
+                "input": ["text", "image"],
+                "contextWindow": 200000,
+                "maxTokens": 16384
+              }
+            ]
+          }
+        }
+      },
+      "agents": {
+        "defaults": {
+          "workspace": "/home/node/.openclaw/workspace",
+          "model": {
+            "primary": "litellm/claude-sonnet-4-20250514"
+          },
+          "userTimezone": "UTC",
+          "timeoutSeconds": 600,
+          "maxConcurrent": 1
+        }
+      }
+    }
+YAMLEOF
+  HELM_VALUES_FLAGS+=(-f "$VALUES_FILE")
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 14. Build Helm args
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HELM_SETS=(
   --set "secret.create=true"
@@ -504,6 +697,23 @@ if [[ -n "$GITHUB_TOKEN" ]]; then
   HELM_SETS+=(--set "github.auth.token=${GITHUB_TOKEN}")
 fi
 
+# Project management tools
+if [[ -n "$JIRA_API_TOKEN" ]]; then
+  HELM_SETS+=(--set "jira.auth.token=${JIRA_API_TOKEN}")
+fi
+if [[ -n "$LINEAR_API_KEY" ]]; then
+  HELM_SETS+=(--set "linear.auth.token=${LINEAR_API_KEY}")
+fi
+if [[ -n "$ASANA_PAT" ]]; then
+  HELM_SETS+=(--set "asana.auth.token=${ASANA_PAT}")
+fi
+if [[ -n "$TRELLO_API_KEY" ]]; then
+  HELM_SETS+=(--set "trello.auth.apiKey=${TRELLO_API_KEY}")
+fi
+if [[ -n "$TRELLO_TOKEN" ]]; then
+  HELM_SETS+=(--set "trello.auth.token=${TRELLO_TOKEN}")
+fi
+
 # Tailscale
 if [[ "$TAILSCALE_ENABLED" == true ]]; then
   HELM_SETS+=(--set "tailscale.ssh.authKey=${TS_AUTHKEY}")
@@ -522,7 +732,7 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 13. Install
+# 15. Install
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Installing KubeClaw"
 
@@ -542,6 +752,7 @@ fi
 # Helm install
 HELM_CMD=(helm upgrade --install "$RELEASE" "$CHART_REF"
   --namespace "$NAMESPACE"
+  "${HELM_VALUES_FLAGS[@]}"
   "${HELM_SETS[@]}"
   --wait
   --timeout 10m
@@ -558,6 +769,10 @@ if [[ "$DRY_RUN" == true ]]; then
   REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(API_KEY=)[^ ]*/\1****/g')
   REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(authKey=)[^ ]*/\1****/g')
   REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(github\.auth\.token=)[^ ]*/\1****/g')
+  REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(jira\.auth\.token=)[^ ]*/\1****/g')
+  REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(linear\.auth\.token=)[^ ]*/\1****/g')
+  REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(asana\.auth\.token=)[^ ]*/\1****/g')
+  REDACTED_CMD=$(echo "$REDACTED_CMD" | sed -E 's/(trello\.auth\.(apiKey|token)=)[^ ]*/\1****/g')
   printf "  %s%s%s\n" "${DIM}" "$REDACTED_CMD" "${RESET}"
   echo ""
   success "Dry run complete — no changes were made."
@@ -584,7 +799,7 @@ fi
 success "Helm release '$RELEASE' installed"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 13. Post-install
+# 16. Post-install
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Post-Install"
 

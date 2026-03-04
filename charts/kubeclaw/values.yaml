@@ -578,30 +578,7 @@ egressFilter:
   # Escape hatch: provide a complete Blocky config.yml. When set, all other
   # egressFilter settings (except image, replicas, resources, securityContext)
   # are ignored and this is rendered verbatim.
-  customConfig: |
-    upstream:
-      default:
-        - 10.96.0.10
-    ports:
-      dns: 5353
-      http: 4000
-    blocking:
-      blackLists:
-        blockAll:
-          - |
-            *
-      whiteLists:
-        blockAll:
-          - api.github.com
-          - github.com
-          - slack.com
-          - wss-primary.slack.com
-          - gmail.googleapis.com
-          - oauth2.googleapis.com
-          - accounts.google.com
-      clientGroupsBlock:
-        default:
-          - blockAll
+  # customConfig: ""
 
 # ------------------------------------------------------------------------------
 # Diagnostics CronJob
