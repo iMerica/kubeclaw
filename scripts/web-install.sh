@@ -400,7 +400,7 @@ fi
 # 8. Tool Integrations (optional)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Tool Integrations (optional)"
-hint "Configure tokens for GitHub, Jira, Linear, Asana, and Trello."
+hint "Configure tools like GitHub, Jira, Linear, Asana, and Trello."
 
 # Read env vars
 GITHUB_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
@@ -933,10 +933,13 @@ if [[ "$DO_PORT_FORWARD" == true ]]; then
     if [[ -n "$DASHBOARD_URL" ]]; then
       LOCAL_URL=$(echo "$DASHBOARD_URL" | sed "s|http://[^/]*|http://localhost:${LOCAL_PORT}|")
       echo ""
-      printf "  %s┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓%s\n" "${GREEN}" "${RESET}"
-      printf "  %s┃%s  Open in your browser:                                     %s┃%s\n" "${GREEN}" "${RESET}" "${GREEN}" "${RESET}"
-      printf "  %s┃%s  %s%-56s%s %s┃%s\n" "${GREEN}" "${RESET}" "${BOLD}${CYAN}" "$LOCAL_URL" "${RESET}" "${GREEN}" "${RESET}"
-      printf "  %s┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛%s\n" "${GREEN}" "${RESET}"
+      BOX_W=$(( ${#LOCAL_URL} + 6 ))
+      (( BOX_W < 40 )) && BOX_W=40
+      BORDER=$(printf '━%.0s' $(seq 1 "$BOX_W"))
+      printf "  %s┏%s┓%s\n" "${GREEN}" "$BORDER" "${RESET}"
+      printf "  %s┃%s  %-$(( BOX_W - 2 ))s%s┃%s\n" "${GREEN}" "${RESET}" "Open in your browser:" "${GREEN}" "${RESET}"
+      printf "  %s┃%s  %s%-$(( BOX_W - 4 ))s%s  %s┃%s\n" "${GREEN}" "${RESET}" "${BOLD}${CYAN}" "$LOCAL_URL" "${RESET}" "${GREEN}" "${RESET}"
+      printf "  %s┗%s┛%s\n" "${GREEN}" "$BORDER" "${RESET}"
     fi
 
     echo ""
@@ -962,3 +965,4 @@ hr
 printf "  %s%sKubeClaw is ready. Happy building! 🦞%s\n" "${BOLD}" "${GREEN}" "${RESET}"
 hr
 echo ""
+exit 0
