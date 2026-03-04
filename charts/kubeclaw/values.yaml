@@ -333,10 +333,10 @@ obsidian:
 # NODE_OPTIONS is passed to every `node` invocation in the Gateway container.
 # Increase --max-old-space-size (in MiB) if the Gateway hits a JavaScript heap
 # out-of-memory error. Keep it below the container memory limit to leave room
-# for native allocations and OS overhead (~75 % of limit is a safe default).
+# for native allocations, subcommands (e.g. doctor), and OS overhead.
 # Set to "" to suppress NODE_OPTIONS entirely.
 # ------------------------------------------------------------------------------
-nodeOptions: "--max-old-space-size=768"
+nodeOptions: "--max-old-space-size=1536"
 
 # Extra environment variables injected into the Gateway container.
 # Accepts standard Kubernetes env-var objects (name/value or valueFrom).
@@ -352,10 +352,10 @@ extraEnv: []
 resources:
   requests:
     cpu: 100m
-    memory: 256Mi
+    memory: 512Mi
   limits:
     cpu: "1"
-    memory: 1Gi
+    memory: 2Gi
 
 # ------------------------------------------------------------------------------
 # Service

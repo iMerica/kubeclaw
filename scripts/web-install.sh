@@ -845,22 +845,6 @@ else
   hint "Check status with: kubectl get pods -n $NAMESPACE"
 fi
 
-# Retrieve dashboard URL
-DASHBOARD_URL=""
-if [[ "$GATEWAY_READY" == true ]]; then
-  spinner_start "Retrieving dashboard URL..."
-  for i in $(seq 1 15); do
-    URL=$(kubectl -n "$NAMESPACE" exec "${RELEASE}-gateway-0" -c gateway -- \
-      node dist/index.js dashboard --no-open 2>/dev/null | grep "Dashboard URL:" || true)
-    if [[ -n "$URL" ]]; then
-      DASHBOARD_URL="${URL#*Dashboard URL: }"
-      break
-    fi
-    sleep 2
-  done
-  spinner_stop
-fi
-
 # Wait for K8s Gateway API to become PROGRAMMED
 GW_NAME="${RELEASE}-gateway-api"
 echo ""
@@ -884,36 +868,30 @@ else
   hint "Check status: kubectl describe gateway ${GW_NAME} -n $NAMESPACE"
 fi
 
-# Print accessible routes
-GW_HOST=$(kubectl get gateway "${GW_NAME}" -n "$NAMESPACE" \
-  -o jsonpath='{.spec.listeners[0].hostname}' 2>/dev/null || echo "")
-GW_ADDR=$(kubectl get gateway "${GW_NAME}" -n "$NAMESPACE" \
-  -o jsonpath='{.status.addresses[0].value}' 2>/dev/null || echo "")
+# Discover Envoy proxy service for port-forwarding
 GW_PORT=$(kubectl get svc -n "$NAMESPACE" \
   -l "gateway.envoyproxy.io/owning-gateway-name=${GW_NAME}" \
   -o jsonpath='{.items[0].spec.ports[0].port}' 2>/dev/null || echo "80")
+ENVOY_SVC=$(kubectl get svc -n "$NAMESPACE" \
+  -l "gateway.envoyproxy.io/owning-gateway-name=${GW_NAME}" \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+
+LOCAL_PORT="${LOCAL_PORT:-8080}"
 
 echo ""
 info "Routes:"
 ROUTES=$(kubectl get httproute -n "$NAMESPACE" -l "app.kubernetes.io/instance=${RELEASE}" \
-  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.rules[0].matches[0].path.value}{"\t"}{.spec.rules[0].backendRefs[0].name}:{.spec.rules[0].backendRefs[0].port}{"\n"}{end}' 2>/dev/null || echo "")
+  -o jsonpath='{range .items[*]}{.spec.rules[0].matches[0].path.value}{"\n"}{end}' 2>/dev/null || echo "")
 
 if [[ -n "$ROUTES" ]]; then
-  printf "    %-30s %-15s %s\n" "ROUTE" "PATH" "BACKEND"
-  while IFS=$'\t' read -r name path backend; do
-    [[ -z "$name" ]] && continue
-    printf "    %-30s %-15s %s\n" "$name" "$path" "$backend"
+  while IFS= read -r path; do
+    [[ -z "$path" ]] && continue
+    echo "    http://localhost:${LOCAL_PORT}${path}"
   done <<< "$ROUTES"
-  echo ""
-  if [[ -n "$GW_HOST" && -n "$GW_ADDR" ]]; then
-    info "Gateway address: ${BOLD}${GW_ADDR}:${GW_PORT}${RESET} (Host: ${GW_HOST})"
-    hint "curl -H 'Host: ${GW_HOST}' http://${GW_ADDR}:${GW_PORT}/"
-  fi
 fi
 
 # Port-forward offer
 echo ""
-LOCAL_PORT="${LOCAL_PORT:-18789}"
 
 if [[ "$INTERACTIVE" == true ]]; then
   prompt_yn "Start port-forward for local access?" "y" DO_PORT_FORWARD
@@ -922,31 +900,39 @@ else
 fi
 
 if [[ "$DO_PORT_FORWARD" == true ]]; then
-  info "Starting port-forward (localhost:${LOCAL_PORT} → ${RELEASE}-gateway:18789)..."
-  kubectl port-forward -n "$NAMESPACE" "svc/${RELEASE}-gateway" "${LOCAL_PORT}:18789" &>/dev/null &
+  if [[ -n "$ENVOY_SVC" ]]; then
+    info "Starting port-forward (localhost:${LOCAL_PORT} -> ${ENVOY_SVC}:${GW_PORT})..."
+    kubectl port-forward -n "$NAMESPACE" "svc/${ENVOY_SVC}" "${LOCAL_PORT}:${GW_PORT}" &>/dev/null &
+  else
+    info "Gateway API proxy not found, falling back to direct gateway service..."
+    info "Starting port-forward (localhost:${LOCAL_PORT} -> ${RELEASE}-gateway:18789)..."
+    kubectl port-forward -n "$NAMESPACE" "svc/${RELEASE}-gateway" "${LOCAL_PORT}:18789" &>/dev/null &
+  fi
   PF_PID=$!
   sleep 2
 
   if kill -0 "$PF_PID" 2>/dev/null; then
     success "Port-forward running (PID ${PF_PID})"
 
-    if [[ -n "$DASHBOARD_URL" ]]; then
-      LOCAL_URL=$(echo "$DASHBOARD_URL" | sed "s|http://[^/]*|http://localhost:${LOCAL_PORT}|")
-      echo ""
-      BOX_W=$(( ${#LOCAL_URL} + 6 ))
-      (( BOX_W < 40 )) && BOX_W=40
-      BORDER=$(printf '━%.0s' $(seq 1 "$BOX_W"))
-      printf "  %s┏%s┓%s\n" "${GREEN}" "$BORDER" "${RESET}"
-      printf "  %s┃%s  %-$(( BOX_W - 2 ))s%s┃%s\n" "${GREEN}" "${RESET}" "Open in your browser:" "${GREEN}" "${RESET}"
-      printf "  %s┃%s  %s%-$(( BOX_W - 4 ))s%s  %s┃%s\n" "${GREEN}" "${RESET}" "${BOLD}${CYAN}" "$LOCAL_URL" "${RESET}" "${GREEN}" "${RESET}"
-      printf "  %s┗%s┛%s\n" "${GREEN}" "$BORDER" "${RESET}"
-    fi
+    LOCAL_URL="http://localhost:${LOCAL_PORT}/?token=${OPENCLAW_GATEWAY_TOKEN}"
+    echo ""
+    BOX_W=$(( ${#LOCAL_URL} + 6 ))
+    (( BOX_W < 40 )) && BOX_W=40
+    BORDER=$(printf '━%.0s' $(seq 1 "$BOX_W"))
+    printf "  %s┏%s┓%s\n" "${GREEN}" "$BORDER" "${RESET}"
+    printf "  %s┃%s  %-$(( BOX_W - 2 ))s%s┃%s\n" "${GREEN}" "${RESET}" "Open in your browser:" "${GREEN}" "${RESET}"
+    printf "  %s┃%s  %s%-$(( BOX_W - 4 ))s%s  %s┃%s\n" "${GREEN}" "${RESET}" "${BOLD}${CYAN}" "$LOCAL_URL" "${RESET}" "${GREEN}" "${RESET}"
+    printf "  %s┗%s┛%s\n" "${GREEN}" "$BORDER" "${RESET}"
 
     echo ""
     hint "Stop port-forward: kill $PF_PID"
   else
     warn "Port-forward failed. Start manually:"
-    hint "kubectl port-forward -n $NAMESPACE svc/${RELEASE}-gateway ${LOCAL_PORT}:18789"
+    if [[ -n "$ENVOY_SVC" ]]; then
+      hint "kubectl port-forward -n $NAMESPACE svc/${ENVOY_SVC} ${LOCAL_PORT}:${GW_PORT}"
+    else
+      hint "kubectl port-forward -n $NAMESPACE svc/${RELEASE}-gateway ${LOCAL_PORT}:18789"
+    fi
   fi
 fi
 

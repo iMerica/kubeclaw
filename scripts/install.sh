@@ -106,26 +106,26 @@ echo ""
 echo "=== Installed successfully ==="
 kubectl get pods -n "${NAMESPACE}" -l "app.kubernetes.io/instance=${RELEASE}"
 
-# --- Wait for Gateway to be fully ready and print dashboard URL ---
+# --- Wait for Gateway to be fully ready ---
 echo ""
 echo ">>> Waiting for Gateway to become ready..."
-DASHBOARD_URL=""
 MAX_ATTEMPTS=30
+GATEWAY_READY=false
 for i in $(seq 1 "${MAX_ATTEMPTS}"); do
-  URL=$(kubectl -n "${NAMESPACE}" exec "${RELEASE}-gateway-0" -c gateway -- \
-    node dist/index.js dashboard --no-open 2>/dev/null | grep "Dashboard URL:" || true)
-  if [[ -n "${URL}" ]]; then
-    DASHBOARD_URL="${URL#*Dashboard URL: }"
+  if kubectl -n "${NAMESPACE}" exec "${RELEASE}-gateway-0" -c gateway -- \
+    node dist/index.js dashboard --no-open &>/dev/null; then
+    GATEWAY_READY=true
     break
   fi
   if [[ "${i}" -eq "${MAX_ATTEMPTS}" ]]; then
-    echo "WARNING: Could not retrieve dashboard URL after ${MAX_ATTEMPTS} attempts."
-    echo "The Gateway may still be starting. Try manually:"
-    echo "  kubectl -n ${NAMESPACE} exec ${RELEASE}-gateway-0 -c gateway -- node dist/index.js dashboard --no-open"
+    echo "WARNING: Gateway not ready after ${MAX_ATTEMPTS} attempts. It may still be starting."
     break
   fi
   sleep 2
 done
+if [[ "${GATEWAY_READY}" == true ]]; then
+  echo "Gateway is ready."
+fi
 
 # --- Wait for K8s Gateway API to become PROGRAMMED ---
 GW_NAME="${RELEASE}-gateway-api"
@@ -149,39 +149,38 @@ else
   echo "  Check status: kubectl describe gateway ${GW_NAME} -n ${NAMESPACE}"
 fi
 
-# --- Print accessible routes ---
-GW_HOST=$(kubectl get gateway "${GW_NAME}" -n "${NAMESPACE}" \
-  -o jsonpath='{.spec.listeners[0].hostname}' 2>/dev/null || echo "")
-GW_ADDR=$(kubectl get gateway "${GW_NAME}" -n "${NAMESPACE}" \
-  -o jsonpath='{.status.addresses[0].value}' 2>/dev/null || echo "")
+# --- Discover Envoy proxy service for port-forwarding ---
 GW_PORT=$(kubectl get svc -n "${NAMESPACE}" \
   -l "gateway.envoyproxy.io/owning-gateway-name=${GW_NAME}" \
   -o jsonpath='{.items[0].spec.ports[0].port}' 2>/dev/null || echo "80")
+ENVOY_SVC=$(kubectl get svc -n "${NAMESPACE}" \
+  -l "gateway.envoyproxy.io/owning-gateway-name=${GW_NAME}" \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+
+LOCAL_PORT="${LOCAL_PORT:-8080}"
 
 echo ""
 echo "=== Routes ==="
 ROUTES=$(kubectl get httproute -n "${NAMESPACE}" -l "app.kubernetes.io/instance=${RELEASE}" \
-  -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.rules[0].matches[0].path.value}{"\t"}{.spec.rules[0].backendRefs[0].name}:{.spec.rules[0].backendRefs[0].port}{"\n"}{end}' 2>/dev/null || echo "")
+  -o jsonpath='{range .items[*]}{.spec.rules[0].matches[0].path.value}{"\n"}{end}' 2>/dev/null || echo "")
 
 if [[ -n "${ROUTES}" ]]; then
-  printf "%-30s %-15s %s\n" "ROUTE" "PATH" "BACKEND"
-  while IFS=$'\t' read -r name path backend; do
-    [[ -z "${name}" ]] && continue
-    printf "%-30s %-15s %s\n" "${name}" "${path}" "${backend}"
+  while IFS= read -r path; do
+    [[ -z "${path}" ]] && continue
+    echo "  http://localhost:${LOCAL_PORT}${path}"
   done <<< "${ROUTES}"
-  echo ""
-  if [[ -n "${GW_HOST}" && -n "${GW_ADDR}" ]]; then
-    echo "Gateway address: ${GW_ADDR}:${GW_PORT} (Host: ${GW_HOST})"
-    echo "  curl -H 'Host: ${GW_HOST}' http://${GW_ADDR}:${GW_PORT}/"
-  fi
 fi
 
 # --- Port-forward for local access ---
-LOCAL_PORT="${LOCAL_PORT:-18789}"
-
 echo ""
-echo ">>> Starting port-forward (localhost:${LOCAL_PORT} -> ${RELEASE}-gateway:18789)..."
-kubectl port-forward -n "${NAMESPACE}" "svc/${RELEASE}-gateway" "${LOCAL_PORT}:18789" &
+if [[ -n "${ENVOY_SVC}" ]]; then
+  echo ">>> Starting port-forward (localhost:${LOCAL_PORT} -> ${ENVOY_SVC}:${GW_PORT})..."
+  kubectl port-forward -n "${NAMESPACE}" "svc/${ENVOY_SVC}" "${LOCAL_PORT}:${GW_PORT}" &
+else
+  echo ">>> Gateway API proxy not found, falling back to direct gateway service..."
+  echo ">>> Starting port-forward (localhost:${LOCAL_PORT} -> ${RELEASE}-gateway:18789)..."
+  kubectl port-forward -n "${NAMESPACE}" "svc/${RELEASE}-gateway" "${LOCAL_PORT}:18789" &
+fi
 PF_PID=$!
 
 # Give port-forward a moment to bind
@@ -190,12 +189,12 @@ if kill -0 "${PF_PID}" 2>/dev/null; then
   echo "Port-forward running (PID ${PF_PID}). Stop with: kill ${PF_PID}"
 else
   echo "WARNING: Port-forward failed to start. Run manually:"
-  echo "  kubectl port-forward -n ${NAMESPACE} svc/${RELEASE}-gateway ${LOCAL_PORT}:18789"
+  if [[ -n "${ENVOY_SVC}" ]]; then
+    echo "  kubectl port-forward -n ${NAMESPACE} svc/${ENVOY_SVC} ${LOCAL_PORT}:${GW_PORT}"
+  else
+    echo "  kubectl port-forward -n ${NAMESPACE} svc/${RELEASE}-gateway ${LOCAL_PORT}:18789"
+  fi
 fi
 
-if [[ -n "${DASHBOARD_URL}" ]]; then
-  # Rewrite the dashboard URL to use localhost
-  LOCAL_URL=$(echo "${DASHBOARD_URL}" | sed "s|http://[^/]*|http://localhost:${LOCAL_PORT}|")
-  echo ""
-  echo "Open in your browser: ${LOCAL_URL}"
-fi
+echo ""
+echo "Open in your browser: http://localhost:${LOCAL_PORT}/?token=${OPENCLAW_GATEWAY_TOKEN}"
