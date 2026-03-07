@@ -12,6 +12,17 @@ Validate required secrets when features are enabled.
     {{- fail "litellm.enabled is true but litellm.masterkey is not set" }}
   {{- end }}
 {{- end }}
+{{- if .Values.backup.enabled }}
+  {{- if not (index .Values.secret.data "S3_BUCKET") }}
+    {{- fail "backup.enabled is true but secret.data.S3_BUCKET is not set" }}
+  {{- end }}
+  {{- if not (index .Values.secret.data "S3_ACCESS_KEY_ID") }}
+    {{- fail "backup.enabled is true but secret.data.S3_ACCESS_KEY_ID is not set" }}
+  {{- end }}
+  {{- if not (index .Values.secret.data "S3_SECRET_ACCESS_KEY") }}
+    {{- fail "backup.enabled is true but secret.data.S3_SECRET_ACCESS_KEY is not set" }}
+  {{- end }}
+{{- end }}
 {{- if .Values.gatewayAPI.enabled }}
   {{- if and (not .Values.gatewayAPI.gatewayClassName) (not .Values.gatewayAPI.controller.enabled) }}
     {{- fail "gatewayAPI.enabled is true but neither gatewayAPI.gatewayClassName nor gatewayAPI.controller.enabled is set" }}

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This runbook covers restoring an OpenClaw Gateway from a CSI `VolumeSnapshot` or a manual PVC backup. The Gateway stores all state — config, auth tokens, sessions, channel state, and workspace — under `/home/node/.openclaw`.
+This runbook covers restoring an OpenClaw Gateway from a CSI `VolumeSnapshot`, a manual PVC backup, or an S3 backup (created by the chart's `backup.enabled` feature). The Gateway stores all state as plain Markdown files under `/home/node/.openclaw`.
 
 **What needs to be backed up:**
 - Primary PVC: `/home/node/.openclaw` (excluding workspace if split)
@@ -193,6 +193,107 @@ kubectl -n <namespace> rollout status statefulset/<release-name>
 kubectl -n <namespace> exec statefulset/<release-name> -- \
   node dist/index.js doctor
 kubectl -n <namespace> exec statefulset/<release-name> -- \
+  node dist/index.js status
+```
+
+---
+
+## Method 3: Restore from S3 Backup
+
+If the chart's S3 backup feature (`backup.enabled: true`) is configured, scheduled and pre-delete backups are stored in your S3-compatible bucket. This method uses rclone to pull the backup into the PVC.
+
+### Step 1: Identify the backup to restore
+
+List available backups in your S3 bucket:
+
+```sh
+# Using rclone (configure S3 remote first, or use env-based config):
+export RCLONE_CONFIG_S3_TYPE=s3
+export RCLONE_CONFIG_S3_PROVIDER=Other
+export RCLONE_CONFIG_S3_ENDPOINT="https://s3.us-east-1.amazonaws.com"
+export RCLONE_CONFIG_S3_ACCESS_KEY_ID="AKIA..."
+export RCLONE_CONFIG_S3_SECRET_ACCESS_KEY="..."
+
+rclone lsd s3:<bucket>/<namespace>/<release>/
+# Example output:
+#           -1 2026-03-07T02-00-00Z
+#           -1 2026-03-08T02-00-00Z
+#           -1 pre-delete
+```
+
+The `pre-delete/` directory contains the most recent pre-uninstall snapshot. Timestamped directories are from scheduled backups.
+
+### Step 2: Scale down the Gateway
+
+```sh
+kubectl -n <namespace> scale statefulset/<release-name>-gateway --replicas=0
+kubectl -n <namespace> wait pod -l app.kubernetes.io/instance=<release-name> \
+  --for=delete --timeout=120s
+```
+
+### Step 3: Run a temporary restore pod with rclone
+
+```sh
+kubectl -n <namespace> run restore-from-s3 \
+  --image=rclone/rclone:1.68 \
+  --restart=Never \
+  --env="S3_ENDPOINT=https://s3.us-east-1.amazonaws.com" \
+  --env="S3_BUCKET=<bucket>" \
+  --env="S3_ACCESS_KEY_ID=AKIA..." \
+  --env="S3_SECRET_ACCESS_KEY=..." \
+  --overrides='{
+    "spec": {
+      "volumes": [{
+        "name": "state",
+        "persistentVolumeClaim": {"claimName": "<state-pvc-name>"}
+      }],
+      "containers": [{
+        "name": "restore-from-s3",
+        "image": "rclone/rclone:1.68",
+        "command": ["sleep", "3600"],
+        "volumeMounts": [{"name": "state", "mountPath": "/data"}]
+      }]
+    }
+  }' \
+  -- sleep 3600
+
+kubectl -n <namespace> wait pod/restore-from-s3 --for=condition=Ready --timeout=60s
+```
+
+### Step 4: Pull the backup into the PVC
+
+```sh
+# Choose which backup to restore (timestamp or "pre-delete"):
+BACKUP="2026-03-08T02-00-00Z"
+
+kubectl -n <namespace> exec restore-from-s3 -- sh -c "
+  export RCLONE_CONFIG_S3_TYPE=s3
+  export RCLONE_CONFIG_S3_PROVIDER=Other
+  export RCLONE_CONFIG_S3_ENDPOINT=\"\${S3_ENDPOINT}\"
+  export RCLONE_CONFIG_S3_ACCESS_KEY_ID=\"\${S3_ACCESS_KEY_ID}\"
+  export RCLONE_CONFIG_S3_SECRET_ACCESS_KEY=\"\${S3_SECRET_ACCESS_KEY}\"
+  rclone copy s3:\${S3_BUCKET}/<namespace>/<release>/${BACKUP} /data \
+    --transfers 8 --s3-no-check-bucket --log-level INFO
+"
+
+# Verify:
+kubectl -n <namespace> exec restore-from-s3 -- ls -la /data/
+```
+
+### Step 5: Clean up and restart
+
+```sh
+kubectl -n <namespace> delete pod restore-from-s3
+kubectl -n <namespace> scale statefulset/<release-name>-gateway --replicas=1
+kubectl -n <namespace> rollout status statefulset/<release-name>-gateway
+```
+
+### Step 6: Verify health
+
+```sh
+kubectl -n <namespace> exec statefulset/<release-name>-gateway -- \
+  node dist/index.js doctor
+kubectl -n <namespace> exec statefulset/<release-name>-gateway -- \
   node dist/index.js status
 ```
 

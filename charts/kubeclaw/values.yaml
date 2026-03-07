@@ -620,6 +620,40 @@ diagnostics:
       memory: 512Mi
 
 # ------------------------------------------------------------------------------
+# S3 Backup
+# Backs up the Gateway state directory to S3-compatible storage on a schedule.
+# Uses rclone to copy flat Markdown files. S3 credentials go in secret.data:
+#   S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY,
+#   S3_REGION (optional).
+# Disabled by default (requires S3 credentials as a prerequisite).
+# ------------------------------------------------------------------------------
+backup:
+  enabled: false
+  image:
+    repository: rclone/rclone
+    tag: "1.68"
+    pullPolicy: IfNotPresent
+  # Cron schedule (default: daily at 2am UTC).
+  schedule: "0 2 * * *"
+  # S3 path prefix. Defaults to <namespace>/<release> at template time.
+  pathPrefix: ""
+  # Concurrency policy: Forbid prevents overlapping runs.
+  concurrencyPolicy: Forbid
+  # History limits.
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  # Pre-delete hook: runs a final backup before helm uninstall.
+  onDelete:
+    enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# ------------------------------------------------------------------------------
 # Tailscale Integration
 # Two independent features:
 #   expose — annotates the Service for the Tailscale K8s Operator to proxy

@@ -132,6 +132,10 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `egressFilter.denylists` | *(threats + malware)* | Named blocklist groups with URLs fetched by Blocky |
 | `egressFilter.allowlists` | `[]` | Domains that are never blocked (overrides denylists) |
 | `networkPolicy.enabled` | `false` | Enable NetworkPolicy |
+| `backup.enabled` | `false` | Enable S3 backup CronJob (requires S3 credentials in `secret.data`) |
+| `backup.schedule` | `0 2 * * *` | Cron schedule for backups (default: daily at 2am UTC) |
+| `backup.pathPrefix` | `""` | S3 path prefix; defaults to `<namespace>/<release>` |
+| `backup.onDelete.enabled` | `true` | Run a final backup before `helm uninstall` |
 | `diagnostics.enabled` | `true` | Enable diagnostics CronJob |
 | `observability.enabled` | `true` | Deploy ClickStack (ClickHouse + HyperDX + OTel) and KubeClaw OTel collectors |
 | `observability.gateway.enabled` | `true` | Inject OTEL env vars into Gateway for trace/log export |
@@ -451,6 +455,73 @@ diagnostics:
 ```
 
 Output is written to pod logs. Pipe to your logging stack.
+
+## S3 Backup
+
+Back up the Gateway state directory to any S3-compatible storage (AWS S3, MinIO, Backblaze B2, Cloudflare R2, etc.) on a cron schedule. A pre-delete hook also runs a final backup before `helm uninstall`, so state is preserved even when tearing down the release.
+
+Backups use [rclone](https://rclone.org/) to copy the flat Markdown files. No database dump or special tooling is needed.
+
+### Enable
+
+Add S3 credentials to `secret.data` and enable the backup:
+
+```yaml
+secret:
+  create: true
+  data:
+    OPENCLAW_GATEWAY_TOKEN: "your-token"
+    S3_ENDPOINT: "https://s3.us-east-1.amazonaws.com"
+    S3_BUCKET: "my-kubeclaw-backups"
+    S3_ACCESS_KEY_ID: "AKIAEXAMPLE"
+    S3_SECRET_ACCESS_KEY: "your-secret-key"
+    S3_REGION: "us-east-1"  # optional
+
+backup:
+  enabled: true
+  schedule: "0 2 * * *"   # daily at 2am UTC
+```
+
+The chart validates that `S3_BUCKET`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY` are present in `secret.data` when `backup.enabled` is true.
+
+### S3 path layout
+
+Scheduled backups are timestamped. The pre-delete backup overwrites a single `pre-delete/` prefix so only the latest snapshot is kept:
+
+```
+s3://my-kubeclaw-backups/
+  <namespace>/<release>/
+    2026-03-07T02-00-00Z/       # scheduled
+    2026-03-08T02-00-00Z/       # scheduled
+    pre-delete/                  # latest pre-delete snapshot
+```
+
+Override the `<namespace>/<release>` prefix with `backup.pathPrefix`.
+
+### Non-AWS providers
+
+Any S3-compatible endpoint works. Set `S3_ENDPOINT` to your provider's URL:
+
+| Provider | `S3_ENDPOINT` example |
+|----------|----------------------|
+| MinIO | `http://minio.minio.svc:9000` |
+| Backblaze B2 | `https://s3.us-west-004.backblazeb2.com` |
+| Cloudflare R2 | `https://<account-id>.r2.cloudflarestorage.com` |
+
+### Disable the pre-delete hook
+
+If you do not want a backup on `helm uninstall`:
+
+```yaml
+backup:
+  enabled: true
+  onDelete:
+    enabled: false
+```
+
+### Restoring from an S3 backup
+
+See the [Restore Runbook](../runbooks/restore.md) for step-by-step instructions on restoring from S3.
 
 ## Security Baseline
 

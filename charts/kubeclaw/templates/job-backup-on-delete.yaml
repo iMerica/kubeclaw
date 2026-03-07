@@ -1,0 +1,127 @@
+{{- if and .Values.backup.enabled .Values.backup.onDelete.enabled }}
+# Pre-delete backup Job
+# Runs a final S3 backup before helm uninstall so state is preserved.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-backup-on-delete
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+  annotations:
+    helm.sh/hook: pre-delete
+    helm.sh/hook-weight: "-5"
+    helm.sh/hook-delete-policy: hook-succeeded,before-hook-creation
+spec:
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        {{- include "kubeclaw.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backup
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "kubeclaw.serviceAccountName" . }}
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+        - name: fix-permissions
+          image: {{ include "kubeclaw.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              chown -R 1000:1000 /data || true
+              chmod 700 /data || true
+          volumeMounts:
+            - name: {{ include "kubeclaw.statePvcName" . }}
+              mountPath: /data
+              {{- if .Values.persistence.splitVolumes }}
+              subPath: state
+              {{- end }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+      containers:
+        - name: backup
+          image: "{{ .Values.backup.image.repository }}:{{ .Values.backup.image.tag }}"
+          imagePullPolicy: {{ .Values.backup.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              export RCLONE_CONFIG_S3_TYPE=s3
+              export RCLONE_CONFIG_S3_PROVIDER=Other
+              export RCLONE_CONFIG_S3_ENDPOINT="${S3_ENDPOINT}"
+              export RCLONE_CONFIG_S3_ACCESS_KEY_ID="${S3_ACCESS_KEY_ID}"
+              export RCLONE_CONFIG_S3_SECRET_ACCESS_KEY="${S3_SECRET_ACCESS_KEY}"
+              [ -n "${S3_REGION:-}" ] && export RCLONE_CONFIG_S3_REGION="${S3_REGION}"
+
+              PREFIX="{{ if .Values.backup.pathPrefix }}{{ .Values.backup.pathPrefix }}{{ else }}{{ .Release.Namespace }}/{{ .Release.Name }}{{ end }}"
+              DEST="s3:${S3_BUCKET}/${PREFIX}/pre-delete"
+
+              echo "Pre-delete backup: /data to ${DEST}"
+              rclone copy /data "${DEST}" --transfers 8 --checkers 4 --s3-no-check-bucket --log-level INFO
+              echo "Pre-delete backup complete."
+          envFrom:
+            - configMapRef:
+                name: {{ include "kubeclaw.fullname" . }}-env
+            - secretRef:
+                name: {{ include "kubeclaw.secretName" . }}
+          volumeMounts:
+            - name: {{ include "kubeclaw.statePvcName" . }}
+              mountPath: /data
+              readOnly: true
+              {{- if .Values.persistence.splitVolumes }}
+              subPath: state
+              {{- end }}
+            {{- if .Values.persistence.splitVolumes }}
+            - name: {{ include "kubeclaw.workspacePvcName" . }}
+              mountPath: /data/workspace
+              readOnly: true
+            {{- end }}
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.backup.resources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: {{ include "kubeclaw.statePvcName" . }}
+          persistentVolumeClaim:
+            claimName: {{ include "kubeclaw.statePvcName" . }}-{{ include "kubeclaw.gatewayName" . }}-0
+        {{- if .Values.persistence.splitVolumes }}
+        - name: {{ include "kubeclaw.workspacePvcName" . }}
+          persistentVolumeClaim:
+            claimName: {{ include "kubeclaw.workspacePvcName" . }}-{{ include "kubeclaw.gatewayName" . }}-0
+        {{- end }}
+        - name: tmp
+          emptyDir:
+            sizeLimit: 50Mi
+{{- end }}

@@ -151,6 +151,7 @@ Image pinning policy: each chart release is validated against a candidate image,
 | **Egress DNS filter** | NextDNS-style DNS filtering via [Blocky](https://0xerr0r.github.io/blocky/), including threat blocklists (HaGeZi, StevenBlack), country TLD blocking, and query logging |
 | **Container hardening** | Non-root UID, read-only root filesystem, no privilege escalation, all capabilities dropped, and `RuntimeDefault` seccomp profile |
 | **NetworkPolicy** | Scaffolding for locking down traffic |
+| **S3 Backup** | Scheduled and pre-delete backups of Gateway state to S3-compatible storage via rclone |
 | **Diagnostics CronJob** | Periodic `openclaw doctor` runs |
 | **Skills system** | Declarative skill install at deploy time; supports playbooks, clawhub, and npm registries, including a default GitHub skill for PR/issue workflows |
 | **Tools system** | Reusable `tools-init` installer for in-pod CLIs; ships with `gh` by default and is extensible for additional tools |
