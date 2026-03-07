@@ -89,6 +89,11 @@ config:
   # Default sets gateway.mode=local so the Gateway starts without interactive
   # setup, and gateway.bind=lan so it listens on 0.0.0.0 (reachable by
   # kubelet probes and the Service).
+  # dangerouslyDisableDeviceAuth disables the per-device pairing handshake for
+  # Control UI (web) connections. Without this, the exec health probe (which
+  # runs on loopback) auto-approves as the first device and all browser
+  # connections are stuck in "pairing required". Token auth is still enforced.
+  # Safe in Kubernetes where the Gateway is behind a Service/Ingress.
   # Set to "" to disable config management entirely.
   # Example with additional settings:
   #   desired: |
@@ -98,7 +103,14 @@ config:
   #     }
   desired: |
     {
-      "gateway": { "mode": "local", "bind": "lan", "trustedProxies": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"] },
+      "gateway": {
+        "mode": "local",
+        "bind": "lan",
+        "trustedProxies": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
+        "controlUi": {
+          "dangerouslyDisableDeviceAuth": true
+        }
+      },
       "browser": {
         "enabled": true,
         "defaultProfile": "default",
@@ -756,6 +768,11 @@ litellm:
   # Master key for the LiteLLM proxy API. Must start with "sk-".
   # Merged into the main Secret as LITELLM_API_KEY.
   masterkey: ""
+
+  # Tell LiteLLM it is served under /litellm so Swagger UI and OpenAPI spec
+  # URLs resolve correctly behind the Gateway API reverse proxy.
+  envVars:
+    SERVER_ROOT_PATH: "/litellm"
 
   # Secrets mounted as environment variables on the LiteLLM proxy pod.
   # The default entry forwards provider API keys (e.g. OPENAI_API_KEY) from

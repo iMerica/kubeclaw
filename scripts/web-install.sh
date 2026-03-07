@@ -399,8 +399,8 @@ fi
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 8. Tool Integrations (optional)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-section "Tool Integrations (optional)"
-hint "Configure tools like GitHub, Jira, Linear, Asana, and Trello."
+section "Integrations (optional)"
+hint "Configure API keys for GitHub, Jira, Linear, Asana, and Trello."
 
 # Read env vars
 GITHUB_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
@@ -423,7 +423,7 @@ if [[ ${#TOOL_ENV_DETECTED[@]} -gt 0 ]]; then
 fi
 
 CONFIGURE_TOOLS=false
-prompt_yn "Configure tool integration tokens now?" "n" CONFIGURE_TOOLS
+prompt_yn "Configure integration API keys now?" "n" CONFIGURE_TOOLS
 
 if [[ "$CONFIGURE_TOOLS" == true ]]; then
   echo ""
@@ -506,6 +506,9 @@ prompt "OpenClaw storage volume size" "$PERSISTENCE_SIZE" PERSISTENCE_SIZE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Review"
 
+# Fetch chart version from OCI registry
+CHART_VERSION=$(helm show chart "$CHART_REF" 2>/dev/null | grep '^version:' | awk '{print $2}' || echo "unknown")
+
 # Table helper
 row() {
   printf "  %s%-24s%s %s\n" "${DIM}" "$1" "${RESET}" "$2"
@@ -513,28 +516,28 @@ row() {
 
 row "Namespace:" "$NAMESPACE"
 row "Release:" "$RELEASE"
-row "Chart:" "$CHART_REF"
+row "Chart:" "$CHART_REF (v${CHART_VERSION})"
 row "LLM Provider:" "${LLM_PROVIDER:-none}"
 row "Gateway Token:" "${OPENCLAW_GATEWAY_TOKEN:0:12}..."
 row "LiteLLM Key:" "${LITELLM_MASTERKEY:0:12}..."
 row "Tailscale:" "$( [[ "$TAILSCALE_ENABLED" == true ]] && echo "enabled" || echo "disabled" )"
-# Build tool tokens summary
-TOOLS_CONFIGURED=()
-TOOLS_NOT_SET=()
-[[ -n "$GITHUB_TOKEN" ]]  && TOOLS_CONFIGURED+=("github")  || TOOLS_NOT_SET+=("github")
-[[ -n "$JIRA_API_TOKEN" ]] && TOOLS_CONFIGURED+=("jira")    || TOOLS_NOT_SET+=("jira")
-[[ -n "$LINEAR_API_KEY" ]] && TOOLS_CONFIGURED+=("linear")  || TOOLS_NOT_SET+=("linear")
-[[ -n "$ASANA_PAT" ]]     && TOOLS_CONFIGURED+=("asana")   || TOOLS_NOT_SET+=("asana")
-[[ -n "$TRELLO_API_KEY" ]] && TOOLS_CONFIGURED+=("trello")  || TOOLS_NOT_SET+=("trello")
-TOOLS_SUMMARY=""
-if [[ ${#TOOLS_CONFIGURED[@]} -gt 0 ]]; then
-  TOOLS_SUMMARY+="$(IFS=', '; echo "${TOOLS_CONFIGURED[*]}") configured"
+# Build integrations summary
+INTEGRATIONS_CONFIGURED=()
+INTEGRATIONS_NOT_SET=()
+[[ -n "$GITHUB_TOKEN" ]]  && INTEGRATIONS_CONFIGURED+=("github")  || INTEGRATIONS_NOT_SET+=("github")
+[[ -n "$JIRA_API_TOKEN" ]] && INTEGRATIONS_CONFIGURED+=("jira")    || INTEGRATIONS_NOT_SET+=("jira")
+[[ -n "$LINEAR_API_KEY" ]] && INTEGRATIONS_CONFIGURED+=("linear")  || INTEGRATIONS_NOT_SET+=("linear")
+[[ -n "$ASANA_PAT" ]]     && INTEGRATIONS_CONFIGURED+=("asana")   || INTEGRATIONS_NOT_SET+=("asana")
+[[ -n "$TRELLO_API_KEY" ]] && INTEGRATIONS_CONFIGURED+=("trello")  || INTEGRATIONS_NOT_SET+=("trello")
+INTEGRATIONS_SUMMARY=""
+if [[ ${#INTEGRATIONS_CONFIGURED[@]} -gt 0 ]]; then
+  INTEGRATIONS_SUMMARY+="$(IFS=', '; echo "${INTEGRATIONS_CONFIGURED[*]}") configured"
 fi
-if [[ ${#TOOLS_NOT_SET[@]} -gt 0 ]]; then
-  [[ -n "$TOOLS_SUMMARY" ]] && TOOLS_SUMMARY+=" | "
-  TOOLS_SUMMARY+="$(IFS=', '; echo "${TOOLS_NOT_SET[*]}") not set"
+if [[ ${#INTEGRATIONS_NOT_SET[@]} -gt 0 ]]; then
+  [[ -n "$INTEGRATIONS_SUMMARY" ]] && INTEGRATIONS_SUMMARY+=" | "
+  INTEGRATIONS_SUMMARY+="$(IFS=', '; echo "${INTEGRATIONS_NOT_SET[*]}") not set"
 fi
-row "Tool Tokens:" "$TOOLS_SUMMARY"
+row "Integrations:" "$INTEGRATIONS_SUMMARY"
 row "Obsidian Vault:" "$( [[ "$OBSIDIAN_ENABLED" == true ]] && echo "enabled (${OBSIDIAN_SIZE})" || echo "disabled" )"
 row "Storage Class:" "${STORAGE_CLASS:-cluster default}"
 row "OpenClaw Storage:" "$PERSISTENCE_SIZE"
@@ -886,6 +889,8 @@ ROUTES=$(kubectl get httproute -n "$NAMESPACE" -l "app.kubernetes.io/instance=${
 if [[ -n "$ROUTES" ]]; then
   while IFS= read -r path; do
     [[ -z "$path" ]] && continue
+    # Skip headless API-only services (no user-facing UI)
+    [[ "$path" == "/litellm" || "$path" == "/filtering" ]] && continue
     echo "    http://localhost:${LOCAL_PORT}${path}"
   done <<< "$ROUTES"
 fi
@@ -916,13 +921,8 @@ if [[ "$DO_PORT_FORWARD" == true ]]; then
 
     LOCAL_URL="http://localhost:${LOCAL_PORT}/?token=${OPENCLAW_GATEWAY_TOKEN}"
     echo ""
-    BOX_W=$(( ${#LOCAL_URL} + 6 ))
-    (( BOX_W < 40 )) && BOX_W=40
-    BORDER=$(printf '━%.0s' $(seq 1 "$BOX_W"))
-    printf "  %s┏%s┓%s\n" "${GREEN}" "$BORDER" "${RESET}"
-    printf "  %s┃%s  %-$(( BOX_W - 2 ))s%s┃%s\n" "${GREEN}" "${RESET}" "Open in your browser:" "${GREEN}" "${RESET}"
-    printf "  %s┃%s  %s%-$(( BOX_W - 4 ))s%s  %s┃%s\n" "${GREEN}" "${RESET}" "${BOLD}${CYAN}" "$LOCAL_URL" "${RESET}" "${GREEN}" "${RESET}"
-    printf "  %s┗%s┛%s\n" "${GREEN}" "$BORDER" "${RESET}"
+    info "Open in your browser:"
+    printf "  %s%s%s\n" "${BOLD}${CYAN}" "$LOCAL_URL" "${RESET}"
 
     echo ""
     hint "Stop port-forward: kill $PF_PID"

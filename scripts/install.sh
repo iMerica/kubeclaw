@@ -167,6 +167,8 @@ ROUTES=$(kubectl get httproute -n "${NAMESPACE}" -l "app.kubernetes.io/instance=
 if [[ -n "${ROUTES}" ]]; then
   while IFS= read -r path; do
     [[ -z "${path}" ]] && continue
+    # Skip headless API-only services (no user-facing UI)
+    [[ "${path}" == "/litellm" || "${path}" == "/filtering" ]] && continue
     echo "  http://localhost:${LOCAL_PORT}${path}"
   done <<< "${ROUTES}"
 fi
