@@ -149,6 +149,7 @@ Image pinning policy: each chart release is validated against a candidate image,
 | **LiteLLM proxy subchart** | Per-agent virtual keys, budget caps, model fallback routing, and semantic caching |
 | **Wide Events observability** | Logs, metrics, traces, and Kubernetes events unified in [ClickHouse](https://clickhouse.com/) via the [Wide Events](https://charity.wtf/2019/02/05/logs-vs-structured-events/) pattern, replacing separate logging, metrics, and tracing backends. Ships with [HyperDX](https://hyperdx.io/) for search and dashboards, and [OpenTelemetry](https://opentelemetry.io/) collectors for zero-config cluster-wide collection |
 | **Egress DNS filter** | NextDNS-style DNS filtering via [Blocky](https://0xerr0r.github.io/blocky/), including threat blocklists (HaGeZi, StevenBlack), country TLD blocking, and query logging |
+| **Container hardening** | Non-root UID, read-only root filesystem, no privilege escalation, all capabilities dropped, and `RuntimeDefault` seccomp profile |
 | **NetworkPolicy** | Scaffolding for locking down traffic |
 | **Diagnostics CronJob** | Periodic `openclaw doctor` runs |
 | **Skills system** | Declarative skill install at deploy time; supports playbooks, clawhub, and npm registries, including a default GitHub skill for PR/issue workflows |
