@@ -9,6 +9,11 @@
 #
 set -euo pipefail
 
+# Disown background jobs on exit so the port-forward survives and the shell
+# does not report a non-zero exit from a killed background process.
+cleanup() { jobs -p | xargs -r disown 2>/dev/null; }
+trap cleanup EXIT
+
 # --- Configuration (edit these or override via environment) -----------------
 RELEASE="${RELEASE:-kubeclaw}"
 NAMESPACE="${NAMESPACE:-kubeclaw}"
@@ -161,15 +166,23 @@ LOCAL_PORT="${LOCAL_PORT:-8080}"
 
 echo ""
 echo "=== Routes ==="
+BASE_URL="http://localhost:${LOCAL_PORT}"
+TOKEN_QS="?token=${OPENCLAW_GATEWAY_TOKEN}"
+
+echo ""
+echo "  OpenClaw Gateway (primary):"
+echo "    ${BASE_URL}/${TOKEN_QS}"
+echo ""
+echo "  Ancillary services:"
 ROUTES=$(kubectl get httproute -n "${NAMESPACE}" -l "app.kubernetes.io/instance=${RELEASE}" \
-  -o jsonpath='{range .items[*]}{.spec.rules[0].matches[0].path.value}{"\n"}{end}' 2>/dev/null || echo "")
+  -o jsonpath='{range .items[*]}{.spec.rules[0].matches[0].path.value}{"\n"}{end}' 2>/dev/null || true)
 
 if [[ -n "${ROUTES}" ]]; then
   while IFS= read -r path; do
     [[ -z "${path}" ]] && continue
-    # Skip headless API-only services (no user-facing UI)
-    [[ "${path}" == "/litellm" || "${path}" == "/filtering" ]] && continue
-    echo "  http://localhost:${LOCAL_PORT}${path}"
+    # Skip the root route (already shown above) and headless API-only services
+    [[ "${path}" == "/" || "${path}" == "/filtering" ]] && continue
+    echo "    ${BASE_URL}${path}"
   done <<< "${ROUTES}"
 fi
 
@@ -184,6 +197,7 @@ else
   kubectl port-forward -n "${NAMESPACE}" "svc/${RELEASE}-gateway" "${LOCAL_PORT}:18789" &
 fi
 PF_PID=$!
+disown "${PF_PID}" 2>/dev/null || true
 
 # Give port-forward a moment to bind
 sleep 2
@@ -199,4 +213,5 @@ else
 fi
 
 echo ""
-echo "Open in your browser: http://localhost:${LOCAL_PORT}/?token=${OPENCLAW_GATEWAY_TOKEN}"
+echo "=== Ready ==="
+echo "Open in your browser: ${BASE_URL}/${TOKEN_QS}"

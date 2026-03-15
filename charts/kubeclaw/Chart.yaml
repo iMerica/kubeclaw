@@ -5,7 +5,7 @@ description: >
   It is designed for operators who want a secure, observable, and reliable
   deployment path without giving up flexibility.
 type: application
-version: 0.4.0
+version: 2026.3.13
 appVersion: "latest"
 dependencies:
   - name: litellm-helm
