@@ -90,7 +90,7 @@ Common labels applied to all resources.
 helm.sh/chart: {{ include "kubeclaw.chart" . }}
 {{ include "kubeclaw.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | replace "+" "_" | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}

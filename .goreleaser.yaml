@@ -1,0 +1,51 @@
+version: 2
+
+builds:
+  - main: ./cmd/kubeclaw
+    binary: kubeclaw
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/iMerica/kubeclaw/internal/config.Version={{.Version}}
+      - -X github.com/iMerica/kubeclaw/internal/config.Commit={{.ShortCommit}}
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+brews:
+  - repository:
+      owner: iMerica
+      name: homebrew-kubeclaw
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://kubeclaw.ai
+    description: CLI for managing KubeClaw Helm chart installations on Kubernetes
+    license: Apache-2.0
+    commit_author:
+      name: kubeclaw-bot
+      email: bot@kubeclaw.ai
+    directory: Formula
+    install: |
+      bin.install "kubeclaw"
+    test: |
+      system "#{bin}/kubeclaw", "version"

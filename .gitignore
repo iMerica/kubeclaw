@@ -30,6 +30,10 @@ kubeclaw-values.yaml
 # Strategy / planning docs (local only)
 strategy.md
 
+# Go
+kubeclaw
+dist/
+
 # AI agent instructions (local only)
 CLAUDE.md
 AGENTS.md
