@@ -31,7 +31,7 @@ kubeclaw-values.yaml
 strategy.md
 
 # Go
-kubeclaw
+/kubeclaw
 dist/
 
 # AI agent instructions (local only)
