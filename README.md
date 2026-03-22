@@ -153,7 +153,7 @@ Image pinning policy: each chart release is validated against a candidate image,
 | **NetworkPolicy** | Scaffolding for locking down traffic |
 | **S3 Backup** | Scheduled and pre-delete backups of Gateway state to S3-compatible storage via rclone |
 | **Diagnostics CronJob** | Periodic `openclaw doctor` runs |
-| **Skills system** | Declarative skill install at deploy time; supports playbooks, clawhub, and npm registries, including a default GitHub skill for PR/issue workflows |
+| **SkillPacks** | Install entire skill domains at deploy time, each a curated collection of related skills; supports playbooks, clawhub, and npm registries, including a default GitHub skill for PR/issue workflows |
 | **Tools system** | Reusable `tools-init` installer for in-pod CLIs; ships with `gh` by default and is extensible for additional tools |
 | **Obsidian vault** | PVC-backed markdown vault mounted at `/vaults/obsidian`; wired to the Obsidian skill for task management |
 | **Tailscale integration** | Expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`) |
