@@ -1,7 +1,8 @@
 version: 2
 
 builds:
-  - main: ./cmd/kubeclaw
+  - id: kubeclaw
+    main: ./cmd/kubeclaw
     binary: kubeclaw
     env:
       - CGO_ENABLED=0
@@ -33,15 +34,16 @@ changelog:
       - "^docs:"
       - "^test:"
 
-homebrew_casks:
+brews:
   - repository:
       owner: iMerica
       name: kubeclaw
       token: "{{ .Env.GITHUB_TOKEN }}"
+    name: kubeclaw
     homepage: https://kubeclaw.ai
     description: CLI for managing KubeClaw Helm chart installations on Kubernetes
     commit_author:
       name: kubeclaw-bot
       email: bot@kubeclaw.ai
-    binaries: [kubeclaw]
-    directory: Casks
+    ids: [kubeclaw]
+    directory: Formula
