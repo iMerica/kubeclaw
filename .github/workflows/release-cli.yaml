@@ -22,19 +22,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Derive semver from tag
-        id: version
-        run: |
-          # Strip "cli-v" prefix so GoReleaser sees a clean semver tag.
-          # e.g. cli-v0.1.0 -> v0.1.0
-          TAG="${GITHUB_REF_NAME}"
-          SEMVER="${TAG#cli-}"
-          echo "semver=${SEMVER}" >> "$GITHUB_OUTPUT"
-
-      - name: Create semver tag for GoReleaser
-        run: |
-          git tag "${{ steps.version.outputs.semver }}" "${{ github.sha }}"
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -43,4 +30,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          GORELEASER_CURRENT_TAG: ${{ steps.version.outputs.semver }}
+          GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
