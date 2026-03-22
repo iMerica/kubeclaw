@@ -177,6 +177,44 @@ prompt_choice() {
   fi
 }
 
+# Usage: prompt_checkbox RESULT_ARRAY "Question" label1 label2 label3...
+# All items are selected by default. User types comma-separated numbers to pick
+# specific ones, or presses Enter to keep all selected.
+prompt_checkbox() {
+  local varname="$1" question="$2"
+  shift 2
+  local options=("$@")
+  local selected=()
+
+  if [[ "$INTERACTIVE" == true ]]; then
+    printf "  %s›%s %s\n" "${CYAN}" "${RESET}" "$question"
+    local i=1
+    for opt in "${options[@]}"; do
+      printf "    %s%d)%s [%s*%s] %s\n" "${CYAN}" "$i" "${RESET}" "${GREEN}" "${RESET}" "$opt"
+      i=$((i + 1))
+    done
+    printf "  %s›%s Enter to select all, or type numbers to pick (e.g. 1,3,4): " "${CYAN}" "${RESET}"
+    local answer
+    read -r -u "$PROMPT_FD" answer
+
+    if [[ -z "$answer" ]]; then
+      selected=("${options[@]}")
+    else
+      IFS=',' read -ra nums <<< "$answer"
+      for n in "${nums[@]}"; do
+        n=$(echo "$n" | tr -d ' ')
+        if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= ${#options[@]} )); then
+          selected+=("${options[$((n - 1))]}")
+        fi
+      done
+    fi
+  else
+    selected=("${options[@]}")
+  fi
+
+  eval "$varname=(\"\${selected[@]}\")"
+}
+
 # ── Logo ──────────────────────────────────────────────────────────────────────
 show_logo() {
   printf "\n"
@@ -467,7 +505,36 @@ if [[ "$CONFIGURE_TOOLS" == true ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 9. Obsidian Vault
+# 9. SkillStacks
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+section "SkillStacks"
+hint "SkillStacks are curated collections of domain-specific skills."
+hint "Select which SkillStacks to install (all selected by default)."
+
+SKILLSTACK_LABELS=(
+  "Platform Engineering (K8s, Helm, IaC, monitoring)"
+  "DevOps (CI/CD, containers, infrastructure)"
+  "SRE (reliability, incidents, SLOs)"
+  "Software Engineering (code review, architecture)"
+  "QA (test planning, automation, regression)"
+  "Marketing (content, campaigns, analytics)"
+)
+SKILLSTACK_KEYS=(platformEngineering devops sre swe qa marketing)
+SELECTED_STACKS=()
+
+prompt_checkbox SELECTED_STACKS "Which SkillStacks would you like to install?" "${SKILLSTACK_LABELS[@]}"
+
+# Show selected stacks
+if [[ ${#SELECTED_STACKS[@]} -eq ${#SKILLSTACK_LABELS[@]} ]]; then
+  success "All SkillStacks selected"
+elif [[ ${#SELECTED_STACKS[@]} -gt 0 ]]; then
+  success "${#SELECTED_STACKS[@]} of ${#SKILLSTACK_LABELS[@]} SkillStacks selected"
+else
+  warn "No SkillStacks selected"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 10. Obsidian Vault
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Obsidian Vault"
 hint "KubeClaw can provision a persistent Markdown vault for the Obsidian skill."
@@ -481,7 +548,7 @@ if [[ "$OBSIDIAN_ENABLED" == true ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 10. Storage Class
+# 11. Storage Class
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Storage"
 
@@ -502,7 +569,7 @@ PERSISTENCE_SIZE="5Gi"
 prompt "OpenClaw storage volume size" "$PERSISTENCE_SIZE" PERSISTENCE_SIZE
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 11. Review Summary
+# 12. Review Summary
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Review"
 
@@ -538,6 +605,13 @@ if [[ ${#INTEGRATIONS_NOT_SET[@]} -gt 0 ]]; then
   INTEGRATIONS_SUMMARY+="$(IFS=', '; echo "${INTEGRATIONS_NOT_SET[*]}") not set"
 fi
 row "Integrations:" "$INTEGRATIONS_SUMMARY"
+if [[ ${#SELECTED_STACKS[@]} -eq ${#SKILLSTACK_LABELS[@]} ]]; then
+  row "SkillStacks:" "all (${#SELECTED_STACKS[@]})"
+elif [[ ${#SELECTED_STACKS[@]} -gt 0 ]]; then
+  row "SkillStacks:" "${#SELECTED_STACKS[@]} of ${#SKILLSTACK_LABELS[@]} selected"
+else
+  row "SkillStacks:" "none"
+fi
 row "Obsidian Vault:" "$( [[ "$OBSIDIAN_ENABLED" == true ]] && echo "enabled (${OBSIDIAN_SIZE})" || echo "disabled" )"
 row "Storage Class:" "${STORAGE_CLASS:-cluster default}"
 row "OpenClaw Storage:" "$PERSISTENCE_SIZE"
@@ -549,7 +623,7 @@ if [[ "$INTERACTIVE" == true ]]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 12. Generate provider-specific values file (non-OpenAI)
+# 14. Generate provider-specific values file (non-OpenAI)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 VALUES_FILE=""
 HELM_VALUES_FLAGS=()
@@ -684,7 +758,7 @@ YAMLEOF
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 13. Build Helm args
+# 14b. Build Helm args
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 HELM_SETS=(
   --set "secret.create=true"
@@ -739,6 +813,22 @@ else
   )
 fi
 
+# SkillStacks: disable any stacks not in SELECTED_STACKS
+for idx in "${!SKILLSTACK_KEYS[@]}"; do
+  key="${SKILLSTACK_KEYS[$idx]}"
+  label="${SKILLSTACK_LABELS[$idx]}"
+  found=false
+  for sel in "${SELECTED_STACKS[@]}"; do
+    if [[ "$sel" == "$label" ]]; then
+      found=true
+      break
+    fi
+  done
+  if [[ "$found" != true ]]; then
+    HELM_SETS+=(--set "skillStacks.${key}.enabled=false")
+  fi
+done
+
 # Obsidian
 if [[ "$OBSIDIAN_ENABLED" != true ]]; then
   HELM_SETS+=(--set "obsidian.enabled=false")
@@ -747,7 +837,7 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 14. Install
+# 15. Install
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Installing KubeClaw"
 

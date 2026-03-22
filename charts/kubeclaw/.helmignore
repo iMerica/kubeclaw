@@ -2,6 +2,7 @@
 .git/
 .gitignore
 .github/
-*.md
+README.md
+CHANGELOG.md
 tests/
 ci/
