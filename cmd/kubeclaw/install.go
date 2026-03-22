@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	installDryRun        bool
+	installDryRun         bool
 	installNonInteractive bool
 )
 
@@ -651,7 +651,9 @@ func executeInstall(cfg *config.ReleaseConfig, kubeClient kubernetes.Interface) 
 	}
 	if providerFile != "" {
 		valuesFiles = append(valuesFiles, providerFile)
-		defer os.Remove(providerFile)
+		defer func() {
+			_ = os.Remove(providerFile)
+		}()
 	}
 
 	if installDryRun {
