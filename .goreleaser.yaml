@@ -45,5 +45,4 @@ brews:
     commit_author:
       name: kubeclaw-bot
       email: bot@kubeclaw.ai
-    ids: [kubeclaw]
     directory: Formula
