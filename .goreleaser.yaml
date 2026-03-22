@@ -36,8 +36,8 @@ changelog:
 homebrew_casks:
   - repository:
       owner: iMerica
-      name: homebrew-kubeclaw
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      name: kubeclaw
+      token: "{{ .Env.GITHUB_TOKEN }}"
     homepage: https://kubeclaw.ai
     description: CLI for managing KubeClaw Helm chart installations on Kubernetes
     commit_author:
