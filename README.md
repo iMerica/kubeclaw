@@ -107,19 +107,42 @@ graph TB
 
 ### One-line installer (recommended)
 
+Fastest path for most users:
+
 ```sh
 curl -fsSL https://kubeclaw.ai/install.sh | bash
 ```
 
-### Via OCI (manual)
+### Homebrew (installs the CLI installer)
+
+Use Homebrew if you want the `kubeclaw` CLI for install, upgrade, diagnostics, and other workflows:
+
+```sh
+brew install iMerica/kubeclaw/kubeclaw
+kubeclaw install
+```
+
+### Helm chart directly (advanced Kubernetes users)
+
+For direct Helm control:
 
 ```sh
 helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --namespace kubeclaw \
   --create-namespace \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=change-me
-
 ```
+
+Override values with your own file and keep it in Git:
+
+```sh
+helm install kubeclaw oci://ghcr.io/imerica/kubeclaw \
+  --namespace kubeclaw \
+  --create-namespace \
+  -f my-values.yaml
+```
+
+See [`charts/kubeclaw/values.yaml`](charts/kubeclaw/values.yaml) for all available settings.
 
 ## Configuration
 

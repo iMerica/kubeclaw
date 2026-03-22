@@ -9,18 +9,47 @@
 - A `ReadWriteOnce`-capable StorageClass (default cluster StorageClass is used if none specified)
 - An OpenClaw Gateway image accessible from your cluster
 
-## Quick Install
+## Install
+
+### 1) One-line installer (recommended)
+
+Fastest path for most users:
 
 ```sh
-helm repo add kubeclaw https://iMerica.github.io/kubeclaw
-helm repo update
+curl -fsSL https://kubeclaw.ai/install.sh | bash
+```
 
-helm install my-kubeclaw kubeclaw/kubeclaw \
+### 2) Homebrew (installs the CLI installer)
+
+Use Homebrew if you want the `kubeclaw` CLI for install, upgrade, diagnostics, and other workflows:
+
+```sh
+brew install iMerica/kubeclaw/kubeclaw
+kubeclaw install
+```
+
+### 3) Helm chart directly (advanced Kubernetes users)
+
+For direct Helm control:
+
+```sh
+helm install my-kubeclaw oci://ghcr.io/imerica/kubeclaw \
   --namespace kubeclaw \
   --create-namespace \
   --set secret.create=true \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=<strong-token-here>
 ```
+
+Override with a values file:
+
+```sh
+helm install my-kubeclaw oci://ghcr.io/imerica/kubeclaw \
+  --namespace kubeclaw \
+  --create-namespace \
+  -f my-values.yaml
+```
+
+See [`../../charts/kubeclaw/values.yaml`](../../charts/kubeclaw/values.yaml) for all settings you can override.
 
 ## Verify
 
