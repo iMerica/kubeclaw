@@ -66,3 +66,52 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ env.GORELEASER_CURRENT_TAG }}
           GORELEASER_PREVIOUS_TAG: ${{ env.GORELEASER_PREVIOUS_TAG }}
+
+      - name: Update Homebrew source formula
+        env:
+          CURRENT_TAG: ${{ env.GORELEASER_CURRENT_TAG }}
+        run: |
+          source_url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${CURRENT_TAG}.tar.gz"
+          source_sha="$(curl -sSL "$source_url" | sha256sum | cut -d ' ' -f1)"
+          formula_version="${CURRENT_TAG#v}"
+
+          git fetch origin master
+          git checkout -B master origin/master
+
+          cat > Formula/kubeclaw.rb <<EOF
+          # typed: false
+          # frozen_string_literal: true
+
+          class Kubeclaw < Formula
+            desc "CLI for managing KubeClaw Helm chart installations on Kubernetes"
+            homepage "https://kubeclaw.ai"
+            url "${source_url}"
+            sha256 "${source_sha}"
+            license "Apache-2.0"
+            version "${formula_version}"
+
+            depends_on "go" => :build
+
+            def install
+              ldflags = %W[
+                -s -w
+                -X github.com/iMerica/kubeclaw/internal/config.Version=#{version}
+                -X github.com/iMerica/kubeclaw/internal/config.Commit=homebrew
+              ]
+              system "go", "build", *std_go_args(ldflags:), "./cmd/kubeclaw"
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/kubeclaw version")
+            end
+          end
+          EOF
+
+          git add Formula/kubeclaw.rb
+          if git diff --cached --quiet; then
+            echo "Formula is already up to date"
+            exit 0
+          fi
+
+          git -c user.name='github-actions[bot]' -c user.email='github-actions[bot]@users.noreply.github.com' commit -m "Update Homebrew formula for ${CURRENT_TAG}"
+          git push origin HEAD:master
