@@ -17,11 +17,11 @@ builds:
       - -X github.com/iMerica/kubeclaw/internal/config.Commit={{.ShortCommit}}
 
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
 checksum:
   name_template: checksums.txt
@@ -33,19 +33,15 @@ changelog:
       - "^docs:"
       - "^test:"
 
-brews:
+homebrew_casks:
   - repository:
       owner: iMerica
       name: homebrew-kubeclaw
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: https://kubeclaw.ai
     description: CLI for managing KubeClaw Helm chart installations on Kubernetes
-    license: Apache-2.0
     commit_author:
       name: kubeclaw-bot
       email: bot@kubeclaw.ai
-    directory: Formula
-    install: |
-      bin.install "kubeclaw"
-    test: |
-      system "#{bin}/kubeclaw", "version"
+    binaries: [kubeclaw]
+    directory: Casks
