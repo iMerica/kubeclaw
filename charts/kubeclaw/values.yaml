@@ -719,11 +719,11 @@ observability:
       pullPolicy: IfNotPresent
     resources:
       requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
-        cpu: 200m
+        cpu: 100m
         memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
     # Tolerations for the DaemonSet. Default: schedule on all nodes.
     tolerations:
       - operator: Exists
