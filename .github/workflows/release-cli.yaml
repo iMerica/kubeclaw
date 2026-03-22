@@ -24,11 +24,28 @@ jobs:
 
       - name: Normalize CLI tags for GoReleaser
         run: |
+          ensure_alias_tag() {
+            alias_tag="$1"
+            source_tag="$2"
+            source_commit="$(git rev-list -n1 "${source_tag}^{commit}")"
+
+            if git rev-parse -q --verify "refs/tags/${alias_tag}" >/dev/null; then
+              existing_commit="$(git rev-list -n1 "${alias_tag}^{commit}")"
+              if [ "$existing_commit" != "$source_commit" ]; then
+                echo "Tag ${alias_tag} already exists at ${existing_commit}, expected ${source_commit}."
+                echo "Refusing to retarget an existing version tag."
+                exit 1
+              fi
+            else
+              git tag "$alias_tag" "${source_tag}^{commit}"
+            fi
+          }
+
           current_cli_tag="${GITHUB_REF_NAME}"
           current_version="${current_cli_tag#cli-v}"
           current_tag="v${current_version}-cli.0"
 
-          git tag "$current_tag" "$current_cli_tag^{commit}"
+          ensure_alias_tag "$current_tag" "$current_cli_tag"
 
           previous_cli_tag="$(git tag --sort=-v:refname --list 'cli-v*' | awk -v current="$current_cli_tag" '$0 != current { print; exit }')"
 
@@ -36,7 +53,7 @@ jobs:
           if [ -n "$previous_cli_tag" ]; then
             previous_version="${previous_cli_tag#cli-v}"
             previous_tag="v${previous_version}-cli.0"
-            git tag "$previous_tag" "$previous_cli_tag^{commit}"
+            ensure_alias_tag "$previous_tag" "$previous_cli_tag"
             echo "GORELEASER_PREVIOUS_TAG=$previous_tag" >> "$GITHUB_ENV"
           fi
 
