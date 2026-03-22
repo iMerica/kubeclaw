@@ -459,7 +459,7 @@
     "clickstack": {
       "type": "object"
     },
-    "skills": {
+    "skillStacks": {
       "type": "object",
       "properties": {
         "enabled": { "type": "boolean" },
@@ -472,29 +472,29 @@
           "type": "array",
           "items": { "type": "string" }
         },
-        "list": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["name", "registry", "slug"],
-            "properties": {
-              "name": {
-                "type": "string",
-                "minLength": 1
-              },
-              "registry": {
-                "type": "string",
-                "enum": ["playbooks", "clawhub", "npm"]
-              },
-              "slug": {
-                "type": "string",
-                "minLength": 1
-              },
-              "enabled": { "type": "boolean" },
-              "config": { "type": "object" },
-              "env": { "type": "object" }
-            }
-          }
+        "platformEngineering": {
+          "type": "object",
+          "properties": { "enabled": { "type": "boolean" } }
+        },
+        "devops": {
+          "type": "object",
+          "properties": { "enabled": { "type": "boolean" } }
+        },
+        "sre": {
+          "type": "object",
+          "properties": { "enabled": { "type": "boolean" } }
+        },
+        "swe": {
+          "type": "object",
+          "properties": { "enabled": { "type": "boolean" } }
+        },
+        "qa": {
+          "type": "object",
+          "properties": { "enabled": { "type": "boolean" } }
+        },
+        "marketing": {
+          "type": "object",
+          "properties": { "enabled": { "type": "boolean" } }
         },
         "initResources": { "type": "object" }
       }

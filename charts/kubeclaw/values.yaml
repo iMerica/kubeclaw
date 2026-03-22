@@ -275,49 +275,32 @@ trello:
     token: ""
 
 # ------------------------------------------------------------------------------
-# Skills
-# Declarative skill installation at deploy time. A skills-init initContainer
-# downloads each skill's SKILL.md from its registry and places it under
-# /home/node/.openclaw/skills/<name>/. The Gateway discovers skills on startup.
+# SkillStacks
+# Domain-curated skill collections bundled with the chart. Each enabled stack's
+# SKILL.md files are copied into /home/node/.openclaw/skills/<name>/ at init.
+# The Gateway discovers skills on startup. No runtime downloads required.
 #
-# Supported registries: playbooks, clawhub, npm
-# Docs: https://docs.openclaw.ai/tools/skills
+# Docs: https://docs.openclaw.ai/tools/skillstacks
 # ------------------------------------------------------------------------------
-skills:
+skillStacks:
   enabled: true
   nodeManager: npm
   watch: true
   extraDirs: []
 
-  # Skills to install. Each entry becomes a skills.entries.<name> block in
-  # openclaw.json and a SKILL.md download target.
-  list:
-    - name: github
-      registry: playbooks
-      slug: openclaw/skills/github
-      enabled: true
-    - name: obsidian
-      registry: playbooks
-      slug: openclaw/skills/obsidian
-      enabled: true
-      config:
-        vaultPath: /vaults/obsidian
-    - name: jira
-      registry: playbooks
-      slug: openclaw/skills/jira
-      enabled: true
-    - name: linear
-      registry: playbooks
-      slug: openclaw/skills/linear
-      enabled: true
-    - name: asana
-      registry: playbooks
-      slug: openclaw/skills/asana
-      enabled: true
-    - name: trello
-      registry: playbooks
-      slug: openclaw/skills/trello
-      enabled: true
+  # Per-domain toggles. All enabled by default.
+  platformEngineering:
+    enabled: true
+  devops:
+    enabled: true
+  sre:
+    enabled: true
+  swe:
+    enabled: true
+  qa:
+    enabled: true
+  marketing:
+    enabled: true
 
   initResources:
     requests:

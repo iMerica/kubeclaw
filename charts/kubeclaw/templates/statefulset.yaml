@@ -35,7 +35,7 @@ spec:
       annotations:
         {{- include "kubeclaw.configChecksum" . | nindent 8 }}
         {{- include "kubeclaw.envConfigChecksum" . | nindent 8 }}
-        {{- include "kubeclaw.skillsConfigChecksum" . | nindent 8 }}
+        {{- include "kubeclaw.skillStacksConfigChecksum" . | nindent 8 }}
         {{- include "kubeclaw.toolsConfigChecksum" . | nindent 8 }}
         {{- if .Values.litellm.enabled }}
         checksum/litellm-config: {{ .Values.litellm.proxy_config | toJson | sha256sum }}
@@ -75,7 +75,7 @@ spec:
       # ---------------------------------------------------------------------------
       # initContainers
       # ---------------------------------------------------------------------------
-      {{- if or .Values.persistence.fixPermissions.enabled .Values.config.desired .Values.egressFilter.enabled .Values.skills.enabled (and .Values.tools.enabled .Values.tools.init.enabled) }}
+      {{- if or .Values.persistence.fixPermissions.enabled .Values.config.desired .Values.egressFilter.enabled .Values.skillStacks.enabled (and .Values.tools.enabled .Values.tools.init.enabled) }}
       initContainers:
         {{- if .Values.persistence.fixPermissions.enabled }}
         # fix-permissions: normalize state dir ownership/mode for secure runtime.
@@ -242,43 +242,73 @@ spec:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
         {{- end }}
-        {{- if .Values.skills.enabled }}
-        # skills-init: downloads SKILL.md files and merges skills config into
-        # openclaw.json. Runs after tools-init/config-init so skills and config
-        # can rely on provisioned binaries and desired config layering.
-        - name: skills-init
+        {{- if .Values.skillStacks.enabled }}
+        # skillstacks-init: copies bundled SKILL.md files from chart ConfigMaps
+        # and merges skills config into openclaw.json. Runs after tools-init and
+        # config-init so skills can rely on provisioned binaries and desired
+        # config layering.
+        - name: skillstacks-init
           image: {{ include "kubeclaw.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh", "/skills-init/install.sh"]
-          env:
-            - name: SKILL_COUNT
-              value: {{ len .Values.skills.list | quote }}
-            {{- range $i, $skill := .Values.skills.list }}
-            - name: SKILL_{{ $i }}_NAME
-              value: {{ $skill.name | quote }}
-            - name: SKILL_{{ $i }}_REGISTRY
-              value: {{ $skill.registry | quote }}
-            - name: SKILL_{{ $i }}_SLUG
-              value: {{ $skill.slug | quote }}
-            {{- end }}
+          command: ["/bin/sh", "/skillstacks-init/install.sh"]
           volumeMounts:
             - name: {{ include "kubeclaw.statePvcName" . }}
               mountPath: /data
               {{- if .Values.persistence.splitVolumes }}
               subPath: state
               {{- end }}
-            - name: skills-init-config
-              mountPath: /skills-init
+            - name: skillstacks-init-config
+              mountPath: /skillstacks-init
               readOnly: true
             {{- if .Values.config.desired }}
             - name: init-script
               mountPath: /scripts
               readOnly: true
             {{- end }}
-            - name: skills-tmp
-              mountPath: /tmp
+            {{- if .Values.skillStacks.platformEngineering.enabled }}
+            {{- if $.Files.Glob "skillstacks/platform-engineering/*/SKILL.md" }}
+            - name: skillstack-platform-engineering
+              mountPath: /skillstacks/platform-engineering
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- if .Values.skillStacks.devops.enabled }}
+            {{- if $.Files.Glob "skillstacks/devops/*/SKILL.md" }}
+            - name: skillstack-devops
+              mountPath: /skillstacks/devops
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- if .Values.skillStacks.sre.enabled }}
+            {{- if $.Files.Glob "skillstacks/sre/*/SKILL.md" }}
+            - name: skillstack-sre
+              mountPath: /skillstacks/sre
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- if .Values.skillStacks.swe.enabled }}
+            {{- if $.Files.Glob "skillstacks/swe/*/SKILL.md" }}
+            - name: skillstack-swe
+              mountPath: /skillstacks/swe
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- if .Values.skillStacks.qa.enabled }}
+            {{- if $.Files.Glob "skillstacks/qa/*/SKILL.md" }}
+            - name: skillstack-qa
+              mountPath: /skillstacks/qa
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- if .Values.skillStacks.marketing.enabled }}
+            {{- if $.Files.Glob "skillstacks/marketing/*/SKILL.md" }}
+            - name: skillstack-marketing
+              mountPath: /skillstacks/marketing
+              readOnly: true
+            {{- end }}
+            {{- end }}
           resources:
-            {{- toYaml .Values.skills.initResources | nindent 12 }}
+            {{- toYaml .Values.skillStacks.initResources | nindent 12 }}
           securityContext:
             runAsNonRoot: true
             readOnlyRootFilesystem: true
@@ -527,14 +557,53 @@ spec:
           emptyDir:
             sizeLimit: 1Mi
         {{- end }}
-        {{- if .Values.skills.enabled }}
-        - name: skills-init-config
+        {{- if .Values.skillStacks.enabled }}
+        - name: skillstacks-init-config
           configMap:
-            name: {{ include "kubeclaw.skillsConfigmapName" . }}
+            name: {{ include "kubeclaw.skillStacksConfigmapName" . }}
             defaultMode: 0555
-        - name: skills-tmp
-          emptyDir:
-            sizeLimit: 200Mi
+        {{- if .Values.skillStacks.platformEngineering.enabled }}
+        {{- if $.Files.Glob "skillstacks/platform-engineering/*/SKILL.md" }}
+        - name: skillstack-platform-engineering
+          configMap:
+            name: {{ include "kubeclaw.fullname" . }}-skillstack-platform-engineering
+        {{- end }}
+        {{- end }}
+        {{- if .Values.skillStacks.devops.enabled }}
+        {{- if $.Files.Glob "skillstacks/devops/*/SKILL.md" }}
+        - name: skillstack-devops
+          configMap:
+            name: {{ include "kubeclaw.fullname" . }}-skillstack-devops
+        {{- end }}
+        {{- end }}
+        {{- if .Values.skillStacks.sre.enabled }}
+        {{- if $.Files.Glob "skillstacks/sre/*/SKILL.md" }}
+        - name: skillstack-sre
+          configMap:
+            name: {{ include "kubeclaw.fullname" . }}-skillstack-sre
+        {{- end }}
+        {{- end }}
+        {{- if .Values.skillStacks.swe.enabled }}
+        {{- if $.Files.Glob "skillstacks/swe/*/SKILL.md" }}
+        - name: skillstack-swe
+          configMap:
+            name: {{ include "kubeclaw.fullname" . }}-skillstack-swe
+        {{- end }}
+        {{- end }}
+        {{- if .Values.skillStacks.qa.enabled }}
+        {{- if $.Files.Glob "skillstacks/qa/*/SKILL.md" }}
+        - name: skillstack-qa
+          configMap:
+            name: {{ include "kubeclaw.fullname" . }}-skillstack-qa
+        {{- end }}
+        {{- end }}
+        {{- if .Values.skillStacks.marketing.enabled }}
+        {{- if $.Files.Glob "skillstacks/marketing/*/SKILL.md" }}
+        - name: skillstack-marketing
+          configMap:
+            name: {{ include "kubeclaw.fullname" . }}-skillstack-marketing
+        {{- end }}
+        {{- end }}
         {{- end }}
         {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
         - name: tools-init-config
