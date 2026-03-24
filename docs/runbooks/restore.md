@@ -316,18 +316,18 @@ kubectl -n <namespace> exec statefulset/<release-name>-gateway -- \
 If using automated snapshots, enforce retention by cleaning up old snapshots:
 
 ```sh
-# List all snapshots for a tenant, sorted by age:
-kubectl -n <tenant-namespace> get volumesnapshots \
-  -l openclaw.dev/tenant=<tenant-name> \
+# List all snapshots in the namespace, sorted by age:
+kubectl -n <namespace> get volumesnapshots \
+  -l app.kubernetes.io/instance=<release-name> \
   --sort-by=.metadata.creationTimestamp
 
 # Delete oldest (example: keep 3, delete the rest):
-kubectl -n <tenant-namespace> get volumesnapshots \
-  -l openclaw.dev/tenant=<tenant-name> \
+kubectl -n <namespace> get volumesnapshots \
+  -l app.kubernetes.io/instance=<release-name> \
   --sort-by=.metadata.creationTimestamp \
   -o name \
   | head -n -3 \
-  | xargs kubectl -n <tenant-namespace> delete
+  | xargs kubectl -n <namespace> delete
 ```
 
 ---

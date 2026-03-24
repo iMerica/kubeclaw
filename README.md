@@ -169,15 +169,16 @@ Image pinning policy: each chart release is validated against a candidate image,
 | **K8s Gateway API routing** | Single-hostname path-based routing for all services via `gateway.networking.k8s.io/v1` HTTPRoutes; optional bundled Envoy Gateway controller |
 | **Split workspace volume** | Separate PVC for workspace via `persistence.splitVolumes` |
 | **Chromium Deployment** | Browser automation via standalone Deployment + ClusterIP Service on port 9222 (cluster-internal) |
-| **LiteLLM proxy subchart** | Per-agent virtual keys, budget caps, model fallback routing, and semantic caching |
+| **LiteLLM proxy subchart** | Per-agent virtual keys, budget caps, model fallback routing, and semantic caching (Redis enabled by default) |
 | **Wide Events observability** | Logs, metrics, traces, and Kubernetes events unified in [ClickHouse](https://clickhouse.com/) via the [Wide Events](https://charity.wtf/2019/02/05/logs-vs-structured-events/) pattern, replacing separate logging, metrics, and tracing backends. Ships with [HyperDX](https://hyperdx.io/) for search and dashboards, and [OpenTelemetry](https://opentelemetry.io/) collectors for zero-config cluster-wide collection |
 | **Egress DNS filter** | NextDNS-style DNS filtering via [Blocky](https://0xerr0r.github.io/blocky/), including threat blocklists (HaGeZi, StevenBlack), country TLD blocking, and query logging |
 | **Container hardening** | Non-root UID, read-only root filesystem, no privilege escalation, all capabilities dropped, and `RuntimeDefault` seccomp profile |
-| **NetworkPolicy** | Scaffolding for locking down traffic |
+| **NetworkPolicy** | Ingress and egress controls enabled by default; egress deny-all with explicit allowlists |
 | **S3 Backup** | Scheduled and pre-delete backups of Gateway state to S3-compatible storage via rclone |
 | **Diagnostics CronJob** | Periodic `openclaw doctor` runs |
-| **SkillPacks** | Install entire skill domains at deploy time, each a curated collection of related skills; supports playbooks, clawhub, and npm registries, including a default GitHub skill for PR/issue workflows |
-| **Tools system** | Reusable `tools-init` installer for in-pod CLIs; ships with `gh` by default and is extensible for additional tools |
+| **SkillStacks** | Domain-curated skill collections bundled with the chart (platform engineering, DevOps, SRE, SWE, QA, marketing); installed at deploy time with no runtime downloads |
+| **Tools system** | Reusable `tools-init` installer for in-pod CLIs; ships with `gh`, `jira`, `linear`, `asana`, and `trello` CLIs enabled by default |
+| **Project management integrations** | JIRA, Linear, Asana, and Trello integrations with optional auth tokens, alongside the existing GitHub integration |
 | **Obsidian vault** | PVC-backed markdown vault mounted at `/vaults/obsidian`; wired to the Obsidian skill for task management |
 | **Tailscale integration** | Expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`) |
 

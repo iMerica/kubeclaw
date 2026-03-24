@@ -57,17 +57,19 @@ See [`../../charts/kubeclaw/values.yaml`](../../charts/kubeclaw/values.yaml) for
 # Build subchart dependencies (required when litellm.enabled=true)
 helm dependency build charts/kubeclaw
 
-# Lint (default)
-helm lint charts/kubeclaw
-
-# Lint with LiteLLM enabled
+# Lint
 helm lint charts/kubeclaw \
-  --set litellm.enabled=true \
-  --set litellm.masterkey=sk-test-key
-
-# Dry-run (default)
-helm template kubeclaw charts/kubeclaw \
+  --set secret.create=true \
   --set secret.data.OPENCLAW_GATEWAY_TOKEN=test \
+  --set litellm.masterkey=sk-test \
+  --set tailscale.ssh.authKey=tskey-auth-example
+
+# Dry-run render + validate
+helm template kubeclaw charts/kubeclaw \
+  --set secret.create=true \
+  --set secret.data.OPENCLAW_GATEWAY_TOKEN=test \
+  --set litellm.masterkey=sk-test \
+  --set tailscale.ssh.authKey=tskey-auth-example \
   | kubectl apply --dry-run=client -f -
 
 # Confirm replica enforcement (must error)
@@ -137,7 +139,7 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 |-----|---------|-------------|
 | `secret.data.OPENCLAW_GATEWAY_TOKEN` | *none* | **Required.** Gateway auth token |
 | `image.repository` | `ghcr.io/openclaw/openclaw` | Gateway container image |
-| `image.tag` | `2026.2.21` | Release tag validated for this chart version |
+| `image.tag` | `2026.3.13-1` | Release tag validated for this chart version |
 | `image.digest` | `sha256:ce271...` | Immutable digest used with the tag to prevent drift |
 | `ingress.enabled` | `false` | Enable Ingress with WebSocket timeouts |
 | `ingress.host` | `""` | Ingress hostname |
@@ -146,21 +148,50 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `gatewayAPI.host` | `""` | Hostname for all HTTPRoutes. Empty = match all (local dev friendly). Set to a real domain for production. |
 | `gatewayAPI.controller.enabled` | `true` | Deploy Envoy Gateway as a subchart with auto-created GatewayClass |
 | `gatewayAPI.controller.gatewayClassName` | `envoy` | GatewayClass name created by the bundled controller |
+| `gatewayAPI.routes.obsidian` | `/obsidian` | Path prefix for Obsidian vault HTTPRoute |
+| `gatewayAPI.tls` | `{}` | TLS configuration for the Gateway listener |
+| `gatewayAPI.annotations` | `{}` | Extra annotations on the Gateway resource |
 | `gatewayAPI.crds.install` | `false` | Install Gateway API CRDs via hook Job (BYO-controller setups) |
 | `persistence.size` | `5Gi` | PVC size for Gateway state |
 | `persistence.splitVolumes` | `false` | Separate PVC for workspace |
+| `persistence.fixPermissions.enabled` | `true` | Normalize state directory ownership on startup |
 | `config.desired` | `""` | Desired `openclaw.json` (JSON5) |
 | `config.mode` | `merge` | Config strategy: `merge` or `overwrite` |
+| `nodeOptions` | `"--max-old-space-size=1536"` | `NODE_OPTIONS` passed to the Gateway container |
+| `extraEnv` | `[]` | Extra env vars injected into the Gateway container |
 | `tools.enabled` | `true` | Enable reusable `tools-init` CLI installer |
 | `tools.clis.github.enabled` | `true` | Install GitHub CLI (`gh`) in the Gateway pod |
+| `tools.clis.jira.enabled` | `true` | Install JIRA CLI in the Gateway pod |
+| `tools.clis.linear.enabled` | `true` | Install Linear CLI in the Gateway pod |
+| `tools.clis.asana.enabled` | `true` | Install Asana CLI in the Gateway pod |
+| `tools.clis.trello.enabled` | `true` | Install Trello CLI in the Gateway pod |
 | `github.enabled` | `true` | Enable GitHub integration wiring (soft-enabled if token not set) |
-| `github.auth.token` | `""` | Optional GitHub token for authenticated `gh` + GitHub skill actions |
+| `github.auth.token` | `""` | Optional GitHub token (merged as `GH_TOKEN` + `GITHUB_TOKEN`) |
+| `jira.enabled` | `true` | Enable JIRA integration (soft-enabled if token not set) |
+| `jira.auth.token` | `""` | Optional JIRA API token (merged as `JIRA_API_TOKEN`) |
+| `linear.enabled` | `true` | Enable Linear integration (soft-enabled if token not set) |
+| `linear.auth.token` | `""` | Optional Linear API key (merged as `LINEAR_API_KEY`) |
+| `asana.enabled` | `true` | Enable Asana integration (soft-enabled if token not set) |
+| `asana.auth.token` | `""` | Optional Asana PAT (merged as `ASANA_PAT`) |
+| `trello.enabled` | `true` | Enable Trello integration (soft-enabled if token not set) |
+| `trello.auth.apiKey` | `""` | Optional Trello API key (merged as `TRELLO_API_KEY`) |
+| `trello.auth.token` | `""` | Optional Trello token (merged as `TRELLO_TOKEN`) |
+| `skillStacks.enabled` | `true` | Enable domain-curated SkillStack collections |
+| `skillStacks.platformEngineering.enabled` | `true` | Platform engineering skill stack |
+| `skillStacks.devops.enabled` | `true` | DevOps skill stack |
+| `skillStacks.sre.enabled` | `true` | SRE skill stack |
+| `skillStacks.swe.enabled` | `true` | SWE skill stack |
+| `skillStacks.qa.enabled` | `true` | QA skill stack |
+| `skillStacks.marketing.enabled` | `true` | Marketing skill stack |
+| `obsidian.enabled` | `true` | PVC-backed markdown vault at `/vaults/obsidian` |
+| `obsidian.persistence.size` | `5Gi` | Obsidian vault PVC size |
 | `chromium.enabled` | `true` | Chromium Deployment + ClusterIP Service for CDP |
 | `egressFilter.enabled` | `true` | Deploy Blocky DNS proxy for egress filtering |
 | `egressFilter.blockCountries` | `[RU, CN]` | Country TLDs to block via regex |
 | `egressFilter.denylists` | *(threats + malware)* | Named blocklist groups with URLs fetched by Blocky |
 | `egressFilter.allowlists` | `[]` | Domains that are never blocked (overrides denylists) |
-| `networkPolicy.enabled` | `false` | Enable NetworkPolicy |
+| `networkPolicy.enabled` | `true` | Enable NetworkPolicy |
+| `networkPolicy.egress.allowAll` | `false` | Allow all egress; when false, egress is deny-all with explicit allowlists |
 | `backup.enabled` | `false` | Enable S3 backup CronJob (requires S3 credentials in `secret.data`) |
 | `backup.schedule` | `0 2 * * *` | Cron schedule for backups (default: daily at 2am UTC) |
 | `backup.pathPrefix` | `""` | S3 path prefix; defaults to `<namespace>/<release>` |
@@ -173,6 +204,7 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `observability.ingress.enabled` | `true` | Expose HyperDX UI via Ingress |
 | `litellm.enabled` | `true` | Deploy LiteLLM proxy alongside the Gateway |
 | `litellm.masterkey` | `""` | LiteLLM master key (must start with `sk-`) |
+| `litellm.redis.enabled` | `true` | Deploy Redis for semantic caching |
 | `litellm.proxy_config` | *(see values.yaml)* | LiteLLM `config.yaml` contents as YAML object |
 | `tailscale.expose.enabled` | `true` | Annotate Service for Tailscale K8s Operator |
 | `tailscale.expose.hostname` | `""` | `tailscale.com/hostname` annotation value |
@@ -182,6 +214,15 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `tailscale.ssh.authKeySecretName` | `""` | Existing Secret with auth key (alternative to `authKey`) |
 | `tailscale.ssh.hostname` | `""` | Tailnet hostname; defaults to Helm fullname |
 | `tailscale.ssh.persistState` | `false` | Persist Tailscale state via dedicated PVC |
+| `pod.runtimeClassName` | `""` | RuntimeClass for exec isolation (gVisor, Kata) |
+| `pod.annotations` | `{}` | Extra annotations for the Gateway pod |
+| `pod.labels` | `{}` | Extra labels for the Gateway pod |
+| `pod.nodeSelector` | `{}` | Node selector for the Gateway pod |
+| `pod.tolerations` | `[]` | Tolerations for the Gateway pod |
+| `pod.affinity` | `{}` | Affinity rules for the Gateway pod |
+| `serviceAccount.create` | `true` | Create a ServiceAccount for the Gateway |
+| `serviceAccount.name` | `""` | Override ServiceAccount name |
+| `serviceAccount.annotations` | `{}` | Annotations on the ServiceAccount |
 
 ### Storage
 
@@ -279,6 +320,7 @@ With the default empty `gatewayAPI.host`, no `/etc/hosts` entry is needed — ro
 | HyperDX (Observability) | `http://127.0.0.1/o11y/` |
 | LiteLLM (Proxy Dashboard) | `http://127.0.0.1/litellm/` |
 | Egress Filter (Blocky API) | `http://127.0.0.1/filtering/` |
+| Obsidian Vault | `http://127.0.0.1/obsidian/` |
 
 Replace `127.0.0.1` with `127.0.0.1:8080` if using port-forward instead of a working LoadBalancer.
 
@@ -301,6 +343,7 @@ gatewayAPI:
     o11y: /o11y
     litellm: /litellm
     filtering: /filtering
+    obsidian: /obsidian
 ```
 
 Subpath routes (`/o11y`, `/litellm`, `/filtering`) automatically strip the prefix before forwarding to the backend, so the services see requests as if they were routed to `/`.
@@ -324,37 +367,72 @@ config:
 
 A config change triggers a rolling restart (checksum annotation in pod template).
 
-### Skills, Tools, and GitHub PR Automation
+### Skills, Tools, and Integrations
 
-The chart now ships with:
+The chart ships with:
 
-- default `github` skill installation (`skills.list`)
-- reusable `tools-init` CLI provisioning
-- `gh` CLI installed by default (`tools.clis.github.enabled=true`)
+- **SkillStacks**: domain-curated skill collections (platform engineering, DevOps, SRE, SWE, QA, marketing) installed at deploy time
+- **Tools-init**: reusable CLI provisioning via initContainer
+- **CLIs**: `gh`, `jira`, `linear`, `asana`, and `trello` installed by default
 
-To enable authenticated PR/issue workflows, set a GitHub token:
+#### GitHub
 
 ```yaml
 github:
   enabled: true
   auth:
-    token: ghp_your_token_here
+    token: ghp_your_token_here  # merged as GH_TOKEN + GITHUB_TOKEN
 ```
 
-The token is merged into the main Secret as `GH_TOKEN` and `GITHUB_TOKEN`. Users who bring their own Secret via `secret.existingSecretName` should include these keys there.
+#### JIRA
 
-After deploy:
+```yaml
+jira:
+  enabled: true
+  auth:
+    token: your_jira_api_token  # merged as JIRA_API_TOKEN
+```
+
+#### Linear
+
+```yaml
+linear:
+  enabled: true
+  auth:
+    token: your_linear_api_key  # merged as LINEAR_API_KEY
+```
+
+#### Asana
+
+```yaml
+asana:
+  enabled: true
+  auth:
+    token: your_asana_pat  # merged as ASANA_PAT
+```
+
+#### Trello
+
+```yaml
+trello:
+  enabled: true
+  auth:
+    apiKey: your_trello_api_key  # merged as TRELLO_API_KEY
+    token: your_trello_token     # merged as TRELLO_TOKEN
+```
+
+All integrations are soft-enabled by default. If no token is configured, install still succeeds but authenticated operations remain unavailable. Users who bring their own Secret via `secret.existingSecretName` should include the relevant keys there.
+
+After deploy, verify any CLI:
 
 ```sh
-kubectl -n kubeclaw exec statefulset/my-kubeclaw-gateway-0 -c gateway -- gh --version
-kubectl -n kubeclaw exec statefulset/my-kubeclaw-gateway-0 -c gateway -- gh auth status
+kubectl -n kubeclaw exec statefulset/kubeclaw-gateway -c gateway -- gh --version
+kubectl -n kubeclaw exec statefulset/kubeclaw-gateway -c gateway -- jira version
 ```
-
-If no token is configured, install still succeeds (soft-enabled), but authenticated GitHub operations will fail until credentials are provided.
 
 For workflow ideas (webhook-driven PR review, inline comments, summary recommendations), see the OpenClaw cookbook: [Code Review Bot](https://openclawdoc.com/docs/cookbook/code-review-bot/).
 
-### Chromium Sidecar
+### Chromium Deployment
 
 Add a remote Chromium browser accessible via CDP (pod-internal only):
 
@@ -442,14 +520,14 @@ kubectl -n kubeclaw exec statefulset/kubeclaw -- env | grep OPENAI_API_BASE
 
 #### PostgreSQL and Redis
 
-The upstream LiteLLM chart includes optional PostgreSQL (for virtual keys and budget tracking) and Redis (for semantic caching) subcharts. Both are off by default in this chart:
+The upstream LiteLLM chart includes optional PostgreSQL (for virtual keys and budget tracking) and Redis (for semantic caching) subcharts. Redis is enabled by default for semantic caching; PostgreSQL is off:
 
 ```yaml
 litellm:
   db:
     deployStandalone: false   # set true to deploy PostgreSQL
   redis:
-    enabled: false            # set true to deploy Redis for semantic caching
+    enabled: true             # semantic caching enabled by default
 ```
 
 ### Using an Existing Secret
@@ -469,10 +547,10 @@ The referenced Secret must contain at least `OPENCLAW_GATEWAY_TOKEN`.
 ### Check status
 
 ```sh
-kubectl -n openclaw exec -it statefulset/my-openclaw -- node dist/index.js status
-kubectl -n openclaw exec -it statefulset/my-openclaw -- node dist/index.js gateway status
-kubectl -n openclaw exec -it statefulset/my-openclaw -- node dist/index.js doctor
-kubectl -n openclaw exec -it statefulset/my-openclaw -- node dist/index.js channels status --probe
+kubectl -n kubeclaw exec -it statefulset/kubeclaw-gateway -c gateway -- node dist/index.js status
+kubectl -n kubeclaw exec -it statefulset/kubeclaw-gateway -c gateway -- node dist/index.js gateway status
+kubectl -n kubeclaw exec -it statefulset/kubeclaw-gateway -c gateway -- node dist/index.js doctor
+kubectl -n kubeclaw exec -it statefulset/kubeclaw-gateway -c gateway -- node dist/index.js channels status --probe
 ```
 
 ### Enable diagnostics CronJob
@@ -573,16 +651,18 @@ This chart does not install runtime implementations.
 
 ## NetworkPolicy
 
-Basic NetworkPolicy (opt-in):
+NetworkPolicy is enabled by default with egress deny-all (`egress.allowAll: false`). Inbound traffic is restricted to the Ingress controller namespace:
 
 ```yaml
 networkPolicy:
   enabled: true
   ingressControllerNamespaceSelector:
     kubernetes.io/metadata.name: ingress-nginx
+  egress:
+    allowAll: false  # deny-all egress by default
 ```
 
-FQDN-based egress control requires a CNI with FQDN support (Cilium, Calico) or a proxy.
+To allow all egress (for clusters without a NetworkPolicy-capable CNI), set `egress.allowAll: true`. FQDN-based egress control requires a CNI with FQDN support (Cilium, Calico) or a proxy.
 
 ## Upgrade
 
