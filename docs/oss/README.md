@@ -185,6 +185,12 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `skillStacks.marketing.enabled` | `true` | Marketing skill stack |
 | `obsidian.enabled` | `true` | PVC-backed markdown vault at `/vaults/obsidian` |
 | `obsidian.persistence.size` | `5Gi` | Obsidian vault PVC size |
+| `memory.enabled` | `true` | QMD hybrid search (BM25 + vectors + reranking) for memory |
+| `memory.image.repository` | `oven/bun` | Bun image for QMD init and CronJob pods |
+| `memory.image.tag` | `1.2-alpine` | Bun image tag |
+| `memory.qmd.packageUrl` | `https://github.com/tobi/qmd` | QMD package source URL |
+| `memory.update.schedule` | `*/5 * * * *` | CronJob schedule for BM25 re-indexing |
+| `memory.embed.schedule` | `*/15 * * * *` | CronJob schedule for vector embedding generation |
 | `chromium.enabled` | `true` | Chromium Deployment + ClusterIP Service for CDP |
 | `egressFilter.enabled` | `true` | Deploy Blocky DNS proxy for egress filtering |
 | `egressFilter.blockCountries` | `[RU, CN]` | Country TLDs to block via regex |
@@ -447,6 +453,47 @@ chromium:
 The Gateway config is automatically patched to set `browser.profiles.chromium.cdpUrl: "http://127.0.0.1:9222"` — add this to your `config.desired` or set it at runtime.
 
 > **Security note**: Chromium in containers often requires `--no-sandbox`. For stronger isolation, set `pod.runtimeClassName: gvisor`.
+
+### Memory (QMD)
+
+The chart deploys [QMD](https://docs.openclaw.ai/reference/memory-config#qmd-backend-experimental), a local-first hybrid search engine that combines BM25 keyword matching with vector similarity and MMR reranking. QMD is installed as a CLI via a dedicated initContainer using the `oven/bun` image. The Gateway shells out to `qmd` for all `memory_search` operations.
+
+**What you get out of the box:**
+
+- Hybrid search (BM25 + vector) with configurable weighting (default: 70% semantic, 30% keyword)
+- MMR reranking for relevance/diversity balance
+- Temporal decay with 30-day half-life (evergreen files like `MEMORY.md` are exempt)
+- Two CronJobs for K8s-native observability:
+  - `qmd update` (every 5 min): re-indexes markdown files into the BM25 search index
+  - `qmd embed` (every 15 min): generates vector embeddings via node-llama-cpp with a local GGUF model
+
+QMD state (SQLite DB + embeddings + cached GGUF model) is stored on the Gateway's existing PVC under `~/.openclaw/agents/<agentId>/qmd/`. No additional PVC is needed.
+
+> **First run note**: The first `qmd embed` CronJob run downloads a ~0.6 GB GGUF embedding model. This is cached on the PVC for subsequent runs.
+
+#### Customize
+
+```yaml
+memory:
+  enabled: true
+  update:
+    schedule: "*/10 * * * *"   # less frequent re-indexing
+  embed:
+    schedule: "0 * * * *"      # hourly embedding
+    resources:
+      limits:
+        cpu: "4"               # more CPU for faster embedding
+        memory: 4Gi
+```
+
+#### Disable
+
+```yaml
+memory:
+  enabled: false
+```
+
+When disabled, no QMD resources are created. The Gateway falls back to its built-in SQLite memory backend.
 
 ### LiteLLM Proxy (optional)
 

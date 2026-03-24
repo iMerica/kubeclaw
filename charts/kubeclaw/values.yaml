@@ -11,9 +11,9 @@ image:
   # REQUIRED: Docker image repository for the OpenClaw Gateway.
   repository: ghcr.io/openclaw/openclaw
   # REQUIRED: Release tag tested for this chart release.
-  tag: "2026.3.13-1"
+  tag: "2026.3.23-2"
   # REQUIRED: Immutable image digest to prevent tag drift.
-  digest: "sha256:a5a4c83b773aca85a8ba99cf155f09afa33946c0aa5cc6a9ccb6162738b5da02"
+  digest: "sha256:dda9f4b94761e87864c901cf34ee858daf89fa1deed9dcb671e8845a6b24062e"
   # Pull policy: Always | IfNotPresent | Never
   pullPolicy: IfNotPresent
 
@@ -150,7 +150,19 @@ config:
           },
           "userTimezone": "UTC",
           "timeoutSeconds": 600,
-          "maxConcurrent": 1
+          "maxConcurrent": 1,
+          "memorySearch": {
+            "query": {
+              "hybrid": {
+                "enabled": true,
+                "vectorWeight": 0.7,
+                "textWeight": 0.3,
+                "candidateMultiplier": 4,
+                "mmr": { "enabled": true, "lambda": 0.7 },
+                "temporalDecay": { "enabled": true, "halfLifeDays": 30 }
+              }
+            }
+          }
         },
         "list": [
           {
@@ -162,6 +174,16 @@ config:
             }
           }
         ]
+      },
+      "memory": {
+        "backend": "qmd",
+        "citations": "auto",
+        "qmd": {
+          "includeDefaultMemory": true,
+          "searchMode": "search",
+          "update": { "interval": "5m", "debounceMs": 15000 },
+          "limits": { "maxResults": 6, "timeoutMs": 4000 }
+        }
       }
     }
   # merge: apply JSON merge-patch (objects merge recursively, arrays replace,
@@ -323,6 +345,72 @@ obsidian:
     size: 5Gi
     accessModes:
       - ReadWriteOnce
+
+# ------------------------------------------------------------------------------
+# Memory (QMD)
+# QMD is a local-first hybrid search sidecar that combines BM25 + vectors +
+# reranking for hybrid memory search. The Gateway shells out to the `qmd` CLI
+# for retrieval operations. QMD stores its state (SQLite DB + embeddings) on
+# the Gateway PVC under ~/.openclaw/agents/<agentId>/qmd/.
+#
+# Requires Bun runtime. A dedicated initContainer installs QMD from source at
+# deploy time using the oven/bun image. No custom image to maintain.
+#
+# CronJobs run periodic `qmd update` (re-index markdown into BM25) and
+# `qmd embed` (generate vector embeddings) to supplement the Gateway's
+# internal timers with K8s-native observability (job status, pod logs, alerts).
+#
+# The first `qmd embed` run downloads a ~0.6 GB GGUF embedding model via
+# node-llama-cpp. The model is cached on the PVC for subsequent runs.
+#
+# Docs: https://docs.openclaw.ai/reference/memory-config#qmd-backend-experimental
+# ------------------------------------------------------------------------------
+memory:
+  enabled: true
+  # Bun image used by the qmd-init initContainer and CronJob pods.
+  image:
+    repository: oven/bun
+    tag: "1.2-alpine"
+    pullPolicy: IfNotPresent
+  # QMD package source. Change to a pinned version or fork URL if needed.
+  qmd:
+    packageUrl: "https://github.com/tobi/qmd"
+  # Init container resources (installs Bun + QMD into shared volume).
+  initResources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # CronJob: qmd update (re-indexes markdown files into BM25 search index).
+  update:
+    schedule: "*/5 * * * *"
+    concurrencyPolicy: Forbid
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  # CronJob: qmd embed (generates vector embeddings for hybrid search).
+  # Runs less frequently because embedding is CPU-intensive and the GGUF
+  # model (~0.6 GB) is auto-downloaded on first run and cached on the PVC.
+  embed:
+    schedule: "*/15 * * * *"
+    concurrencyPolicy: Forbid
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 2Gi
 
 # ------------------------------------------------------------------------------
 # Node.js runtime options

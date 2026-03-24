@@ -56,6 +56,7 @@ graph TB
 
         subgraph gwpod ["OpenClaw Gateway StatefulSet · replicas: 1"]
             gw[fa:fa-server OpenClaw Gateway :18789]
+            qmd[fa:fa-magnifying-glass QMD Hybrid Search]
             ts[fa:fa-lock Tailscale SSH]
         end
 
@@ -94,6 +95,7 @@ graph TB
     gw -->|CDP| chromesvc --> chrome
     gw -->|HTTP| litellm
     gw -.->|DNS| egressfilter
+    gw -->|search| qmd
     gw ---|state| pvc
     gw ---|tasks| obsidianpvc
     gw -->|outbound| msg
@@ -179,6 +181,7 @@ Image pinning policy: each chart release is validated against a candidate image,
 | **SkillStacks** | Domain-curated skill collections bundled with the chart (platform engineering, DevOps, SRE, SWE, QA, marketing); installed at deploy time with no runtime downloads |
 | **Tools system** | Reusable `tools-init` installer for in-pod CLIs; ships with `gh`, `jira`, `linear`, `asana`, and `trello` CLIs enabled by default |
 | **Project management integrations** | JIRA, Linear, Asana, and Trello integrations with optional auth tokens, alongside the existing GitHub integration |
+| **Hybrid memory (QMD)** | Local-first hybrid search combining BM25 keyword matching + vector similarity + MMR reranking. Installed via initContainer at deploy time; CronJobs run periodic index updates and embedding generation with K8s-native observability |
 | **Obsidian vault** | PVC-backed markdown vault mounted at `/vaults/obsidian`; wired to the Obsidian skill for task management |
 | **Tailscale integration** | Expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`) |
 

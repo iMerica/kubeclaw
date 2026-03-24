@@ -526,6 +526,59 @@
         }
       }
     },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "image": {
+          "type": "object",
+          "properties": {
+            "repository": { "type": "string" },
+            "tag": { "type": "string" },
+            "pullPolicy": {
+              "type": "string",
+              "enum": ["Always", "IfNotPresent", "Never"]
+            }
+          }
+        },
+        "qmd": {
+          "type": "object",
+          "properties": {
+            "packageUrl": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "initResources": { "type": "object" },
+        "update": {
+          "type": "object",
+          "properties": {
+            "schedule": { "type": "string" },
+            "concurrencyPolicy": {
+              "type": "string",
+              "enum": ["Allow", "Forbid", "Replace"]
+            },
+            "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+            "failedJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+            "resources": { "type": "object" }
+          }
+        },
+        "embed": {
+          "type": "object",
+          "properties": {
+            "schedule": { "type": "string" },
+            "concurrencyPolicy": {
+              "type": "string",
+              "enum": ["Allow", "Forbid", "Replace"]
+            },
+            "successfulJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+            "failedJobsHistoryLimit": { "type": "integer", "minimum": 0 },
+            "resources": { "type": "object" }
+          }
+        }
+      }
+    },
     "litellm": {
       "type": "object",
       "properties": {

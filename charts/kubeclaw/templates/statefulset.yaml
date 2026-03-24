@@ -37,6 +37,7 @@ spec:
         {{- include "kubeclaw.envConfigChecksum" . | nindent 8 }}
         {{- include "kubeclaw.skillStacksConfigChecksum" . | nindent 8 }}
         {{- include "kubeclaw.toolsConfigChecksum" . | nindent 8 }}
+        {{- include "kubeclaw.qmdConfigChecksum" . | nindent 8 }}
         {{- if .Values.litellm.enabled }}
         checksum/litellm-config: {{ .Values.litellm.proxy_config | toJson | sha256sum }}
         {{- end }}
@@ -75,7 +76,7 @@ spec:
       # ---------------------------------------------------------------------------
       # initContainers
       # ---------------------------------------------------------------------------
-      {{- if or .Values.persistence.fixPermissions.enabled .Values.config.desired .Values.egressFilter.enabled .Values.skillStacks.enabled (and .Values.tools.enabled .Values.tools.init.enabled) }}
+      {{- if or .Values.persistence.fixPermissions.enabled .Values.config.desired .Values.egressFilter.enabled .Values.skillStacks.enabled (and .Values.tools.enabled .Values.tools.init.enabled) .Values.memory.enabled }}
       initContainers:
         {{- if .Values.persistence.fixPermissions.enabled }}
         # fix-permissions: normalize state dir ownership/mode for secure runtime.
@@ -314,6 +315,36 @@ spec:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
         {{- end }}
+        {{- if .Values.memory.enabled }}
+        # qmd-init: installs QMD hybrid search CLI via Bun into a shared volume.
+        # The Gateway container mounts this volume and prepends it to PATH so the
+        # Gateway can shell out to `qmd` for memory retrieval operations.
+        - name: qmd-init
+          image: "{{ .Values.memory.image.repository }}:{{ .Values.memory.image.tag }}"
+          imagePullPolicy: {{ .Values.memory.image.pullPolicy }}
+          command: ["/bin/sh", "/qmd-init/install.sh"]
+          env:
+            - name: QMD_BIN_DIR
+              value: "/qmd-bin"
+            - name: QMD_PACKAGE_URL
+              value: {{ .Values.memory.qmd.packageUrl | quote }}
+          volumeMounts:
+            - name: qmd-init-config
+              mountPath: /qmd-init
+              readOnly: true
+            - name: qmd-bin
+              mountPath: /qmd-bin
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.memory.initResources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+        {{- end }}
       {{- end }}
 
       containers:
@@ -329,9 +360,9 @@ spec:
               containerPort: 18789
               protocol: TCP
           env:
-            {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
+            {{- if or (and .Values.tools.enabled .Values.tools.init.enabled) .Values.memory.enabled }}
             - name: PATH
-              value: "{{ .Values.tools.init.binDir }}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+              value: "{{ if .Values.memory.enabled }}/qmd-bin:{{ end }}{{ if and .Values.tools.enabled .Values.tools.init.enabled }}{{ .Values.tools.init.binDir }}:{{ end }}/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             {{- end }}
             {{- if and .Values.observability.enabled .Values.observability.gateway.enabled }}
             - name: POD_NAME
@@ -372,6 +403,11 @@ spec:
             {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
             - name: tools-bin
               mountPath: /tools
+              readOnly: true
+            {{- end }}
+            {{- if .Values.memory.enabled }}
+            - name: qmd-bin
+              mountPath: /qmd-bin
               readOnly: true
             {{- end }}
             {{- if .Values.config.desired }}
@@ -616,6 +652,15 @@ spec:
         - name: tools-tmp
           emptyDir:
             sizeLimit: 512Mi
+        {{- end }}
+        {{- if .Values.memory.enabled }}
+        - name: qmd-init-config
+          configMap:
+            name: {{ include "kubeclaw.qmdConfigmapName" . }}
+            defaultMode: 0555
+        - name: qmd-bin
+          emptyDir:
+            sizeLimit: 1Gi
         {{- end }}
         {{- if and .Values.tailscale.ssh.enabled (not .Values.tailscale.ssh.persistState) }}
         - name: ts-state

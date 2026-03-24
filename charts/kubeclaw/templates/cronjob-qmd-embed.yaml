@@ -1,0 +1,173 @@
+{{- if .Values.memory.enabled }}
+# QMD Embed CronJob
+# Generates vector embeddings for hybrid search on a schedule. Uses
+# node-llama-cpp with a GGUF model (~0.6 GB, auto-downloaded on first run
+# and cached on the PVC). Runs less frequently than qmd-update because
+# embedding is CPU-intensive. Supplements the Gateway's internal embed timer
+# with K8s-native observability (job status, pod logs, alerting).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-qmd-embed
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: qmd-embed
+spec:
+  schedule: {{ .Values.memory.embed.schedule | quote }}
+  concurrencyPolicy: {{ .Values.memory.embed.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.memory.embed.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.memory.embed.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "kubeclaw.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: qmd-embed
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "kubeclaw.serviceAccountName" . }}
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          initContainers:
+            # Fix PVC directory permissions (same pattern as diagnostics CronJob).
+            - name: fix-permissions
+              image: {{ include "kubeclaw.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  chown -R 1000:1000 /data || true
+                  chmod 700 /data || true
+              volumeMounts:
+                - name: {{ include "kubeclaw.statePvcName" . }}
+                  mountPath: /data
+                  {{- if .Values.persistence.splitVolumes }}
+                  subPath: state
+                  {{- end }}
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  cpu: 100m
+                  memory: 32Mi
+              securityContext:
+                runAsNonRoot: false
+                runAsUser: 0
+                runAsGroup: 0
+                allowPrivilegeEscalation: false
+            # Install QMD + Bun into a shared emptyDir volume.
+            - name: qmd-install
+              image: "{{ .Values.memory.image.repository }}:{{ .Values.memory.image.tag }}"
+              imagePullPolicy: {{ .Values.memory.image.pullPolicy }}
+              command: ["/bin/sh", "/qmd-init/install.sh"]
+              env:
+                - name: QMD_BIN_DIR
+                  value: "/qmd-bin"
+                - name: QMD_PACKAGE_URL
+                  value: {{ .Values.memory.qmd.packageUrl | quote }}
+              volumeMounts:
+                - name: qmd-init-config
+                  mountPath: /qmd-init
+                  readOnly: true
+                - name: qmd-bin
+                  mountPath: /qmd-bin
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                {{- toYaml .Values.memory.initResources | nindent 16 }}
+              securityContext:
+                runAsNonRoot: false
+                runAsUser: 0
+                runAsGroup: 0
+                readOnlyRootFilesystem: false
+                allowPrivilegeEscalation: false
+          containers:
+            - name: qmd-embed
+              image: "{{ .Values.memory.image.repository }}:{{ .Values.memory.image.tag }}"
+              imagePullPolicy: {{ .Values.memory.image.pullPolicy }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  export PATH="/qmd-bin:$PATH"
+                  STATE_DIR="/home/node/.openclaw"
+
+                  echo "=== qmd embed ==="
+                  # Run qmd embed for each agent that has a qmd state directory.
+                  for agent_dir in "$STATE_DIR"/agents/*/; do
+                    if [ -d "$agent_dir" ]; then
+                      agent_id="$(basename "$agent_dir")"
+                      export XDG_CONFIG_HOME="$agent_dir/qmd/xdg-config"
+                      export XDG_CACHE_HOME="$agent_dir/qmd/xdg-cache"
+                      mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME"
+                      echo "Embedding agent: $agent_id"
+                      qmd embed || echo "WARN: qmd embed failed for $agent_id"
+                    fi
+                  done
+                  echo "=== qmd embed complete ==="
+              envFrom:
+                - configMapRef:
+                    name: {{ include "kubeclaw.fullname" . }}-env
+                - secretRef:
+                    name: {{ include "kubeclaw.secretName" . }}
+              volumeMounts:
+                - name: {{ include "kubeclaw.statePvcName" . }}
+                  mountPath: /home/node/.openclaw
+                  {{- if .Values.persistence.splitVolumes }}
+                  subPath: state
+                  {{- end }}
+                {{- if .Values.persistence.splitVolumes }}
+                - name: {{ include "kubeclaw.workspacePvcName" . }}
+                  mountPath: /home/node/.openclaw/workspace
+                {{- end }}
+                - name: qmd-bin
+                  mountPath: /qmd-bin
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+              resources:
+                {{- toYaml .Values.memory.embed.resources | nindent 16 }}
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                runAsGroup: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                capabilities:
+                  drop:
+                    - ALL
+          # Reference existing PVCs created by the StatefulSet volumeClaimTemplates.
+          # The PVC names are: <pvcName>-<statefulset-pod-ordinal>
+          # For a single-replica StatefulSet, pod ordinal is always 0.
+          volumes:
+            - name: {{ include "kubeclaw.statePvcName" . }}
+              persistentVolumeClaim:
+                claimName: {{ include "kubeclaw.statePvcName" . }}-{{ include "kubeclaw.gatewayName" . }}-0
+            {{- if .Values.persistence.splitVolumes }}
+            - name: {{ include "kubeclaw.workspacePvcName" . }}
+              persistentVolumeClaim:
+                claimName: {{ include "kubeclaw.workspacePvcName" . }}-{{ include "kubeclaw.gatewayName" . }}-0
+            {{- end }}
+            - name: qmd-init-config
+              configMap:
+                name: {{ include "kubeclaw.qmdConfigmapName" . }}
+                defaultMode: 0555
+            - name: qmd-bin
+              emptyDir:
+                sizeLimit: 1Gi
+            - name: tmp
+              emptyDir:
+                sizeLimit: 50Mi
+{{- end }}

@@ -360,6 +360,23 @@ checksum/tools-config: {{ include (print $.Template.BasePath "/tools-configmap.y
 {{- end }}
 
 {{/*
+Name of the QMD init ConfigMap.
+*/}}
+{{- define "kubeclaw.qmdConfigmapName" -}}
+{{- printf "%s-qmd-config" (include "kubeclaw.fullname" .) }}
+{{- end }}
+
+{{/*
+Checksum annotation for the QMD ConfigMap.
+Triggers rollout when QMD installer config changes.
+*/}}
+{{- define "kubeclaw.qmdConfigChecksum" -}}
+{{- if .Values.memory.enabled }}
+checksum/qmd-config: {{ include (print $.Template.BasePath "/qmd-init-configmap.yaml") . | sha256sum }}
+{{- end }}
+{{- end }}
+
+{{/*
 Name of the Gateway API Gateway resource.
 */}}
 {{- define "kubeclaw.gatewayAPIName" -}}
