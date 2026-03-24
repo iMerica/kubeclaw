@@ -594,6 +594,27 @@ The StatefulSet uses `replicas: 1` enforced by JSON schema. The PVC persists acr
 
 ## Troubleshooting
 
+### `kubeclaw update` appears to hang during upgrade
+
+Recent CLI versions add a hard timeout around Helm operations so upgrades fail fast instead of hanging indefinitely.
+
+```sh
+# update CLI (Homebrew)
+brew upgrade iMerica/kubeclaw/kubeclaw
+
+# then retry
+kubeclaw update
+```
+
+If you still hit a timeout, run Helm directly to inspect rollout blockers:
+
+```sh
+helm upgrade my-kubeclaw oci://ghcr.io/imerica/kubeclaw \
+  -n kubeclaw \
+  --reuse-values \
+  --wait --timeout 10m
+```
+
 ### "unauthorized: gateway token missing" error
 
 This error means you're accessing the Control UI without authentication. Generate a tokenized URL:

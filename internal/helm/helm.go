@@ -1,10 +1,15 @@
 package helm
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 )
+
+const commandTimeout = 15 * time.Minute
 
 type Client struct {
 	Namespace  string
@@ -124,8 +129,14 @@ func (c *Client) ShowChartVersion(chartRef string) (string, error) {
 }
 
 func (c *Client) run(args ...string) error {
-	cmd := exec.Command("helm", args...)
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "helm", args...)
 	out, err := cmd.CombinedOutput()
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return fmt.Errorf("helm command timed out after %s while running: helm %s", commandTimeout, strings.Join(args, " "))
+	}
 	if err != nil {
 		if len(out) > 0 {
 			return fmt.Errorf("%w\n%s", err, string(out))
