@@ -8,7 +8,7 @@ entries:
         url: https://kubeclaw.dev/gpg.asc
     apiVersion: v2
     appVersion: 2026.3.25
-    created: "2026-03-25T05:55:18.282414168Z"
+    created: "2026-03-25T06:41:44.439444677Z"
     dependencies:
     - alias: litellm
       condition: litellm.enabled
@@ -28,7 +28,7 @@ entries:
     description: 'KubeClaw is production-grade OpenClaw on Kubernetes. It is designed
       for operators who want a secure, observable, and reliable deployment path without
       giving up flexibility. '
-    digest: c4ae802309c0f62303c00405a19238f6b6c12c45994a7ef2a6cc832f6216bfaf
+    digest: 2b431284803706d9b77a89a286259181081e68fcd891a6f8bfaba623d7fee5b3
     home: https://github.com/iMerica/kubeclaw
     keywords:
     - kubeclaw
@@ -47,4 +47,4 @@ entries:
     urls:
     - https://iMerica.github.io/kubeclaw/kubeclaw-2026.3.25.tgz
     version: 2026.3.25
-generated: "2026-03-25T05:55:18.257298677Z"
+generated: "2026-03-25T06:41:44.414081258Z"
