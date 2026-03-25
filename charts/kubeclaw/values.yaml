@@ -543,6 +543,8 @@ chromium:
   image:
     repository: zenika/alpine-chrome
     tag: "124"
+    # Immutable image digest to prevent tag drift (supply chain hardening).
+    digest: "sha256:26d54593b9a85e76d0a21729ca6f039dd1063e7261129776f27c9b91ef4dfef6"
     pullPolicy: IfNotPresent
   # Container port for Chrome DevTools Protocol.
   cdpPort: 9222
@@ -592,6 +594,8 @@ egressFilter:
   image:
     repository: spx01/blocky
     tag: "v0.24"
+    # Immutable image digest to prevent tag drift (supply chain hardening).
+    digest: "sha256:9a82e0235c52ef3048586f8006add06e52132adaae70d02f980569dae16421a2"
     pullPolicy: IfNotPresent
   # Number of Blocky replicas. 1 is sufficient for a single Gateway.
   replicas: 1
@@ -866,8 +870,20 @@ clickstack:
 litellm:
   enabled: true
 
+  # Disable automatic mounting of the K8s service account token. LiteLLM does
+  # not need Kubernetes API access. Removing the token prevents a compromised
+  # process from reading cluster secrets or deploying pods (a known attack
+  # vector in the March 2026 LiteLLM supply chain incident).
+  serviceAccount:
+    create: true
+    automount: false
+
   # Override the LiteLLM container image tag. The upstream chart's default tag
   # (main-v<appVersion>) is not always published; pin to a known-good tag here.
+  # NOTE: The upstream LiteLLM subchart does not support image digest pinning.
+  # For supply chain hardening, mirror this image to a private registry and pin
+  # by digest there, or use an admission controller (e.g. Kyverno, Connaisseur)
+  # to enforce digest verification at deploy time.
   image:
     tag: "main-v1.61.0"
 
@@ -954,6 +970,9 @@ litellm:
     runAsGroup: 1000
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
 
   # Resources for the LiteLLM proxy container.
   resources:

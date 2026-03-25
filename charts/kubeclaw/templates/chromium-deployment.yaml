@@ -24,7 +24,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: chromium
-          image: {{ .Values.chromium.image.repository }}:{{ .Values.chromium.image.tag }}
+          image: {{ .Values.chromium.image.repository }}:{{ .Values.chromium.image.tag }}{{ if .Values.chromium.image.digest }}@{{ .Values.chromium.image.digest }}{{ end }}
           imagePullPolicy: {{ .Values.chromium.image.pullPolicy }}
           command: ["chromium-browser"]
           {{- with .Values.chromium.extraArgs }}

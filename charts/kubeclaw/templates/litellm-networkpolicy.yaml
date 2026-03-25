@@ -1,0 +1,89 @@
+{{- if and .Values.networkPolicy.enabled .Values.litellm.enabled }}
+# NetworkPolicy for the LiteLLM proxy Deployment.
+# Restricts ingress to Gateway pods and egress to DNS (via Blocky when
+# egress filter is enabled), upstream LLM APIs (HTTPS/443), and Redis.
+# This prevents a compromised LiteLLM process from exfiltrating data
+# or reaching unexpected endpoints.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "kubeclaw.fullname" . }}-litellm
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubeclaw.labels" . | nindent 4 }}
+    app.kubernetes.io/component: litellm
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: litellm
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    # Allow inbound traffic from the Gateway pod on the proxy port.
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "kubeclaw.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 4000
+
+    # Allow inbound from within the namespace (health checks, kubectl exec).
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 4000
+
+  egress:
+    # DNS resolution. When the egress filter is enabled, point to Blocky on
+    # port 5353 so LiteLLM's DNS queries are filtered by the same threat-intel
+    # blocklists and country TLD rules as the Gateway.
+    {{- if .Values.egressFilter.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: egress-filter
+      ports:
+        - protocol: UDP
+          port: 5353
+        - protocol: TCP
+          port: 5353
+    {{- else }}
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- end }}
+
+    # HTTPS egress to upstream LLM API providers (OpenAI, Anthropic, etc.).
+    - ports:
+        - protocol: TCP
+          port: 443
+
+    {{- if .Values.litellm.redis.enabled }}
+    # Redis for semantic caching / rate limiting.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+      ports:
+        - protocol: TCP
+          port: 6379
+    {{- end }}
+
+    {{- if and .Values.observability.enabled .Values.observability.gateway.enabled }}
+    # OTel Collector for telemetry.
+    - to:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+    {{- end }}
+{{- end }}

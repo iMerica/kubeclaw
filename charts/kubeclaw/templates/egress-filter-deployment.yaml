@@ -26,7 +26,7 @@ spec:
         fsGroup: 100
       containers:
         - name: blocky
-          image: {{ .Values.egressFilter.image.repository }}:{{ .Values.egressFilter.image.tag }}
+          image: {{ .Values.egressFilter.image.repository }}:{{ .Values.egressFilter.image.tag }}{{ if .Values.egressFilter.image.digest }}@{{ .Values.egressFilter.image.digest }}{{ end }}
           imagePullPolicy: {{ .Values.egressFilter.image.pullPolicy }}
           ports:
             - name: dns-udp
