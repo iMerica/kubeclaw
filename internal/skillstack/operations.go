@@ -1,25 +1,26 @@
 package skillstack
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/iMerica/kubeclaw/internal/helm"
 )
 
-func Add(helmClient *helm.Client, releaseName, chartRef, domainArg string) error {
+func Add(ctx context.Context, helmClient *helm.Client, releaseName, chartRef, domainArg string) error {
 	domain, err := FindDomain(domainArg)
 	if err != nil {
 		return err
 	}
 	set := fmt.Sprintf("skillStacks.%s.enabled=true", domain.Key)
-	return helmClient.Upgrade(releaseName, chartRef, []string{set}, true)
+	return helmClient.Upgrade(ctx, releaseName, chartRef, []string{set}, true)
 }
 
-func Remove(helmClient *helm.Client, releaseName, chartRef, domainArg string) error {
+func Remove(ctx context.Context, helmClient *helm.Client, releaseName, chartRef, domainArg string) error {
 	domain, err := FindDomain(domainArg)
 	if err != nil {
 		return err
 	}
 	set := fmt.Sprintf("skillStacks.%s.enabled=false", domain.Key)
-	return helmClient.Upgrade(releaseName, chartRef, []string{set}, true)
+	return helmClient.Upgrade(ctx, releaseName, chartRef, []string{set}, true)
 }

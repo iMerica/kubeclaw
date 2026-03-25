@@ -67,11 +67,16 @@ func ListPods(client kubernetes.Interface, namespace, labelSelector string) ([]P
 	return result, nil
 }
 
-func WaitPodReady(client kubernetes.Interface, namespace, podName string, timeout time.Duration) error {
+func WaitPodReady(ctx context.Context, client kubernetes.Interface, namespace, podName string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		pod, err := client.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		pod, err := client.CoreV1().Pods(namespace).Get(reqCtx, podName, metav1.GetOptions{})
 		cancel()
 		if err == nil {
 			for _, cond := range pod.Status.Conditions {

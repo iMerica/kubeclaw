@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/huh"
@@ -14,6 +16,7 @@ var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update an existing KubeClaw installation",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
 		fmt.Println(tui.RenderLogo())
 		fmt.Println(tui.RenderSection("Update KubeClaw", 60))
 		fmt.Println()
@@ -90,12 +93,14 @@ var updateCmd = &cobra.Command{
 			return nil
 		}
 
-		err := tui.RunWithSpinner("Upgrading release...", func() error {
-			if updateType == "chart" {
-				return helmClient.Upgrade(release, config.ChartRef, sets, true)
-			}
-			return helmClient.Upgrade(release, config.ChartRef, sets, true)
+		err := tui.RunWithSpinner(ctx, "Upgrading release...", func(ctx context.Context) error {
+			return helmClient.Upgrade(ctx, release, config.ChartRef, sets, true)
 		})
+		if errors.Is(err, tui.ErrInterrupted) {
+			fmt.Printf("\n  Interrupted. The upgrade may still be in progress.\n")
+			fmt.Printf("  Check with: helm status %s -n %s\n\n", release, namespace)
+			return nil
+		}
 		if err != nil {
 			return fmt.Errorf("upgrade failed: %w", err)
 		}

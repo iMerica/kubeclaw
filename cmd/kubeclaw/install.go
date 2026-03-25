@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -578,7 +580,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("installation cancelled")
 	}
 
-	return executeInstall(cfg, kubeClient)
+	return executeInstall(cmd.Context(), cfg, kubeClient)
 }
 
 func runNonInteractiveInstall(cfg *config.ReleaseConfig, storageClasses []string) error {
@@ -626,14 +628,14 @@ func runNonInteractiveInstall(cfg *config.ReleaseConfig, storageClasses []string
 		return fmt.Errorf("cannot create Kubernetes client: %w", err)
 	}
 
-	return executeInstall(cfg, kubeClient)
+	return executeInstall(context.Background(), cfg, kubeClient)
 }
 
-func executeInstall(cfg *config.ReleaseConfig, kubeClient kubernetes.Interface) error {
+func executeInstall(ctx context.Context, cfg *config.ReleaseConfig, kubeClient kubernetes.Interface) error {
 	fmt.Println(tui.RenderSection("Installing KubeClaw", 80))
 
 	// Create namespace
-	err := tui.RunWithSpinner("Creating namespace...", func() error {
+	err := tui.RunWithSpinner(ctx, "Creating namespace...", func(ctx context.Context) error {
 		return kube.EnsureNamespace(kubeClient, cfg.Namespace)
 	})
 	if err != nil {
@@ -675,9 +677,16 @@ func executeInstall(cfg *config.ReleaseConfig, kubeClient kubernetes.Interface) 
 
 	// Run helm install
 	helmClient := helmPkg.NewClient(cfg.Namespace, kubeconfig)
-	err = tui.RunWithSpinner("Installing KubeClaw (this may take a few minutes)...", func() error {
-		return helmClient.Install(cfg.ReleaseName, config.ChartRef, sets, valuesFiles, false)
+	err = tui.RunWithSpinner(ctx, "Installing KubeClaw (this may take a few minutes)...", func(ctx context.Context) error {
+		return helmClient.Install(ctx, cfg.ReleaseName, config.ChartRef, sets, valuesFiles, false)
 	})
+	if errors.Is(err, tui.ErrInterrupted) {
+		fmt.Println()
+		fmt.Printf("  Interrupted. The Helm release may still be progressing in-cluster.\n")
+		fmt.Printf("  Check with: helm status %s -n %s\n", cfg.ReleaseName, cfg.Namespace)
+		fmt.Printf("             kubectl get pods -n %s\n\n", cfg.Namespace)
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("helm install failed: %w", err)
 	}
@@ -686,18 +695,28 @@ func executeInstall(cfg *config.ReleaseConfig, kubeClient kubernetes.Interface) 
 	fmt.Println(tui.RenderSection("Post-Install", 80))
 
 	// Wait for Gateway pod
-	_ = tui.RunWithSpinner("Waiting for Gateway pod to become ready...", func() error {
+	err = tui.RunWithSpinner(ctx, "Waiting for Gateway pod to become ready...", func(ctx context.Context) error {
 		podName := fmt.Sprintf("%s-gateway-0", cfg.ReleaseName)
-		return kube.WaitPodReady(kubeClient, cfg.Namespace, podName, 120*time.Second)
+		return kube.WaitPodReady(ctx, kubeClient, cfg.Namespace, podName, 120*time.Second)
 	})
+	if errors.Is(err, tui.ErrInterrupted) {
+		fmt.Printf("\n  Interrupted. The release is installed but pods may still be starting.\n")
+		fmt.Printf("  Check with: kubectl get pods -n %s\n\n", cfg.Namespace)
+		return nil
+	}
 
 	// Wait for Gateway API
 	dynClient, _, _ := kube.NewDynamicClient(kubeconfig)
 	if dynClient != nil {
 		gwName := fmt.Sprintf("%s-gateway-api", cfg.ReleaseName)
-		_ = tui.RunWithSpinner("Waiting for Gateway API to become programmed...", func() error {
-			return kube.WaitGatewayProgrammed(dynClient, gwName, cfg.Namespace, 60*time.Second)
+		err = tui.RunWithSpinner(ctx, "Waiting for Gateway API to become programmed...", func(ctx context.Context) error {
+			return kube.WaitGatewayProgrammed(ctx, dynClient, gwName, cfg.Namespace, 60*time.Second)
 		})
+		if errors.Is(err, tui.ErrInterrupted) {
+			fmt.Printf("\n  Interrupted. The release is installed.\n")
+			fmt.Printf("  Check with: kubectl get gateway -n %s\n\n", cfg.Namespace)
+			return nil
+		}
 
 		// Discover Envoy proxy
 		envoyName, envoyPort, err := kube.GetEnvoyProxyService(kubeClient, gwName, cfg.Namespace)

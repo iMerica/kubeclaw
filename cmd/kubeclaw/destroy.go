@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -18,6 +20,7 @@ var destroyCmd = &cobra.Command{
 	Use:   "destroy",
 	Short: "Uninstall KubeClaw and clean up all resources",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
 		fmt.Println(tui.RenderLogo())
 		fmt.Println(tui.RenderSection("Destroy KubeClaw", 60))
 		fmt.Println()
@@ -49,7 +52,7 @@ var destroyCmd = &cobra.Command{
 		fmt.Println()
 		dynClient, _, _ := kube.NewDynamicClient(kubeconfig)
 		if dynClient != nil {
-			_ = tui.RunWithSpinner("Stripping finalizers from Gateway API resources...", func() error {
+			_ = tui.RunWithSpinner(ctx, "Stripping finalizers from Gateway API resources...", func(ctx context.Context) error {
 				label := fmt.Sprintf("app.kubernetes.io/instance=%s", release)
 				_ = kube.StripFinalizers(dynClient, metav1.GroupVersionResource{
 					Group: "gateway.networking.k8s.io", Version: "v1", Resource: "gateways",
@@ -62,14 +65,19 @@ var destroyCmd = &cobra.Command{
 		}
 
 		// Step 2: Helm uninstall
-		err := tui.RunWithSpinner("Running helm uninstall...", func() error {
-			err := helmClient.Uninstall(release, false)
+		err := tui.RunWithSpinner(ctx, "Running helm uninstall...", func(ctx context.Context) error {
+			err := helmClient.Uninstall(ctx, release, false)
 			if err != nil {
 				// Retry with --no-hooks
-				return helmClient.Uninstall(release, true)
+				return helmClient.Uninstall(ctx, release, true)
 			}
 			return nil
 		})
+		if errors.Is(err, tui.ErrInterrupted) {
+			fmt.Printf("\n  Interrupted. The uninstall may still be in progress.\n")
+			fmt.Printf("  Check with: helm status %s -n %s\n\n", release, namespace)
+			return nil
+		}
 		if err != nil {
 			fmt.Printf("  %s Helm uninstall failed: %s\n", tui.BadgeWarn, err)
 		}
@@ -77,7 +85,7 @@ var destroyCmd = &cobra.Command{
 		// Step 3: Clean up remaining resources
 		kubeClient, _, _ := kube.NewClient(kubeconfig)
 		if kubeClient != nil {
-			_ = tui.RunWithSpinner("Cleaning up remaining resources...", func() error {
+			_ = tui.RunWithSpinner(ctx, "Cleaning up remaining resources...", func(ctx context.Context) error {
 				label := fmt.Sprintf("app.kubernetes.io/instance=%s", release)
 				_ = kube.DeleteByLabel(kubeClient, namespace, label)
 				_ = kube.DeleteClusterRolesByLabel(kubeClient, label)
@@ -85,7 +93,7 @@ var destroyCmd = &cobra.Command{
 			})
 
 			// Step 4: Delete PVCs
-			_ = tui.RunWithSpinner("Deleting persistent volume claims...", func() error {
+			_ = tui.RunWithSpinner(ctx, "Deleting persistent volume claims...", func(ctx context.Context) error {
 				return kube.DeletePVCs(kubeClient, namespace, []string{
 					"state-*",
 					"workspace-*",
@@ -96,7 +104,7 @@ var destroyCmd = &cobra.Command{
 			})
 
 			// Step 5: Try to delete envoy-gateway-system namespace
-			_ = tui.RunWithSpinner("Cleaning up Envoy Gateway system resources...", func() error {
+			_ = tui.RunWithSpinner(ctx, "Cleaning up Envoy Gateway system resources...", func(ctx context.Context) error {
 				return kube.DeleteNamespace(kubeClient, "envoy-gateway-system")
 			})
 		}

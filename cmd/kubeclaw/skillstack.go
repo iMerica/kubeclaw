@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -38,6 +40,7 @@ func init() {
 }
 
 func skillstackAddRunE(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	domain := args[0]
 	d, err := skillstack.FindDomain(domain)
 	if err != nil {
@@ -47,9 +50,13 @@ func skillstackAddRunE(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  Enabling SkillStack: %s\n", tui.Bold.Render(d.Label))
 
 	helmClient := helm.NewClient(namespace, kubeconfig)
-	err = tui.RunWithSpinner("Upgrading release...", func() error {
-		return skillstack.Add(helmClient, release, config.ChartRef, domain)
+	err = tui.RunWithSpinner(ctx, "Upgrading release...", func(ctx context.Context) error {
+		return skillstack.Add(ctx, helmClient, release, config.ChartRef, domain)
 	})
+	if errors.Is(err, tui.ErrInterrupted) {
+		fmt.Printf("\n  Interrupted. Check status: helm status %s -n %s\n\n", release, namespace)
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("failed to enable SkillStack %q: %w", d.Label, err)
 	}
@@ -58,6 +65,7 @@ func skillstackAddRunE(cmd *cobra.Command, args []string) error {
 }
 
 func skillstackRemoveRunE(cmd *cobra.Command, args []string) error {
+	ctx := cmd.Context()
 	domain := args[0]
 	d, err := skillstack.FindDomain(domain)
 	if err != nil {
@@ -67,9 +75,13 @@ func skillstackRemoveRunE(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  Disabling SkillStack: %s\n", tui.Bold.Render(d.Label))
 
 	helmClient := helm.NewClient(namespace, kubeconfig)
-	err = tui.RunWithSpinner("Upgrading release...", func() error {
-		return skillstack.Remove(helmClient, release, config.ChartRef, domain)
+	err = tui.RunWithSpinner(ctx, "Upgrading release...", func(ctx context.Context) error {
+		return skillstack.Remove(ctx, helmClient, release, config.ChartRef, domain)
 	})
+	if errors.Is(err, tui.ErrInterrupted) {
+		fmt.Printf("\n  Interrupted. Check status: helm status %s -n %s\n\n", release, namespace)
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("failed to disable SkillStack %q: %w", d.Label, err)
 	}

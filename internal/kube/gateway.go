@@ -26,11 +26,16 @@ type Route struct {
 	Path string
 }
 
-func WaitGatewayProgrammed(dynClient dynamic.Interface, name, namespace string, timeout time.Duration) error {
+func WaitGatewayProgrammed(ctx context.Context, dynClient dynamic.Interface, name, namespace string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		gw, err := dynClient.Resource(gatewayGVR).Namespace(namespace).Get(ctx, name, metav1.GetOptions{})
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		gw, err := dynClient.Resource(gatewayGVR).Namespace(namespace).Get(reqCtx, name, metav1.GetOptions{})
 		cancel()
 		if err == nil {
 			if isConditionTrue(gw, "Programmed") {

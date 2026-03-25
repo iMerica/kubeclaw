@@ -21,7 +21,10 @@ data:
     mkdir -p "$QMD_BIN_DIR"
 
     echo "qmd-init: installing qmd from $QMD_PACKAGE_URL"
-    bun install -g "$QMD_PACKAGE_URL"
+    # --ignore-scripts: skip native addon builds (e.g. better-sqlite3's node-gyp).
+    # Bun polyfills better-sqlite3 with its built-in bun:sqlite, so native
+    # compilation is unnecessary and would fail (no node-gyp in oven/bun image).
+    bun install -g --ignore-scripts "$QMD_PACKAGE_URL"
 
     # Discover installed binary locations. Bun global installs land under
     # ~/.bun/bin/ by default (controlled by BUN_INSTALL_BIN).

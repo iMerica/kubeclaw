@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -8,17 +10,22 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// ErrInterrupted is returned when the user presses Ctrl+C during a spinner.
+var ErrInterrupted = errors.New("interrupted")
+
 type SpinnerModel struct {
-	spinner spinner.Model
-	message string
-	done    bool
-	err     error
-	action  func() error
+	spinner  spinner.Model
+	message  string
+	done     bool
+	canceled bool
+	err      error
+	action   func() error
+	cancel   context.CancelFunc
 }
 
 type spinnerDoneMsg struct{ err error }
 
-func NewSpinner(message string, action func() error) SpinnerModel {
+func NewSpinner(message string, action func() error, cancel context.CancelFunc) SpinnerModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#00D4AA"))
@@ -26,6 +33,7 @@ func NewSpinner(message string, action func() error) SpinnerModel {
 		spinner: s,
 		message: message,
 		action:  action,
+		cancel:  cancel,
 	}
 }
 
@@ -48,6 +56,10 @@ func (m SpinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
+			m.canceled = true
+			if m.cancel != nil {
+				m.cancel()
+			}
 			return m, tea.Quit
 		}
 	case spinner.TickMsg:
@@ -59,6 +71,9 @@ func (m SpinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m SpinnerModel) View() string {
+	if m.canceled {
+		return fmt.Sprintf("  %s %s (cancelled)\n", Error.Render("✘"), m.message)
+	}
 	if m.done {
 		if m.err != nil {
 			return fmt.Sprintf("  %s %s\n", Error.Render("✘"), m.message)
@@ -69,11 +84,22 @@ func (m SpinnerModel) View() string {
 }
 
 func (m SpinnerModel) Err() error {
+	if m.canceled {
+		return ErrInterrupted
+	}
 	return m.err
 }
 
-func RunWithSpinner(message string, action func() error) error {
-	model := NewSpinner(message, action)
+// RunWithSpinner runs action behind a spinner. Returns ErrInterrupted on Ctrl+C.
+// The provided context is cancelled when the user presses Ctrl+C, which kills
+// any subprocess started with that context.
+func RunWithSpinner(ctx context.Context, message string, action func(ctx context.Context) error) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	model := NewSpinner(message, func() error {
+		return action(ctx)
+	}, cancel)
 	p := tea.NewProgram(model)
 	finalModel, err := p.Run()
 	if err != nil {
