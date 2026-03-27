@@ -23,7 +23,7 @@ func NewClient(namespace, kubeconfig string) *Client {
 func (c *Client) Install(ctx context.Context, releaseName, chartRef string, sets []string, valuesFiles []string, dryRun bool) error {
 	args := []string{"upgrade", "--install", releaseName, chartRef,
 		"--namespace", c.Namespace,
-		"--wait", "--timeout", "10m",
+		"--timeout", "10m",
 	}
 	if c.Kubeconfig != "" {
 		args = append(args, "--kubeconfig", c.Kubeconfig)

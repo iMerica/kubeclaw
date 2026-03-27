@@ -670,7 +670,7 @@ func executeInstall(ctx context.Context, cfg *config.ReleaseConfig, kubeClient k
 		for _, s := range redacted {
 			fmt.Printf("    --set %s \\\n", s)
 		}
-		fmt.Printf("    --wait --timeout 10m\n\n")
+		fmt.Printf("    --timeout 10m\n\n")
 		fmt.Printf("  %s Dry run complete. No changes were made.\n\n", tui.Success.Render("✔"))
 		return nil
 	}
