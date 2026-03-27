@@ -9,11 +9,12 @@
 # ------------------------------------------------------------------------------
 image:
   # REQUIRED: Docker image repository for the OpenClaw Gateway.
-  repository: ghcr.io/openclaw/openclaw
-  # REQUIRED: Release tag tested for this chart release.
-  tag: "2026.3.23-2"
+  repository: ghcr.io/imerica/kubeclaw
+  # REQUIRED: Release tag produced by the image build workflow.
+  tag: "main-bootstrap"
   # REQUIRED: Immutable image digest to prevent tag drift.
-  digest: "sha256:dda9f4b94761e87864c901cf34ee858daf89fa1deed9dcb671e8845a6b24062e"
+  # Automatically updated by .github/workflows/build-kubeclaw-image.yaml.
+  digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
   # Pull policy: Always | IfNotPresent | Never
   pullPolicy: IfNotPresent
 
@@ -80,8 +81,8 @@ persistence:
 
 # ------------------------------------------------------------------------------
 # Desired Configuration (GitOps / ConfigMode)
-# If set, a ConfigMap is created containing openclaw.json and an initContainer
-# runs before the Gateway to merge or overwrite the config on the PVC.
+# If set, a ConfigMap is created containing openclaw.json. The image bootstrap
+# script merges or overwrites the config on the PVC before the Gateway process.
 # A checksum annotation ensures rollout is triggered when config changes.
 # ------------------------------------------------------------------------------
 config:
@@ -193,54 +194,6 @@ config:
   mode: merge
 
 # ------------------------------------------------------------------------------
-# Tools
-# Declarative CLI installation at deploy time. A tools-init initContainer
-# installs selected binaries into a shared volume and prepends that path in the
-# OpenClaw Gateway container, so tools are available without custom images.
-# ------------------------------------------------------------------------------
-tools:
-  enabled: true
-  init:
-    enabled: true
-    # Directory mounted into the Gateway PATH (must live under /tools).
-    binDir: /tools/bin
-    resources:
-      requests:
-        cpu: 50m
-        memory: 128Mi
-      limits:
-        cpu: 500m
-        memory: 512Mi
-  # CLI catalog. Add more tools here over time.
-  clis:
-    github:
-      enabled: true
-      # gh CLI release version.
-      version: "2.77.0"
-      # Template variables:
-      #   {{version}} => github CLI version
-      #   {{arch}}    => amd64 | arm64
-      downloadUrlTemplate: "https://github.com/cli/cli/releases/download/v{{version}}/gh_{{version}}_linux_{{arch}}.tar.gz"
-    jira:
-      enabled: true
-      version: "1.7.0"
-      # Arch: x86_64 | arm64
-      downloadUrlTemplate: "https://github.com/ankitpokhrel/jira-cli/releases/download/v{{version}}/jira_{{version}}_linux_{{arch}}.tar.gz"
-    linear:
-      enabled: true
-      version: "1.10.0"
-      # Arch: x86_64 | aarch64 (Rust target triple)
-      downloadUrlTemplate: "https://github.com/schpet/linear-cli/releases/download/v{{version}}/linear-{{arch}}-unknown-linux-gnu.tar.xz"
-    asana:
-      enabled: true
-      version: "1.2.0"
-      # Arch: x86_64 | arm64
-      downloadUrlTemplate: "https://github.com/timwehrle/asana/releases/download/v{{version}}/asana_Linux_{{arch}}.tar.gz"
-    trello:
-      enabled: true
-      version: "1.5.0"
-
-# ------------------------------------------------------------------------------
 # GitHub Integration
 # GitHub skill + gh CLI authentication settings. Soft-enabled by default:
 # if no token is configured, install still succeeds and unauthenticated GitHub
@@ -299,8 +252,8 @@ trello:
 # ------------------------------------------------------------------------------
 # SkillStacks
 # Domain-curated skill collections bundled with the chart. Each enabled stack's
-# SKILL.md files are copied into /home/node/.openclaw/skills/<name>/ at init.
-# The Gateway discovers skills on startup. No runtime downloads required.
+# SKILL.md files are baked into the image and synced to
+# /home/node/.openclaw/skills/<name>/ by the bootstrap script.
 #
 # Docs: https://docs.openclaw.ai/tools/skillstacks
 # ------------------------------------------------------------------------------
@@ -324,14 +277,6 @@ skillStacks:
   marketing:
     enabled: true
 
-  initResources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
-
 # ------------------------------------------------------------------------------
 # Obsidian Vault
 # Provisions a PVC for a markdown vault. Mounted read-write into the Gateway
@@ -353,8 +298,7 @@ obsidian:
 # for retrieval operations. QMD stores its state (SQLite DB + embeddings) on
 # the Gateway PVC under ~/.openclaw/agents/<agentId>/qmd/.
 #
-# Requires Bun runtime. A dedicated initContainer installs QMD from source at
-# deploy time using the oven/bun image. No custom image to maintain.
+# QMD is preinstalled in the kubeclaw image at build time.
 #
 # CronJobs run periodic `qmd update` (re-index markdown into BM25) and
 # `qmd embed` (generate vector embeddings) to supplement the Gateway's
@@ -367,27 +311,11 @@ obsidian:
 # ------------------------------------------------------------------------------
 memory:
   enabled: true
-  # Bun image used by the qmd-init initContainer and CronJob pods.
-  image:
-    repository: oven/bun
-    tag: "1.2-alpine"
-    pullPolicy: IfNotPresent
-  # QMD package source. Change to a pinned version or fork URL if needed.
-  qmd:
-    packageUrl: "@tobilu/qmd"
-  # Init container resources (installs Bun + QMD into shared volume).
-  initResources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
   # CronJob: qmd update (re-indexes markdown files into BM25 search index).
   update:
     schedule: "*/5 * * * *"
     concurrencyPolicy: Forbid
-    successfulJobsHistoryLimit: 3
+    successfulJobsHistoryLimit: 1
     failedJobsHistoryLimit: 1
     resources:
       requests:
@@ -402,7 +330,7 @@ memory:
   embed:
     schedule: "*/15 * * * *"
     concurrencyPolicy: Forbid
-    successfulJobsHistoryLimit: 3
+    successfulJobsHistoryLimit: 1
     failedJobsHistoryLimit: 1
     resources:
       requests:
@@ -619,6 +547,23 @@ egressFilter:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
 
+  # Probe tuning. Startup can take time while large denylists are fetched
+  # and compiled, so defaults allow a longer warm-up window.
+  probes:
+    startup:
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      failureThreshold: 24
+      timeoutSeconds: 2
+    liveness:
+      periodSeconds: 30
+      failureThreshold: 3
+      timeoutSeconds: 2
+    readiness:
+      periodSeconds: 10
+      failureThreshold: 3
+      timeoutSeconds: 2
+
   # Upstream DNS servers Blocky forwards allowed queries to.
   # Default: kube-dns at the standard ClusterIP. Adjust if your cluster differs.
   upstreamDns:
@@ -670,17 +615,20 @@ egressFilter:
 
 # ------------------------------------------------------------------------------
 # Diagnostics CronJob
-# Runs `openclaw doctor --yes` and `openclaw status --all` on a schedule.
+# Runs `openclaw doctor --yes` and `openclaw status` on a schedule.
 # Output is written to pod logs (stream to your logging stack).
 # ------------------------------------------------------------------------------
 diagnostics:
-  enabled: true
+  enabled: false
   # Cron schedule (default: hourly).
   schedule: "0 * * * *"
   # Optional NODE_OPTIONS override for diagnostics jobs.
   # Increase max-old-space-size if `openclaw doctor` hits JS heap OOM.
   # Set to "" to omit NODE_OPTIONS in diagnostics pods.
   nodeOptions: "--max-old-space-size=640"
+  # Include all section details in `openclaw status` output.
+  # Enable only if needed; `--all` can use significantly more memory.
+  statusAll: false
   # Concurrency policy: Forbid prevents overlapping runs.
   concurrencyPolicy: Forbid
   # History limits.

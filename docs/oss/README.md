@@ -138,9 +138,9 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | Key | Default | Description |
 |-----|---------|-------------|
 | `secret.data.OPENCLAW_GATEWAY_TOKEN` | *none* | **Required.** Gateway auth token |
-| `image.repository` | `ghcr.io/openclaw/openclaw` | Gateway container image |
-| `image.tag` | `2026.3.13-1` | Release tag validated for this chart version |
-| `image.digest` | `sha256:ce271...` | Immutable digest used with the tag to prevent drift |
+| `image.repository` | `ghcr.io/imerica/kubeclaw` | Gateway container image |
+| `image.tag` | `main-bootstrap` | Image tag produced by the build workflow |
+| `image.digest` | `sha256:0000...` | Immutable digest used with the tag to prevent drift |
 | `ingress.enabled` | `false` | Enable Ingress with WebSocket timeouts |
 | `ingress.host` | `""` | Ingress hostname |
 | `gatewayAPI.enabled` | `true` | Enable K8s Gateway API routing (alternative to Ingress) |
@@ -159,12 +159,6 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `config.mode` | `merge` | Config strategy: `merge` or `overwrite` |
 | `nodeOptions` | `"--max-old-space-size=1536"` | `NODE_OPTIONS` passed to the Gateway container |
 | `extraEnv` | `[]` | Extra env vars injected into the Gateway container |
-| `tools.enabled` | `true` | Enable reusable `tools-init` CLI installer |
-| `tools.clis.github.enabled` | `true` | Install GitHub CLI (`gh`) in the Gateway pod |
-| `tools.clis.jira.enabled` | `true` | Install JIRA CLI in the Gateway pod |
-| `tools.clis.linear.enabled` | `true` | Install Linear CLI in the Gateway pod |
-| `tools.clis.asana.enabled` | `true` | Install Asana CLI in the Gateway pod |
-| `tools.clis.trello.enabled` | `true` | Install Trello CLI in the Gateway pod |
 | `github.enabled` | `true` | Enable GitHub integration wiring (soft-enabled if token not set) |
 | `github.auth.token` | `""` | Optional GitHub token (merged as `GH_TOKEN` + `GITHUB_TOKEN`) |
 | `jira.enabled` | `true` | Enable JIRA integration (soft-enabled if token not set) |
@@ -185,14 +179,12 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `skillStacks.marketing.enabled` | `true` | Marketing skill stack |
 | `obsidian.enabled` | `true` | PVC-backed markdown vault at `/vaults/obsidian` |
 | `obsidian.persistence.size` | `5Gi` | Obsidian vault PVC size |
-| `memory.enabled` | `true` | QMD hybrid search (BM25 + vectors + reranking) for memory |
-| `memory.image.repository` | `oven/bun` | Bun image for QMD init and CronJob pods |
-| `memory.image.tag` | `1.2-alpine` | Bun image tag |
-| `memory.qmd.packageUrl` | `@tobilu/qmd` | QMD package source for Bun global install |
+| `memory.enabled` | `true` | QMD hybrid search (BM25 + vectors + reranking) for memory (QMD baked into image) |
 | `memory.update.schedule` | `*/5 * * * *` | CronJob schedule for BM25 re-indexing |
 | `memory.embed.schedule` | `*/15 * * * *` | CronJob schedule for vector embedding generation |
 | `chromium.enabled` | `true` | Chromium Deployment + ClusterIP Service for CDP |
 | `egressFilter.enabled` | `true` | Deploy Blocky DNS proxy for egress filtering |
+| `egressFilter.probes.startup.failureThreshold` | `24` | Startup probe budget for large denylist warm-up |
 | `egressFilter.blockCountries` | `[RU, CN]` | Country TLDs to block via regex |
 | `egressFilter.denylists` | *(threats + malware)* | Named blocklist groups with URLs fetched by Blocky |
 | `egressFilter.allowlists` | `[]` | Domains that are never blocked (overrides denylists) |
@@ -202,7 +194,9 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `backup.schedule` | `0 2 * * *` | Cron schedule for backups (default: daily at 2am UTC) |
 | `backup.pathPrefix` | `""` | S3 path prefix; defaults to `<namespace>/<release>` |
 | `backup.onDelete.enabled` | `true` | Run a final backup before `helm uninstall` |
-| `diagnostics.enabled` | `true` | Enable diagnostics CronJob |
+| `diagnostics.enabled` | `false` | Enable diagnostics CronJob |
+| `diagnostics.nodeOptions` | `"--max-old-space-size=640"` | Node heap cap for diagnostics job |
+| `diagnostics.statusAll` | `false` | Run `openclaw status` without `--all` to reduce memory |
 | `observability.enabled` | `true` | Deploy ClickStack (ClickHouse + HyperDX + OTel) and KubeClaw OTel collectors |
 | `observability.gateway.enabled` | `true` | Inject OTEL env vars into Gateway for trace/log export |
 | `observability.nodeCollector.enabled` | `true` | DaemonSet collecting pod logs and host metrics |
@@ -377,9 +371,11 @@ A config change triggers a rolling restart (checksum annotation in pod template)
 
 The chart ships with:
 
-- **SkillStacks**: domain-curated skill collections (platform engineering, DevOps, SRE, SWE, QA, marketing) installed at deploy time
-- **Tools-init**: reusable CLI provisioning via initContainer
-- **CLIs**: `gh`, `jira`, `linear`, `asana`, and `trello` installed by default
+- **SkillStacks**: domain-curated skill collections (platform engineering, DevOps, SRE, SWE, QA, marketing) baked into the image and synced at startup
+- **Tools**: CLI/tooling baked into the image from `images/kubeclaw/packages.json`
+- **CLIs**: `gh`, `jira`, `linear`, `asana`, and `trello` preinstalled by default
+
+Tool/package customization lives in `images/kubeclaw/packages.json`. See `images/kubeclaw/README.md` for the build-time package workflow.
 
 #### GitHub
 
@@ -456,7 +452,7 @@ The Gateway config is automatically patched to set `browser.profiles.chromium.cd
 
 ### Memory (QMD)
 
-The chart deploys [QMD](https://docs.openclaw.ai/reference/memory-config#qmd-backend-experimental), a local-first hybrid search engine that combines BM25 keyword matching with vector similarity and MMR reranking. QMD is installed as a CLI via a dedicated initContainer using the `oven/bun` image. The Gateway shells out to `qmd` for all `memory_search` operations.
+The chart deploys [QMD](https://docs.openclaw.ai/reference/memory-config#qmd-backend-experimental), a local-first hybrid search engine that combines BM25 keyword matching with vector similarity and MMR reranking. QMD is baked into the `kubeclaw` image. The Gateway shells out to `qmd` for all `memory_search` operations.
 
 **What you get out of the box:**
 
@@ -606,6 +602,8 @@ kubectl -n kubeclaw exec -it statefulset/kubeclaw-gateway -c gateway -- node dis
 diagnostics:
   enabled: true
   schedule: "0 * * * *"
+  nodeOptions: "--max-old-space-size=640"
+  statusAll: false
 ```
 
 Output is written to pod logs. Pipe to your logging stack.

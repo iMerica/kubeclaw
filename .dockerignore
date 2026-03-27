@@ -1,0 +1,14 @@
+.git
+.github
+charts/kubeclaw/charts
+charts/kubeclaw/templates
+cmd
+internal
+docs
+Formula
+Casks
+ci
+hack
+scripts
+*.md
+*.DS_Store

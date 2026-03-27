@@ -52,22 +52,22 @@ spec:
           startupProbe:
             tcpSocket:
               port: dns-tcp
-            initialDelaySeconds: 2
-            periodSeconds: 3
-            failureThreshold: 10
-            timeoutSeconds: 2
+            initialDelaySeconds: {{ dig "probes" "startup" "initialDelaySeconds" 5 .Values.egressFilter }}
+            periodSeconds: {{ dig "probes" "startup" "periodSeconds" 5 .Values.egressFilter }}
+            failureThreshold: {{ dig "probes" "startup" "failureThreshold" 24 .Values.egressFilter }}
+            timeoutSeconds: {{ dig "probes" "startup" "timeoutSeconds" 2 .Values.egressFilter }}
           livenessProbe:
             tcpSocket:
               port: dns-tcp
-            periodSeconds: 30
-            failureThreshold: 3
-            timeoutSeconds: 2
+            periodSeconds: {{ dig "probes" "liveness" "periodSeconds" 30 .Values.egressFilter }}
+            failureThreshold: {{ dig "probes" "liveness" "failureThreshold" 3 .Values.egressFilter }}
+            timeoutSeconds: {{ dig "probes" "liveness" "timeoutSeconds" 2 .Values.egressFilter }}
           readinessProbe:
             tcpSocket:
               port: dns-tcp
-            periodSeconds: 10
-            failureThreshold: 3
-            timeoutSeconds: 2
+            periodSeconds: {{ dig "probes" "readiness" "periodSeconds" 10 .Values.egressFilter }}
+            failureThreshold: {{ dig "probes" "readiness" "failureThreshold" 3 .Values.egressFilter }}
+            timeoutSeconds: {{ dig "probes" "readiness" "timeoutSeconds" 2 .Values.egressFilter }}
       volumes:
         - name: config
           configMap:

@@ -65,42 +65,15 @@ spec:
                 runAsUser: 0
                 runAsGroup: 0
                 allowPrivilegeEscalation: false
-            # Install QMD + Bun into a shared emptyDir volume.
-            - name: qmd-install
-              image: "{{ .Values.memory.image.repository }}:{{ .Values.memory.image.tag }}"
-              imagePullPolicy: {{ .Values.memory.image.pullPolicy }}
-              command: ["/bin/sh", "/qmd-init/install.sh"]
-              env:
-                - name: QMD_BIN_DIR
-                  value: "/qmd-bin"
-                - name: QMD_PACKAGE_URL
-                  value: {{ .Values.memory.qmd.packageUrl | quote }}
-              volumeMounts:
-                - name: qmd-init-config
-                  mountPath: /qmd-init
-                  readOnly: true
-                - name: qmd-bin
-                  mountPath: /qmd-bin
-                - name: tmp
-                  mountPath: /tmp
-              resources:
-                {{- toYaml .Values.memory.initResources | nindent 16 }}
-              securityContext:
-                runAsNonRoot: false
-                runAsUser: 0
-                runAsGroup: 0
-                readOnlyRootFilesystem: false
-                allowPrivilegeEscalation: false
           containers:
             - name: qmd-update
-              image: "{{ .Values.memory.image.repository }}:{{ .Values.memory.image.tag }}"
-              imagePullPolicy: {{ .Values.memory.image.pullPolicy }}
+              image: {{ include "kubeclaw.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
               command:
                 - /bin/sh
                 - -c
                 - |
                   set -e
-                  export PATH="/qmd-bin:$PATH"
                   STATE_DIR="/home/node/.openclaw"
 
                   echo "=== qmd update ==="
@@ -131,9 +104,6 @@ spec:
                 - name: {{ include "kubeclaw.workspacePvcName" . }}
                   mountPath: /home/node/.openclaw/workspace
                 {{- end }}
-                - name: qmd-bin
-                  mountPath: /qmd-bin
-                  readOnly: true
                 - name: tmp
                   mountPath: /tmp
               resources:
@@ -159,13 +129,6 @@ spec:
               persistentVolumeClaim:
                 claimName: {{ include "kubeclaw.workspacePvcName" . }}-{{ include "kubeclaw.gatewayName" . }}-0
             {{- end }}
-            - name: qmd-init-config
-              configMap:
-                name: {{ include "kubeclaw.qmdConfigmapName" . }}
-                defaultMode: 0555
-            - name: qmd-bin
-              emptyDir:
-                sizeLimit: 1Gi
             - name: tmp
               emptyDir:
                 sizeLimit: 50Mi
