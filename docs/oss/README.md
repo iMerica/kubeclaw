@@ -188,7 +188,7 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 | `memory.enabled` | `true` | QMD hybrid search (BM25 + vectors + reranking) for memory |
 | `memory.image.repository` | `oven/bun` | Bun image for QMD init and CronJob pods |
 | `memory.image.tag` | `1.2-alpine` | Bun image tag |
-| `memory.qmd.packageUrl` | `https://github.com/tobi/qmd` | QMD package source URL |
+| `memory.qmd.packageUrl` | `@tobilu/qmd` | QMD package source for Bun global install |
 | `memory.update.schedule` | `*/5 * * * *` | CronJob schedule for BM25 re-indexing |
 | `memory.embed.schedule` | `*/15 * * * *` | CronJob schedule for vector embedding generation |
 | `chromium.enabled` | `true` | Chromium Deployment + ClusterIP Service for CDP |

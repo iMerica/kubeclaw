@@ -374,7 +374,7 @@ memory:
     pullPolicy: IfNotPresent
   # QMD package source. Change to a pinned version or fork URL if needed.
   qmd:
-    packageUrl: "https://github.com/tobi/qmd"
+    packageUrl: "@tobilu/qmd"
   # Init container resources (installs Bun + QMD into shared volume).
   initResources:
     requests:
@@ -680,7 +680,7 @@ diagnostics:
   # Optional NODE_OPTIONS override for diagnostics jobs.
   # Increase max-old-space-size if `openclaw doctor` hits JS heap OOM.
   # Set to "" to omit NODE_OPTIONS in diagnostics pods.
-  nodeOptions: "--max-old-space-size=1536"
+  nodeOptions: "--max-old-space-size=640"
   # Concurrency policy: Forbid prevents overlapping runs.
   concurrencyPolicy: Forbid
   # History limits.
@@ -689,10 +689,10 @@ diagnostics:
   resources:
     requests:
       cpu: 50m
-      memory: 256Mi
+      memory: 512Mi
     limits:
       cpu: "500m"
-      memory: 512Mi
+      memory: 1Gi
 
 # ------------------------------------------------------------------------------
 # S3 Backup

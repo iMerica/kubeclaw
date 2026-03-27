@@ -16,7 +16,7 @@ data:
     set -eu
 
     QMD_BIN_DIR="${QMD_BIN_DIR:-/qmd-bin}"
-    QMD_PACKAGE_URL="${QMD_PACKAGE_URL:-https://github.com/tobi/qmd}"
+    QMD_PACKAGE_URL="${QMD_PACKAGE_URL:-@tobilu/qmd}"
 
     mkdir -p "$QMD_BIN_DIR"
 
