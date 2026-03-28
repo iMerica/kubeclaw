@@ -123,13 +123,6 @@ Name of the desired-config ConfigMap.
 {{- end }}
 
 {{/*
-Name of the init-script ConfigMap.
-*/}}
-{{- define "kubeclaw.initScriptConfigmapName" -}}
-{{- printf "%s-init-script" (include "kubeclaw.fullname" .) }}
-{{- end }}
-
-{{/*
 Name of the main state PVC (used in volumeClaimTemplates metadata).
 */}}
 {{- define "kubeclaw.statePvcName" -}}
@@ -178,7 +171,11 @@ checksum/env-config: {{ include (print $.Template.BasePath "/env-configmap.yaml"
 Image string helper.
 */}}
 {{- define "kubeclaw.image" -}}
+{{- if .Values.image.digest -}}
 {{- printf "%s:%s@%s" .Values.image.repository .Values.image.tag .Values.image.digest }}
+{{- else -}}
+{{- printf "%s:%s" .Values.image.repository .Values.image.tag }}
+{{- end -}}
 {{- end }}
 
 {{/*
@@ -319,61 +316,10 @@ checksum/otel-cluster-config: {{ include (print $.Template.BasePath "/otel-clust
 {{- end }}
 
 {{/*
-Name of the SkillStacks-init ConfigMap.
-*/}}
-{{- define "kubeclaw.skillStacksConfigmapName" -}}
-{{- printf "%s-skillstacks-config" (include "kubeclaw.fullname" .) }}
-{{- end }}
-
-{{/*
 Name of the Obsidian vault PVC (used in volumeClaimTemplates metadata).
 */}}
 {{- define "kubeclaw.obsidianPvcName" -}}
 {{- printf "%s-obsidian" (include "kubeclaw.fullname" .) }}
-{{- end }}
-
-{{/*
-Checksum annotation for the SkillStacks ConfigMap.
-Triggers rollout when SkillStacks config changes.
-*/}}
-{{- define "kubeclaw.skillStacksConfigChecksum" -}}
-{{- if .Values.skillStacks.enabled }}
-checksum/skillstacks-config: {{ include (print $.Template.BasePath "/skillstacks-configmap.yaml") . | sha256sum }}
-{{- end }}
-{{- end }}
-
-{{/*
-Name of the tools-init ConfigMap.
-*/}}
-{{- define "kubeclaw.toolsConfigmapName" -}}
-{{- printf "%s-tools-config" (include "kubeclaw.fullname" .) }}
-{{- end }}
-
-{{/*
-Checksum annotation for the tools ConfigMap.
-Triggers rollout when tools installer config changes.
-*/}}
-{{- define "kubeclaw.toolsConfigChecksum" -}}
-{{- if and .Values.tools.enabled .Values.tools.init.enabled }}
-checksum/tools-config: {{ include (print $.Template.BasePath "/tools-configmap.yaml") . | sha256sum }}
-{{- end }}
-{{- end }}
-
-{{/*
-Name of the QMD init ConfigMap.
-*/}}
-{{- define "kubeclaw.qmdConfigmapName" -}}
-{{- printf "%s-qmd-config" (include "kubeclaw.fullname" .) }}
-{{- end }}
-
-{{/*
-Checksum annotation for the QMD ConfigMap.
-Triggers rollout when QMD installer config changes.
-*/}}
-{{- define "kubeclaw.qmdConfigChecksum" -}}
-{{- if .Values.memory.enabled }}
-checksum/qmd-config: {{ include (print $.Template.BasePath "/qmd-init-configmap.yaml") . | sha256sum }}
-{{- end }}
 {{- end }}
 
 {{/*

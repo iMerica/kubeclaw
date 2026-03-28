@@ -10,7 +10,7 @@
     },
     "image": {
       "type": "object",
-      "required": ["repository", "tag", "digest"],
+      "required": ["repository", "tag"],
       "properties": {
         "repository": {
           "type": "string",
@@ -24,9 +24,8 @@
         },
         "digest": {
           "type": "string",
-          "minLength": 1,
-          "pattern": "^sha256:[a-f0-9]{64}$",
-          "description": "Immutable Docker image digest to prevent tag drift."
+          "pattern": "^$|^sha256:[a-f0-9]{64}$",
+          "description": "Optional immutable Docker image digest to prevent tag drift."
         },
         "pullPolicy": {
           "type": "string",
@@ -81,95 +80,6 @@
         "mode": {
           "type": "string",
           "enum": ["merge", "overwrite"]
-        }
-      }
-    },
-    "tools": {
-      "type": "object",
-      "properties": {
-        "enabled": { "type": "boolean" },
-        "init": {
-          "type": "object",
-          "properties": {
-            "enabled": { "type": "boolean" },
-            "binDir": {
-              "type": "string",
-              "minLength": 1,
-              "pattern": "^/tools(/.*)?$"
-            },
-            "resources": { "type": "object" }
-          }
-        },
-        "clis": {
-          "type": "object",
-          "properties": {
-            "github": {
-              "type": "object",
-              "properties": {
-                "enabled": { "type": "boolean" },
-                "version": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "downloadUrlTemplate": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
-            },
-            "jira": {
-              "type": "object",
-              "properties": {
-                "enabled": { "type": "boolean" },
-                "version": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "downloadUrlTemplate": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
-            },
-            "linear": {
-              "type": "object",
-              "properties": {
-                "enabled": { "type": "boolean" },
-                "version": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "downloadUrlTemplate": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
-            },
-            "asana": {
-              "type": "object",
-              "properties": {
-                "enabled": { "type": "boolean" },
-                "version": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "downloadUrlTemplate": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
-            },
-            "trello": {
-              "type": "object",
-              "properties": {
-                "enabled": { "type": "boolean" },
-                "version": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              }
-            }
-          }
         }
       }
     },
@@ -298,6 +208,36 @@
           "type": "integer",
           "minimum": 1
         },
+        "probes": {
+          "type": "object",
+          "properties": {
+            "startup": {
+              "type": "object",
+              "properties": {
+                "initialDelaySeconds": { "type": "integer", "minimum": 0 },
+                "periodSeconds": { "type": "integer", "minimum": 1 },
+                "failureThreshold": { "type": "integer", "minimum": 1 },
+                "timeoutSeconds": { "type": "integer", "minimum": 1 }
+              }
+            },
+            "liveness": {
+              "type": "object",
+              "properties": {
+                "periodSeconds": { "type": "integer", "minimum": 1 },
+                "failureThreshold": { "type": "integer", "minimum": 1 },
+                "timeoutSeconds": { "type": "integer", "minimum": 1 }
+              }
+            },
+            "readiness": {
+              "type": "object",
+              "properties": {
+                "periodSeconds": { "type": "integer", "minimum": 1 },
+                "failureThreshold": { "type": "integer", "minimum": 1 },
+                "timeoutSeconds": { "type": "integer", "minimum": 1 }
+              }
+            }
+          }
+        },
         "blockCountries": {
           "type": "array",
           "items": {
@@ -370,6 +310,9 @@
         },
         "nodeOptions": {
           "type": "string"
+        },
+        "statusAll": {
+          "type": "boolean"
         }
       }
     },
@@ -495,8 +438,7 @@
         "marketing": {
           "type": "object",
           "properties": { "enabled": { "type": "boolean" } }
-        },
-        "initResources": { "type": "object" }
+        }
       }
     },
     "obsidian": {
@@ -530,27 +472,6 @@
       "type": "object",
       "properties": {
         "enabled": { "type": "boolean" },
-        "image": {
-          "type": "object",
-          "properties": {
-            "repository": { "type": "string" },
-            "tag": { "type": "string" },
-            "pullPolicy": {
-              "type": "string",
-              "enum": ["Always", "IfNotPresent", "Never"]
-            }
-          }
-        },
-        "qmd": {
-          "type": "object",
-          "properties": {
-            "packageUrl": {
-              "type": "string",
-              "minLength": 1
-            }
-          }
-        },
-        "initResources": { "type": "object" },
         "update": {
           "type": "object",
           "properties": {

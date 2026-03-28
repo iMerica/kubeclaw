@@ -35,9 +35,6 @@ spec:
       annotations:
         {{- include "kubeclaw.configChecksum" . | nindent 8 }}
         {{- include "kubeclaw.envConfigChecksum" . | nindent 8 }}
-        {{- include "kubeclaw.skillStacksConfigChecksum" . | nindent 8 }}
-        {{- include "kubeclaw.toolsConfigChecksum" . | nindent 8 }}
-        {{- include "kubeclaw.qmdConfigChecksum" . | nindent 8 }}
         {{- if .Values.litellm.enabled }}
         checksum/litellm-config: {{ .Values.litellm.proxy_config | toJson | sha256sum }}
         {{- end }}
@@ -76,7 +73,7 @@ spec:
       # ---------------------------------------------------------------------------
       # initContainers
       # ---------------------------------------------------------------------------
-      {{- if or .Values.persistence.fixPermissions.enabled .Values.config.desired .Values.egressFilter.enabled .Values.skillStacks.enabled (and .Values.tools.enabled .Values.tools.init.enabled) .Values.memory.enabled }}
+      {{- if or .Values.persistence.fixPermissions.enabled .Values.egressFilter.enabled }}
       initContainers:
         {{- if .Values.persistence.fixPermissions.enabled }}
         # fix-permissions: normalize state dir ownership/mode for secure runtime.
@@ -107,42 +104,6 @@ spec:
             runAsNonRoot: false
             runAsUser: 0
             runAsGroup: 0
-            allowPrivilegeEscalation: false
-        {{- end }}
-        {{- if .Values.config.desired }}
-        # config-init: merges or overwrites openclaw.json on the PVC.
-        - name: config-init
-          image: {{ include "kubeclaw.image" . }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh", "/scripts/init.sh"]
-          env:
-            - name: CONFIG_MODE
-              value: {{ .Values.config.mode | quote }}
-          envFrom:
-            - secretRef:
-                name: {{ include "kubeclaw.secretName" . }}
-          volumeMounts:
-            - name: {{ include "kubeclaw.statePvcName" . }}
-              mountPath: /data
-              {{- if .Values.persistence.splitVolumes }}
-              subPath: state
-              {{- end }}
-            - name: config-src
-              mountPath: /config-src
-              readOnly: true
-            - name: init-script
-              mountPath: /scripts
-              readOnly: true
-          resources:
-            requests:
-              cpu: 50m
-              memory: 128Mi
-            limits:
-              cpu: "500m"
-              memory: 256Mi
-          securityContext:
-            runAsNonRoot: true
-            readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
         {{- end }}
         {{- if .Values.egressFilter.enabled }}
@@ -186,165 +147,6 @@ spec:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
         {{- end }}
-        {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
-        # tools-init: installs selected CLIs into a shared tools volume.
-        # Runs as root so it can write to the emptyDir mount at /tools
-        # regardless of how the runtime initialises mount-point ownership.
-        # The gateway container mounts this volume readOnly.
-        - name: tools-init
-          image: {{ include "kubeclaw.image" . }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh", "/tools-init/install.sh"]
-          env:
-            - name: TOOLS_BIN_DIR
-              value: {{ .Values.tools.init.binDir | quote }}
-            - name: GITHUB_CLI_ENABLED
-              value: {{ .Values.tools.clis.github.enabled | quote }}
-            - name: GITHUB_CLI_VERSION
-              value: {{ .Values.tools.clis.github.version | quote }}
-            - name: GITHUB_CLI_DOWNLOAD_URL_TEMPLATE
-              value: {{ .Values.tools.clis.github.downloadUrlTemplate | quote }}
-            - name: JIRA_CLI_ENABLED
-              value: {{ .Values.tools.clis.jira.enabled | quote }}
-            - name: JIRA_CLI_VERSION
-              value: {{ .Values.tools.clis.jira.version | quote }}
-            - name: JIRA_CLI_DOWNLOAD_URL_TEMPLATE
-              value: {{ .Values.tools.clis.jira.downloadUrlTemplate | quote }}
-            - name: LINEAR_CLI_ENABLED
-              value: {{ .Values.tools.clis.linear.enabled | quote }}
-            - name: LINEAR_CLI_VERSION
-              value: {{ .Values.tools.clis.linear.version | quote }}
-            - name: LINEAR_CLI_DOWNLOAD_URL_TEMPLATE
-              value: {{ .Values.tools.clis.linear.downloadUrlTemplate | quote }}
-            - name: ASANA_CLI_ENABLED
-              value: {{ .Values.tools.clis.asana.enabled | quote }}
-            - name: ASANA_CLI_VERSION
-              value: {{ .Values.tools.clis.asana.version | quote }}
-            - name: ASANA_CLI_DOWNLOAD_URL_TEMPLATE
-              value: {{ .Values.tools.clis.asana.downloadUrlTemplate | quote }}
-            - name: TRELLO_CLI_ENABLED
-              value: {{ .Values.tools.clis.trello.enabled | quote }}
-            - name: TRELLO_CLI_VERSION
-              value: {{ .Values.tools.clis.trello.version | quote }}
-          volumeMounts:
-            - name: tools-init-config
-              mountPath: /tools-init
-              readOnly: true
-            - name: tools-bin
-              mountPath: /tools
-            - name: tools-tmp
-              mountPath: /tmp
-          resources:
-            {{- toYaml .Values.tools.init.resources | nindent 12 }}
-          securityContext:
-            runAsNonRoot: false
-            runAsUser: 0
-            runAsGroup: 0
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-        {{- end }}
-        {{- if .Values.skillStacks.enabled }}
-        # skillstacks-init: copies bundled SKILL.md files from chart ConfigMaps
-        # and merges skills config into openclaw.json. Runs after tools-init and
-        # config-init so skills can rely on provisioned binaries and desired
-        # config layering.
-        - name: skillstacks-init
-          image: {{ include "kubeclaw.image" . }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh", "/skillstacks-init/install.sh"]
-          volumeMounts:
-            - name: {{ include "kubeclaw.statePvcName" . }}
-              mountPath: /data
-              {{- if .Values.persistence.splitVolumes }}
-              subPath: state
-              {{- end }}
-            - name: skillstacks-init-config
-              mountPath: /skillstacks-init
-              readOnly: true
-            {{- if .Values.config.desired }}
-            - name: init-script
-              mountPath: /scripts
-              readOnly: true
-            {{- end }}
-            {{- if .Values.skillStacks.platformEngineering.enabled }}
-            {{- if $.Files.Glob "skillstacks/platform-engineering/*/SKILL.md" }}
-            - name: skillstack-platform-engineering
-              mountPath: /skillstacks/platform-engineering
-              readOnly: true
-            {{- end }}
-            {{- end }}
-            {{- if .Values.skillStacks.devops.enabled }}
-            {{- if $.Files.Glob "skillstacks/devops/*/SKILL.md" }}
-            - name: skillstack-devops
-              mountPath: /skillstacks/devops
-              readOnly: true
-            {{- end }}
-            {{- end }}
-            {{- if .Values.skillStacks.sre.enabled }}
-            {{- if $.Files.Glob "skillstacks/sre/*/SKILL.md" }}
-            - name: skillstack-sre
-              mountPath: /skillstacks/sre
-              readOnly: true
-            {{- end }}
-            {{- end }}
-            {{- if .Values.skillStacks.swe.enabled }}
-            {{- if $.Files.Glob "skillstacks/swe/*/SKILL.md" }}
-            - name: skillstack-swe
-              mountPath: /skillstacks/swe
-              readOnly: true
-            {{- end }}
-            {{- end }}
-            {{- if .Values.skillStacks.qa.enabled }}
-            {{- if $.Files.Glob "skillstacks/qa/*/SKILL.md" }}
-            - name: skillstack-qa
-              mountPath: /skillstacks/qa
-              readOnly: true
-            {{- end }}
-            {{- end }}
-            {{- if .Values.skillStacks.marketing.enabled }}
-            {{- if $.Files.Glob "skillstacks/marketing/*/SKILL.md" }}
-            - name: skillstack-marketing
-              mountPath: /skillstacks/marketing
-              readOnly: true
-            {{- end }}
-            {{- end }}
-          resources:
-            {{- toYaml .Values.skillStacks.initResources | nindent 12 }}
-          securityContext:
-            runAsNonRoot: true
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-        {{- end }}
-        {{- if .Values.memory.enabled }}
-        # qmd-init: installs QMD hybrid search CLI via Bun into a shared volume.
-        # The Gateway container mounts this volume and prepends it to PATH so the
-        # Gateway can shell out to `qmd` for memory retrieval operations.
-        - name: qmd-init
-          image: "{{ .Values.memory.image.repository }}:{{ .Values.memory.image.tag }}"
-          imagePullPolicy: {{ .Values.memory.image.pullPolicy }}
-          command: ["/bin/sh", "/qmd-init/install.sh"]
-          env:
-            - name: QMD_BIN_DIR
-              value: "/qmd-bin"
-            - name: QMD_PACKAGE_URL
-              value: {{ .Values.memory.qmd.packageUrl | quote }}
-          volumeMounts:
-            - name: qmd-init-config
-              mountPath: /qmd-init
-              readOnly: true
-            - name: qmd-bin
-              mountPath: /qmd-bin
-            - name: tmp
-              mountPath: /tmp
-          resources:
-            {{- toYaml .Values.memory.initResources | nindent 12 }}
-          securityContext:
-            runAsNonRoot: false
-            runAsUser: 0
-            runAsGroup: 0
-            readOnlyRootFilesystem: false
-            allowPrivilegeEscalation: false
-        {{- end }}
       {{- end }}
 
       containers:
@@ -354,16 +156,34 @@ spec:
         - name: gateway
           image: {{ include "kubeclaw.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["node", "dist/index.js", "gateway"]
+          command: ["/bin/sh", "/opt/kubeclaw/bin/bootstrap.sh", "node", "dist/index.js", "gateway"]
           ports:
             - name: gateway
               containerPort: 18789
               protocol: TCP
           env:
-            {{- if or (and .Values.tools.enabled .Values.tools.init.enabled) .Values.memory.enabled }}
-            - name: PATH
-              value: "{{ if .Values.memory.enabled }}/qmd-bin:{{ end }}{{ if and .Values.tools.enabled .Values.tools.init.enabled }}{{ .Values.tools.init.binDir }}:{{ end }}/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-            {{- end }}
+            - name: KUBECLAW_CONFIG_MODE
+              value: {{ .Values.config.mode | quote }}
+            - name: KUBECLAW_SKILLSTACKS_ENABLED
+              value: {{ .Values.skillStacks.enabled | quote }}
+            - name: KUBECLAW_SKILLS_WATCH
+              value: {{ .Values.skillStacks.watch | quote }}
+            - name: KUBECLAW_SKILLS_NODE_MANAGER
+              value: {{ .Values.skillStacks.nodeManager | quote }}
+            - name: KUBECLAW_SKILLS_EXTRA_DIRS_JSON
+              value: {{ if .Values.obsidian.enabled }}{{ append .Values.skillStacks.extraDirs "/vaults" | toJson | quote }}{{ else }}{{ .Values.skillStacks.extraDirs | toJson | quote }}{{ end }}
+            - name: KUBECLAW_SKILLSTACK_PLATFORM_ENGINEERING_ENABLED
+              value: {{ .Values.skillStacks.platformEngineering.enabled | quote }}
+            - name: KUBECLAW_SKILLSTACK_DEVOPS_ENABLED
+              value: {{ .Values.skillStacks.devops.enabled | quote }}
+            - name: KUBECLAW_SKILLSTACK_SRE_ENABLED
+              value: {{ .Values.skillStacks.sre.enabled | quote }}
+            - name: KUBECLAW_SKILLSTACK_SWE_ENABLED
+              value: {{ .Values.skillStacks.swe.enabled | quote }}
+            - name: KUBECLAW_SKILLSTACK_QA_ENABLED
+              value: {{ .Values.skillStacks.qa.enabled | quote }}
+            - name: KUBECLAW_SKILLSTACK_MARKETING_ENABLED
+              value: {{ .Values.skillStacks.marketing.enabled | quote }}
             {{- if and .Values.observability.enabled .Values.observability.gateway.enabled }}
             - name: POD_NAME
               valueFrom:
@@ -400,16 +220,6 @@ spec:
             {{- end }}
             - name: tmp
               mountPath: /tmp
-            {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
-            - name: tools-bin
-              mountPath: /tools
-              readOnly: true
-            {{- end }}
-            {{- if .Values.memory.enabled }}
-            - name: qmd-bin
-              mountPath: /qmd-bin
-              readOnly: true
-            {{- end }}
             {{- if .Values.config.desired }}
             - name: config-src
               mountPath: /config-src
@@ -583,84 +393,11 @@ spec:
             items:
               - key: openclaw.json
                 path: openclaw.json
-        - name: init-script
-          configMap:
-            name: {{ include "kubeclaw.initScriptConfigmapName" . }}
-            defaultMode: 0555
         {{- end }}
         {{- if .Values.egressFilter.enabled }}
         - name: resolv-override
           emptyDir:
             sizeLimit: 1Mi
-        {{- end }}
-        {{- if .Values.skillStacks.enabled }}
-        - name: skillstacks-init-config
-          configMap:
-            name: {{ include "kubeclaw.skillStacksConfigmapName" . }}
-            defaultMode: 0555
-        {{- if .Values.skillStacks.platformEngineering.enabled }}
-        {{- if $.Files.Glob "skillstacks/platform-engineering/*/SKILL.md" }}
-        - name: skillstack-platform-engineering
-          configMap:
-            name: {{ include "kubeclaw.fullname" . }}-skillstack-platform-engineering
-        {{- end }}
-        {{- end }}
-        {{- if .Values.skillStacks.devops.enabled }}
-        {{- if $.Files.Glob "skillstacks/devops/*/SKILL.md" }}
-        - name: skillstack-devops
-          configMap:
-            name: {{ include "kubeclaw.fullname" . }}-skillstack-devops
-        {{- end }}
-        {{- end }}
-        {{- if .Values.skillStacks.sre.enabled }}
-        {{- if $.Files.Glob "skillstacks/sre/*/SKILL.md" }}
-        - name: skillstack-sre
-          configMap:
-            name: {{ include "kubeclaw.fullname" . }}-skillstack-sre
-        {{- end }}
-        {{- end }}
-        {{- if .Values.skillStacks.swe.enabled }}
-        {{- if $.Files.Glob "skillstacks/swe/*/SKILL.md" }}
-        - name: skillstack-swe
-          configMap:
-            name: {{ include "kubeclaw.fullname" . }}-skillstack-swe
-        {{- end }}
-        {{- end }}
-        {{- if .Values.skillStacks.qa.enabled }}
-        {{- if $.Files.Glob "skillstacks/qa/*/SKILL.md" }}
-        - name: skillstack-qa
-          configMap:
-            name: {{ include "kubeclaw.fullname" . }}-skillstack-qa
-        {{- end }}
-        {{- end }}
-        {{- if .Values.skillStacks.marketing.enabled }}
-        {{- if $.Files.Glob "skillstacks/marketing/*/SKILL.md" }}
-        - name: skillstack-marketing
-          configMap:
-            name: {{ include "kubeclaw.fullname" . }}-skillstack-marketing
-        {{- end }}
-        {{- end }}
-        {{- end }}
-        {{- if and .Values.tools.enabled .Values.tools.init.enabled }}
-        - name: tools-init-config
-          configMap:
-            name: {{ include "kubeclaw.toolsConfigmapName" . }}
-            defaultMode: 0555
-        - name: tools-bin
-          emptyDir:
-            sizeLimit: 512Mi
-        - name: tools-tmp
-          emptyDir:
-            sizeLimit: 512Mi
-        {{- end }}
-        {{- if .Values.memory.enabled }}
-        - name: qmd-init-config
-          configMap:
-            name: {{ include "kubeclaw.qmdConfigmapName" . }}
-            defaultMode: 0555
-        - name: qmd-bin
-          emptyDir:
-            sizeLimit: 1Gi
         {{- end }}
         {{- if and .Values.tailscale.ssh.enabled (not .Values.tailscale.ssh.persistState) }}
         - name: ts-state

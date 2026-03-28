@@ -16,11 +16,10 @@ if [[ -t 1 ]] && command -v tput &>/dev/null && [[ $(tput colors 2>/dev/null || 
   RED=$(tput setaf 1)
   GREEN=$(tput setaf 2)
   YELLOW=$(tput setaf 3)
-  BLUE=$(tput setaf 4)
   CYAN=$(tput setaf 6)
   WHITE=$(tput setaf 7)
 else
-  BOLD="" DIM="" RESET="" RED="" GREEN="" YELLOW="" BLUE="" CYAN="" WHITE=""
+  BOLD="" DIM="" RESET="" RED="" GREEN="" YELLOW="" CYAN="" WHITE=""
 fi
 
 # ── Terminal width ────────────────────────────────────────────────────────────
@@ -31,7 +30,6 @@ COLS=$(tput cols 2>/dev/null || echo 80)
 badge_ok()   { printf "%s[  OK  ]%s" "${GREEN}" "${RESET}"; }
 badge_skip() { printf "%s[ SKIP ]%s" "${YELLOW}" "${RESET}"; }
 badge_fail() { printf "%s[ FAIL ]%s" "${RED}" "${RESET}"; }
-badge_wait() { printf "%s[ .... ]%s" "${DIM}" "${RESET}"; }
 
 # ── Drawing helpers ───────────────────────────────────────────────────────────
 hr()       { printf "%s%s%s\n" "${CYAN}" "$(printf '━%.0s' $(seq 1 "$COLS"))" "${RESET}"; }
@@ -69,6 +67,7 @@ spinner_stop() {
   fi
 }
 
+# shellcheck disable=SC2317,SC2329
 cleanup() {
   spinner_stop
   [[ -n "${VALUES_FILE:-}" && -f "${VALUES_FILE:-}" ]] && rm -f "$VALUES_FILE"
@@ -274,18 +273,18 @@ fi
 
 # openssl (for key generation)
 if command -v openssl &>/dev/null; then
-  printf "  $(badge_ok) openssl\n"
+  printf "  %s openssl\n" "$(badge_ok)"
   HAS_OPENSSL=true
 else
-  printf "  $(badge_skip) openssl not found — auto-generation disabled\n"
+  printf "  %s openssl not found - auto-generation disabled\n" "$(badge_skip)"
   HAS_OPENSSL=false
 fi
 
 # cluster reachable
 if kubectl cluster-info &>/dev/null 2>&1; then
-  printf "  $(badge_ok) cluster reachable\n"
+  printf "  %s cluster reachable\n" "$(badge_ok)"
 else
-  printf "  $(badge_fail) cannot reach Kubernetes cluster\n"
+  printf "  %s cannot reach Kubernetes cluster\n" "$(badge_fail)"
   die "Check your kubeconfig and cluster connectivity."
 fi
 
@@ -307,7 +306,7 @@ if [[ -n "$STORAGE_CLASSES" ]]; then
   printf "  $(badge_ok) storage classes: %s\n" "$STORAGE_CLASSES"
   [[ -n "$DEFAULT_SC" ]] && info "Default: ${BOLD}${DEFAULT_SC}${RESET}"
 else
-  printf "  $(badge_skip) no storage classes found — PVCs may fail\n"
+  printf "  %s no storage classes found - PVCs may fail\n" "$(badge_skip)"
   warn "Ensure your cluster has a default StorageClass or specify one during setup."
 fi
 

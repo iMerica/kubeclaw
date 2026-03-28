@@ -166,7 +166,7 @@ Image pinning policy: each chart release is validated against a candidate image,
 | Feature | Description |
 |---------|-------------|
 | **StatefulSet** | Durable PVC-backed storage at `/home/node/.openclaw` |
-| **GitOps-friendly config** | Declare desired `openclaw.json`; chart handles merge or overwrite via initContainer |
+| **GitOps-friendly config** | Declare desired `openclaw.json`; image bootstrap handles merge or overwrite before Gateway start |
 | **WebSocket-ready Ingress** | Configurable TLS |
 | **K8s Gateway API routing** | Single-hostname path-based routing for all services via `gateway.networking.k8s.io/v1` HTTPRoutes; optional bundled Envoy Gateway controller |
 | **Split workspace volume** | Separate PVC for workspace via `persistence.splitVolumes` |
@@ -178,10 +178,10 @@ Image pinning policy: each chart release is validated against a candidate image,
 | **NetworkPolicy** | Ingress and egress controls enabled by default; egress deny-all with explicit allowlists |
 | **S3 Backup** | Scheduled and pre-delete backups of Gateway state to S3-compatible storage via rclone |
 | **Diagnostics CronJob** | Periodic `openclaw doctor` runs |
-| **SkillStacks** | Domain-curated skill collections bundled with the chart (platform engineering, DevOps, SRE, SWE, QA, marketing); installed at deploy time with no runtime downloads |
-| **Tools system** | Reusable `tools-init` installer for in-pod CLIs; ships with `gh`, `jira`, `linear`, `asana`, and `trello` CLIs enabled by default |
+| **SkillStacks** | Domain-curated skill collections baked into the kubeclaw image (platform engineering, DevOps, SRE, SWE, QA, marketing) and synced into state at startup |
+| **Tools system** | CLIs are baked into the kubeclaw image from a central package manifest (`images/kubeclaw/packages.json`) |
 | **Project management integrations** | JIRA, Linear, Asana, and Trello integrations with optional auth tokens, alongside the existing GitHub integration |
-| **Hybrid memory (QMD)** | Local-first hybrid search combining BM25 keyword matching + vector similarity + MMR reranking. Installed via initContainer at deploy time; CronJobs run periodic index updates and embedding generation with K8s-native observability |
+| **Hybrid memory (QMD)** | Local-first hybrid search combining BM25 keyword matching + vector similarity + MMR reranking. QMD is baked into the image; CronJobs run periodic index updates and embedding generation with K8s-native observability |
 | **Obsidian vault** | PVC-backed markdown vault mounted at `/vaults/obsidian`; wired to the Obsidian skill for task management |
 | **Tailscale integration** | Expose the Gateway onto your tailnet without public ingress (`tailscale.expose`), and/or SSH into the pod from any enrolled device (`tailscale.ssh`) |
 
@@ -191,6 +191,7 @@ Image pinning policy: each chart release is validated against a candidate image,
 | | |
 |---|---|
 | [Install Guide](docs/oss/README.md) | Step-by-step setup |
+| [KubeClaw Image](images/kubeclaw/README.md) | Build pipeline and package manifest |
 | [Verify](docs/oss/README.md#verify) | Lint, render, and schema checks |
 | [Troubleshooting](docs/oss/README.md#troubleshooting) | Common issues and fixes |
 | [Restore Runbook](docs/runbooks/restore.md) | Backup & recovery procedures |
