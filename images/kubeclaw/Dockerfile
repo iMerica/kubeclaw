@@ -4,6 +4,7 @@ FROM --platform=$BUILDPLATFORM node:22-alpine AS tools-builder
 ARG TARGETARCH
 WORKDIR /workspace
 RUN apk add --no-cache curl tar xz
+RUN mkdir -p /out/opt/kubeclaw/bin /out/opt/kubeclaw/npm-global
 COPY images/kubeclaw/packages.json /workspace/packages.json
 COPY images/kubeclaw/scripts/install-tools.sh /workspace/install-tools.sh
 COPY images/kubeclaw/scripts/install-npm-packages.sh /workspace/install-npm-packages.sh
@@ -14,6 +15,7 @@ RUN PACKAGES_FILE=/workspace/packages.json OUT_PREFIX=/out/opt/kubeclaw/npm-glob
 FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS go-builder
 WORKDIR /workspace
 RUN apk add --no-cache nodejs
+RUN mkdir -p /out/opt/kubeclaw/bin
 COPY images/kubeclaw/packages.json /workspace/packages.json
 COPY images/kubeclaw/scripts/install-go-packages.sh /workspace/install-go-packages.sh
 RUN chmod +x /workspace/install-go-packages.sh
@@ -22,6 +24,7 @@ RUN PACKAGES_FILE=/workspace/packages.json OUT_BIN_DIR=/out/opt/kubeclaw/bin /wo
 FROM --platform=$BUILDPLATFORM oven/bun:1.2-alpine AS qmd-builder
 WORKDIR /workspace
 RUN apk add --no-cache curl openssl
+RUN mkdir -p /out/opt/kubeclaw/qmd-bin
 COPY images/kubeclaw/packages.json /workspace/packages.json
 COPY images/kubeclaw/scripts/install-qmd.sh /workspace/install-qmd.sh
 RUN chmod +x /workspace/install-qmd.sh
