@@ -72,6 +72,7 @@ github_asset_digest() {
   tag="$2"
   asset_name="$3"
 
+  # shellcheck disable=SC2016
   node -e '
     const https = require("https");
     const [repo, tag, assetName] = process.argv.slice(1);

@@ -16,6 +16,7 @@ if [ -z "$expected_integrity" ]; then
   exit 1
 fi
 
+# shellcheck disable=SC2016
 tarball_url="$(EXPECTED_INTEGRITY="$expected_integrity" bun -e '
   const https = require("https");
   const spec = process.argv[1];
@@ -60,6 +61,7 @@ tarball_url="$(EXPECTED_INTEGRITY="$expected_integrity" bun -e '
   });
 ' "$package_url")"
 
+# shellcheck disable=SC2016
 resolved_integrity="$(bun -e '
   const https = require("https");
   const spec = process.argv[1];

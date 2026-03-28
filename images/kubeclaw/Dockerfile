@@ -20,6 +20,7 @@ RUN PACKAGES_FILE=/workspace/packages.json OUT_BIN_DIR=/out/opt/kubeclaw/bin /wo
 
 FROM --platform=$BUILDPLATFORM oven/bun:1.2-alpine AS qmd-builder
 WORKDIR /workspace
+RUN apk add --no-cache curl openssl
 COPY images/kubeclaw/packages.json /workspace/packages.json
 COPY images/kubeclaw/scripts/install-qmd.sh /workspace/install-qmd.sh
 RUN chmod +x /workspace/install-qmd.sh

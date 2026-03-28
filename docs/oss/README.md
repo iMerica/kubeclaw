@@ -139,7 +139,7 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 |-----|---------|-------------|
 | `secret.data.OPENCLAW_GATEWAY_TOKEN` | *none* | **Required.** Gateway auth token |
 | `image.repository` | `ghcr.io/imerica/kubeclaw` | Gateway container image |
-| `image.tag` | `latest` | Default image tag (CI also publishes `master-<sha>` for pinning) |
+| `image.tag` | `master-bootstrap` | Default non-latest image tag (CI also publishes `master-<sha>` for pinning) |
 | `image.digest` | `""` | Optional immutable digest used with the tag to prevent drift |
 | `ingress.enabled` | `false` | Enable Ingress with WebSocket timeouts |
 | `ingress.host` | `""` | Ingress hostname |
