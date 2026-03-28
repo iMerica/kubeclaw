@@ -119,9 +119,21 @@ if [ -z "$qmd_bin" ]; then
   exit 1
 fi
 
+qmd_real="$(readlink -f "$qmd_bin" 2>/dev/null || echo "$qmd_bin")"
+qmd_dir="$(dirname "$qmd_real")"
+
 cp "$bun_bin" "$OUT_QMD_DIR/bun"
-cp "$qmd_bin" "$OUT_QMD_DIR/qmd"
-chmod 0555 "$OUT_QMD_DIR/bun" "$OUT_QMD_DIR/qmd"
+cp "$qmd_dir"/* "$OUT_QMD_DIR/"
+
+if [ ! -f "$OUT_QMD_DIR/qmd" ] && [ -f "$OUT_QMD_DIR/qmd.js" ]; then
+  cat > "$OUT_QMD_DIR/qmd" <<'EOF'
+#!/bin/sh
+exec "$(dirname "$0")/bun" "$(dirname "$0")/qmd.js" "$@"
+EOF
+fi
+
+chmod 0555 "$OUT_QMD_DIR/bun" "$OUT_QMD_DIR/qmd" 2>/dev/null || true
+chmod 0555 "$OUT_QMD_DIR"/*.js 2>/dev/null || true
 
 bun_global_dir="$(dirname "$(dirname "$qmd_bin")")"
 if [ -d "$bun_global_dir/node_modules" ]; then
