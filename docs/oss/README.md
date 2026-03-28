@@ -139,8 +139,8 @@ See [`values.yaml`](../../charts/kubeclaw/values.yaml) for all options with inli
 |-----|---------|-------------|
 | `secret.data.OPENCLAW_GATEWAY_TOKEN` | *none* | **Required.** Gateway auth token |
 | `image.repository` | `ghcr.io/imerica/kubeclaw` | Gateway container image |
-| `image.tag` | `5035f56` | Default short-SHA image tag (CI publishes short SHA tags) |
-| `image.digest` | `sha256:df0c6...` | Immutable digest used with the tag to prevent drift |
+| `image.tag` | `latest` | Default image tag |
+| `image.digest` | `sha256:831cdb...` | Immutable digest used with the tag to prevent drift |
 | `ingress.enabled` | `false` | Enable Ingress with WebSocket timeouts |
 | `ingress.host` | `""` | Ingress hostname |
 | `gatewayAPI.enabled` | `true` | Enable K8s Gateway API routing (alternative to Ingress) |
