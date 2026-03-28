@@ -13,6 +13,7 @@ RUN PACKAGES_FILE=/workspace/packages.json OUT_PREFIX=/out/opt/kubeclaw/npm-glob
 
 FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS go-builder
 WORKDIR /workspace
+RUN apk add --no-cache nodejs
 COPY images/kubeclaw/packages.json /workspace/packages.json
 COPY images/kubeclaw/scripts/install-go-packages.sh /workspace/install-go-packages.sh
 RUN chmod +x /workspace/install-go-packages.sh
