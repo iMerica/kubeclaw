@@ -1,6 +1,6 @@
 ARG OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.3.23-2@sha256:dda9f4b94761e87864c901cf34ee858daf89fa1deed9dcb671e8845a6b24062e
 
-FROM --platform=$BUILDPLATFORM node:22-alpine AS tools-builder
+FROM --platform=$TARGETPLATFORM node:22-alpine AS tools-builder
 ARG TARGETARCH
 WORKDIR /workspace
 RUN apk add --no-cache curl tar xz
@@ -12,7 +12,7 @@ RUN chmod +x /workspace/install-tools.sh /workspace/install-npm-packages.sh
 RUN TARGETARCH=${TARGETARCH} PACKAGES_FILE=/workspace/packages.json OUT_BIN_DIR=/out/opt/kubeclaw/bin /workspace/install-tools.sh
 RUN PACKAGES_FILE=/workspace/packages.json OUT_PREFIX=/out/opt/kubeclaw/npm-global OUT_BIN_DIR=/out/opt/kubeclaw/bin /workspace/install-npm-packages.sh
 
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS go-builder
+FROM --platform=$TARGETPLATFORM golang:1.24-alpine AS go-builder
 WORKDIR /workspace
 RUN apk add --no-cache nodejs
 RUN mkdir -p /out/opt/kubeclaw/bin
@@ -21,7 +21,7 @@ COPY images/kubeclaw/scripts/install-go-packages.sh /workspace/install-go-packag
 RUN chmod +x /workspace/install-go-packages.sh
 RUN PACKAGES_FILE=/workspace/packages.json OUT_BIN_DIR=/out/opt/kubeclaw/bin /workspace/install-go-packages.sh
 
-FROM --platform=$BUILDPLATFORM oven/bun:1.2-alpine AS qmd-builder
+FROM --platform=$TARGETPLATFORM oven/bun:1.2-alpine AS qmd-builder
 WORKDIR /workspace
 RUN apk add --no-cache curl openssl
 RUN mkdir -p /out/opt/kubeclaw/qmd-bin
