@@ -32,6 +32,7 @@ COPY images/kubeclaw/packages.json /opt/kubeclaw/packages.json
 COPY images/kubeclaw/scripts/install-linux-packages.sh /opt/kubeclaw/bin/install-linux-packages.sh
 COPY images/kubeclaw/scripts/install-skills-sh.sh /opt/kubeclaw/bin/install-skills-sh.sh
 RUN chmod +x /opt/kubeclaw/bin/install-linux-packages.sh /opt/kubeclaw/bin/install-skills-sh.sh && /opt/kubeclaw/bin/install-linux-packages.sh && /opt/kubeclaw/bin/install-skills-sh.sh
+RUN npm install --prefix /opt/kubeclaw/deps json5@2.2.3 --no-save --no-audit --no-fund
 
 COPY --from=tools-builder /out/opt/kubeclaw/bin /opt/kubeclaw/bin
 COPY --from=tools-builder /out/opt/kubeclaw/npm-global /opt/kubeclaw/npm-global

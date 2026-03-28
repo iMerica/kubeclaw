@@ -10,7 +10,7 @@
     },
     "image": {
       "type": "object",
-      "required": ["repository", "tag", "digest"],
+      "required": ["repository", "tag"],
       "properties": {
         "repository": {
           "type": "string",
@@ -24,9 +24,8 @@
         },
         "digest": {
           "type": "string",
-          "minLength": 1,
-          "pattern": "^sha256:[a-f0-9]{64}$",
-          "description": "Immutable Docker image digest to prevent tag drift."
+          "pattern": "^$|^sha256:[a-f0-9]{64}$",
+          "description": "Optional immutable Docker image digest to prevent tag drift."
         },
         "pullPolicy": {
           "type": "string",

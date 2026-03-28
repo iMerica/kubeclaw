@@ -11,4 +11,5 @@ ci
 hack
 scripts
 *.md
+!charts/kubeclaw/skillstacks/**/SKILL.md
 *.DS_Store

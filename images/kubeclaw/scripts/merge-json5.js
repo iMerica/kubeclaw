@@ -8,15 +8,21 @@ function tryParse(text) {
     return JSON.parse(text);
   } catch (_) {}
 
+  let JSON5;
   try {
-    const JSON5 = require('json5');
-    return JSON5.parse(text);
-  } catch (_) {}
+    JSON5 = require('json5');
+  } catch (_) {
+    try {
+      JSON5 = require('/opt/kubeclaw/deps/node_modules/json5');
+    } catch (err) {
+      throw new Error(
+        'Failed to parse input as strict JSON, and JSON5 parser is unavailable. ' +
+          'Install json5 or provide valid JSON.'
+      );
+    }
+  }
 
-  const stripped = text
-    .replace(/\/\/[^\n]*/g, '')
-    .replace(/,\s*([}\]])/g, '$1');
-  return JSON.parse(stripped);
+  return JSON5.parse(text);
 }
 
 function mergePatch(base, patch) {

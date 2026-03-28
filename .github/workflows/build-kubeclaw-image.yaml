@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - master
+      - feature/kubeclaw-image
   workflow_dispatch:
 
 permissions:
+  contents: read
   packages: write
 
 jobs:
@@ -16,11 +18,11 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Set image metadata
-      id: meta
-      run: |
-        owner_lc=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
-        echo "image=ghcr.io/${owner_lc}/kubeclaw" >> "$GITHUB_OUTPUT"
-        echo "tag=master-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+        id: meta
+        run: |
+          owner_lc=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          echo "image=ghcr.io/${owner_lc}/kubeclaw" >> "$GITHUB_OUTPUT"
+          echo "tag=master-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3

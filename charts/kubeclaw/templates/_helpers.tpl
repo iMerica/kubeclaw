@@ -171,7 +171,11 @@ checksum/env-config: {{ include (print $.Template.BasePath "/env-configmap.yaml"
 Image string helper.
 */}}
 {{- define "kubeclaw.image" -}}
+{{- if .Values.image.digest -}}
 {{- printf "%s:%s@%s" .Values.image.repository .Values.image.tag .Values.image.digest }}
+{{- else -}}
+{{- printf "%s:%s" .Values.image.repository .Values.image.tag }}
+{{- end -}}
 {{- end }}
 
 {{/*

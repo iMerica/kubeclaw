@@ -122,7 +122,7 @@ verify_download() {
 }
 
 install_gh() {
-  enabled="$(json_get 'cli.gh.enabled' || true)"
+  enabled="$(json_get 'cli.gh.enabled' || echo true)"
   [ "$enabled" = "true" ] || return 0
   version="$(json_get 'cli.gh.version')"
   tpl="$(json_get 'cli.gh.downloadUrlTemplate')"
@@ -140,7 +140,7 @@ install_gh() {
 }
 
 install_jira() {
-  enabled="$(json_get 'cli.jira.enabled' || true)"
+  enabled="$(json_get 'cli.jira.enabled' || echo true)"
   [ "$enabled" = "true" ] || return 0
   version="$(json_get 'cli.jira.version')"
   tpl="$(json_get 'cli.jira.downloadUrlTemplate')"
@@ -165,7 +165,7 @@ install_jira() {
 }
 
 install_linear() {
-  enabled="$(json_get 'cli.linear.enabled' || true)"
+  enabled="$(json_get 'cli.linear.enabled' || echo true)"
   [ "$enabled" = "true" ] || return 0
   version="$(json_get 'cli.linear.version')"
   tpl="$(json_get 'cli.linear.downloadUrlTemplate')"
@@ -188,7 +188,7 @@ install_linear() {
 }
 
 install_asana() {
-  enabled="$(json_get 'cli.asana.enabled' || true)"
+  enabled="$(json_get 'cli.asana.enabled' || echo true)"
   [ "$enabled" = "true" ] || return 0
   version="$(json_get 'cli.asana.version')"
   tpl="$(json_get 'cli.asana.downloadUrlTemplate')"
@@ -211,7 +211,7 @@ install_asana() {
 }
 
 install_trello() {
-  enabled="$(json_get 'cli.trello.enabled' || true)"
+  enabled="$(json_get 'cli.trello.enabled' || echo true)"
   [ "$enabled" = "true" ] || return 0
   version="$(json_get 'cli.trello.version')"
   npm install --prefix /tmp/trello --cache /tmp/.npm "trello-cli@${version}" --no-save --no-audit --no-fund >/dev/null
