@@ -11,10 +11,10 @@ image:
   # REQUIRED: Docker image repository for the OpenClaw Gateway.
   repository: ghcr.io/imerica/kubeclaw
   # REQUIRED: Release tag produced by the image build workflow.
-  tag: "latest"
+  tag: "5035f56"
   # Optional immutable digest for supply chain pinning.
   # Set to a sha256 digest when you want strict immutability.
-  digest: ""
+  digest: "sha256:df0c6d22988c2cdc093292385e80f7753718af4f7588596b6f9530da2da81683"
   # Pull policy: Always | IfNotPresent | Never
   pullPolicy: IfNotPresent
 
