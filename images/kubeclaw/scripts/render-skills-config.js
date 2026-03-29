@@ -6,10 +6,20 @@ const path = require('path');
 
 const skillsDir = process.argv[2];
 const outputPath = process.argv[3];
+const previouslyManagedPath = process.argv[4] || '';
 
 if (!skillsDir || !outputPath) {
-  console.error('Usage: render-skills-config.js <skills-dir> <output-file>');
+  console.error('Usage: render-skills-config.js <skills-dir> <output-file> [previously-managed-file]');
   process.exit(1);
+}
+
+function readManagedSkillsList(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return [];
+  return fs
+    .readFileSync(filePath, 'utf8')
+    .split(/\r?\n/g)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.includes('/') && !line.startsWith('.'));
 }
 
 const boolFromEnv = (name, fallback) => {
@@ -38,6 +48,12 @@ if (fs.existsSync(skillsDir)) {
     if (fs.existsSync(skillFile)) {
       entries[skillName] = { enabled: true };
     }
+  }
+}
+
+for (const skillName of readManagedSkillsList(previouslyManagedPath)) {
+  if (!(skillName in entries)) {
+    entries[skillName] = null;
   }
 }
 

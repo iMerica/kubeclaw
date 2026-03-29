@@ -18,8 +18,40 @@ CONFIG_SRC="/config-src/openclaw.json"
 SKILLS_DIR="$STATE_DIR/skills"
 SKILLSTACKS_SRC_DIR="/opt/kubeclaw/skillstacks"
 SKILLS_PATCH_JSON="$STATE_DIR/skills.generated.json"
+SKILLS_MANAGED_FILE="$STATE_DIR/skills.managed.txt"
+SKILLS_MANAGED_PREV_FILE="$STATE_DIR/skills.managed.prev.txt"
 MERGE_SCRIPT="/opt/kubeclaw/bin/merge-json5.js"
 RENDER_SKILLS_SCRIPT="/opt/kubeclaw/bin/render-skills-config.js"
+
+safe_skill_name() {
+  case "$1" in
+    ""|.*|*/*)
+      return 1
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+}
+
+remove_managed_skills() {
+  [ -f "$SKILLS_MANAGED_FILE" ] || return
+  cp "$SKILLS_MANAGED_FILE" "$SKILLS_MANAGED_PREV_FILE"
+  while IFS= read -r skill_name; do
+    safe_skill_name "$skill_name" || continue
+    rm -rf "$SKILLS_DIR/$skill_name"
+  done < "$SKILLS_MANAGED_FILE"
+}
+
+merge_skills_config() {
+  node "$RENDER_SKILLS_SCRIPT" "$SKILLS_DIR" "$SKILLS_PATCH_JSON" "$SKILLS_MANAGED_PREV_FILE"
+  if [ ! -f "$CONFIG_DEST" ]; then
+    cp "$SKILLS_PATCH_JSON" "$CONFIG_DEST"
+  else
+    node "$MERGE_SCRIPT" "$CONFIG_DEST" "$SKILLS_PATCH_JSON" > "$CONFIG_DEST.tmp"
+    mv "$CONFIG_DEST.tmp" "$CONFIG_DEST"
+  fi
+}
 
 apply_desired_config() {
   if [ ! -f "$CONFIG_SRC" ]; then
@@ -41,10 +73,21 @@ apply_desired_config() {
 }
 
 install_skillstacks() {
-  [ "$SKILLSTACKS_ENABLED" = "true" ] || return
-  [ -d "$SKILLSTACKS_SRC_DIR" ] || return
-
   mkdir -p "$SKILLS_DIR"
+
+  if [ -f "$SKILLS_MANAGED_FILE" ]; then
+    remove_managed_skills
+  else
+    : > "$SKILLS_MANAGED_PREV_FILE"
+  fi
+
+  if [ "$SKILLSTACKS_ENABLED" != "true" ] || [ ! -d "$SKILLSTACKS_SRC_DIR" ]; then
+    : > "$SKILLS_MANAGED_FILE"
+    merge_skills_config
+    return
+  fi
+
+  managed_tmp="$(mktemp "$STATE_DIR/skills-managed.XXXXXX")"
 
   for domain_dir in "$SKILLSTACKS_SRC_DIR"/*; do
     [ -d "$domain_dir" ] || continue
@@ -62,19 +105,22 @@ install_skillstacks() {
       [ -d "$skill_dir" ] || continue
       if [ -f "$skill_dir/SKILL.md" ]; then
         skill_name="$(basename "$skill_dir")"
+        safe_skill_name "$skill_name" || continue
         mkdir -p "$SKILLS_DIR/$skill_name"
         cp "$skill_dir/SKILL.md" "$SKILLS_DIR/$skill_name/SKILL.md"
+        printf '%s\n' "$skill_name" >> "$managed_tmp"
       fi
     done
   done
 
-  node "$RENDER_SKILLS_SCRIPT" "$SKILLS_DIR" "$SKILLS_PATCH_JSON"
-  if [ ! -f "$CONFIG_DEST" ]; then
-    cp "$SKILLS_PATCH_JSON" "$CONFIG_DEST"
+  if [ -s "$managed_tmp" ]; then
+    sort -u "$managed_tmp" > "$SKILLS_MANAGED_FILE"
   else
-    node "$MERGE_SCRIPT" "$CONFIG_DEST" "$SKILLS_PATCH_JSON" > "$CONFIG_DEST.tmp"
-    mv "$CONFIG_DEST.tmp" "$CONFIG_DEST"
+    : > "$SKILLS_MANAGED_FILE"
   fi
+  rm -f "$managed_tmp"
+
+  merge_skills_config
 }
 
 main() {

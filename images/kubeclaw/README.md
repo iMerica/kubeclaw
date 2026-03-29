@@ -39,5 +39,5 @@ Example:
 `images/kubeclaw/scripts/bootstrap.sh` runs before the OpenClaw Gateway process and:
 
 - applies `config.desired` using `merge` or `overwrite` mode
-- syncs baked skillstacks from `/opt/kubeclaw/skillstacks` into `/home/node/.openclaw/skills`
+- syncs baked skillstacks from `/opt/kubeclaw/skillstacks` into `/home/node/.openclaw/skills` (and prunes stale managed stack skills)
 - generates and merges `skills.*` config so OpenClaw knows what to load
