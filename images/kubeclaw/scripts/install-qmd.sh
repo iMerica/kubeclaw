@@ -3,21 +3,25 @@ set -eu
 
 PACKAGES_FILE="${PACKAGES_FILE:-/workspace/packages.json}"
 OUT_QMD_DIR="${OUT_QMD_DIR:-/out/opt/kubeclaw/qmd-bin}"
+OUT_QMD_PREFIX="${OUT_QMD_PREFIX:-/out/opt/kubeclaw/qmd}"
 
-enabled="$(bun -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(String(Boolean(p.qmd && p.qmd.enabled)));' "$PACKAGES_FILE")"
+enabled="$(node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(String(Boolean(p.qmd && p.qmd.enabled)));' "$PACKAGES_FILE")"
 if [ "$enabled" != "true" ]; then
   exit 0
 fi
 
-package_url="$(bun -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(String(p.qmd.packageUrl));' "$PACKAGES_FILE")"
-expected_integrity="$(bun -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(String((p.qmd && p.qmd.integrity) || ""));' "$PACKAGES_FILE")"
+package_url="$(node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(String((p.qmd && p.qmd.packageUrl) || ""));' "$PACKAGES_FILE")"
+expected_integrity="$(node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(String((p.qmd && p.qmd.integrity) || ""));' "$PACKAGES_FILE")"
+if [ -z "$package_url" ]; then
+  echo "qmd.packageUrl must be set when qmd.enabled=true" >&2
+  exit 1
+fi
 if [ -z "$expected_integrity" ]; then
   echo "qmd.integrity must be set when qmd.enabled=true" >&2
   exit 1
 fi
 
-# shellcheck disable=SC2016
-tarball_url="$(EXPECTED_INTEGRITY="$expected_integrity" bun -e '
+metadata="$(EXPECTED_INTEGRITY="$expected_integrity" node -e '
   const https = require("https");
   const spec = process.argv[1];
 
@@ -44,6 +48,7 @@ tarball_url="$(EXPECTED_INTEGRITY="$expected_integrity" bun -e '
         process.stderr.write(`failed to fetch ${url}: status ${res.statusCode}\n`);
         process.exit(1);
       }
+
       const data = JSON.parse(Buffer.concat(chunks).toString("utf8"));
       if (!data.dist || !data.dist.tarball || !data.dist.integrity) {
         process.stderr.write("npm metadata missing dist.tarball or dist.integrity\n");
@@ -53,7 +58,8 @@ tarball_url="$(EXPECTED_INTEGRITY="$expected_integrity" bun -e '
         process.stderr.write("qmd integrity mismatch against packages.json\n");
         process.exit(1);
       }
-      process.stdout.write(String(data.dist.tarball));
+
+      process.stdout.write(String(data.dist.tarball) + "|" + String(data.dist.integrity));
     });
   }).on("error", (err) => {
     process.stderr.write(String(err.message) + "\n");
@@ -61,25 +67,13 @@ tarball_url="$(EXPECTED_INTEGRITY="$expected_integrity" bun -e '
   });
 ' "$package_url")"
 
-# shellcheck disable=SC2016
-resolved_integrity="$(bun -e '
-  const https = require("https");
-  const spec = process.argv[1];
-  const lastAt = spec.lastIndexOf("@");
-  const pkg = spec.slice(0, lastAt);
-  const version = spec.slice(lastAt + 1);
-  const encoded = pkg.replace("/", "%2f");
-  const url = `https://registry.npmjs.org/${encoded}/${version}`;
-  https.get(url, { headers: { "User-Agent": "kubeclaw-image-build" } }, (res) => {
-    const chunks = [];
-    res.on("data", (c) => chunks.push(c));
-    res.on("end", () => {
-      if (res.statusCode !== 200) process.exit(1);
-      const data = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-      process.stdout.write(String(data.dist.integrity));
-    });
-  }).on("error", () => process.exit(1));
-' "$package_url")"
+tarball_url="${metadata%%|*}"
+resolved_integrity="${metadata#*|}"
+
+if [ -z "$tarball_url" ] || [ -z "$resolved_integrity" ]; then
+  echo "failed to resolve qmd tarball metadata" >&2
+  exit 1
+fi
 
 archive="/tmp/qmd.tgz"
 curl -fsSL "$tarball_url" -o "$archive"
@@ -99,41 +93,29 @@ case "$resolved_integrity" in
     ;;
 esac
 
-mkdir -p "$OUT_QMD_DIR"
-bun install -g --ignore-scripts "$archive"
+mkdir -p "$OUT_QMD_PREFIX" "$OUT_QMD_DIR"
+npm install --prefix "$OUT_QMD_PREFIX" --cache /tmp/.npm --no-save --no-audit --no-fund "$archive" >/dev/null
 
-qmd_bin="$(which qmd || true)"
-
-if [ -z "$qmd_bin" ]; then
-  for p in "$HOME/.bun/bin/qmd" "/root/.bun/bin/qmd"; do
-    if [ -x "$p" ]; then
-      qmd_bin="$p"
-      break
-    fi
-  done
-fi
-
-if [ -z "$qmd_bin" ]; then
+qmd_bin="$OUT_QMD_PREFIX/node_modules/.bin/qmd"
+if [ ! -x "$qmd_bin" ]; then
   echo "qmd binary not found after install" >&2
   exit 1
 fi
 
-qmd_real="$(readlink -f "$qmd_bin" 2>/dev/null || echo "$qmd_bin")"
-qmd_dir="$(dirname "$qmd_real")"
-
-cp "$qmd_dir"/* "$OUT_QMD_DIR/"
-
-if [ -f "$OUT_QMD_DIR/qmd.js" ]; then
-  cat > "$OUT_QMD_DIR/qmd" <<'EOF'
+cat > "$OUT_QMD_DIR/qmd" <<'EOF'
 #!/bin/sh
-exec node "$(dirname "$0")/qmd.js" "$@"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
+exec "$SCRIPT_DIR/../qmd/node_modules/.bin/qmd" "$@"
 EOF
-fi
 
+node -e '
+  const pkgRoot = process.argv[1];
+  const required = ["fast-glob", "better-sqlite3", "node-llama-cpp", "sqlite-vec", "yaml", "zod"];
+  for (const name of required) {
+    require.resolve(name, { paths: [pkgRoot] });
+  }
+' "$OUT_QMD_PREFIX/node_modules/@tobilu/qmd"
+
+"$qmd_bin" --help >/dev/null
 chmod 0555 "$OUT_QMD_DIR/qmd" 2>/dev/null || true
-chmod 0555 "$OUT_QMD_DIR"/*.js 2>/dev/null || true
-
-bun_global_dir="$(dirname "$(dirname "$qmd_bin")")"
-if [ -d "$bun_global_dir/node_modules" ]; then
-  cp -r "$bun_global_dir/node_modules" "$OUT_QMD_DIR/node_modules"
-fi
+"$OUT_QMD_DIR/qmd" --help >/dev/null

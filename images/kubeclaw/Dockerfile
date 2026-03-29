@@ -21,14 +21,14 @@ COPY images/kubeclaw/scripts/install-go-packages.sh /workspace/install-go-packag
 RUN chmod +x /workspace/install-go-packages.sh
 RUN PACKAGES_FILE=/workspace/packages.json OUT_BIN_DIR=/out/opt/kubeclaw/bin /workspace/install-go-packages.sh
 
-FROM --platform=$TARGETPLATFORM oven/bun:1.2-alpine AS qmd-builder
+FROM --platform=$TARGETPLATFORM node:24 AS qmd-builder
 WORKDIR /workspace
-RUN apk add --no-cache curl openssl
-RUN mkdir -p /out/opt/kubeclaw/qmd-bin
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git cmake python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /out/opt/kubeclaw/qmd /out/opt/kubeclaw/qmd-bin
 COPY images/kubeclaw/packages.json /workspace/packages.json
 COPY images/kubeclaw/scripts/install-qmd.sh /workspace/install-qmd.sh
 RUN chmod +x /workspace/install-qmd.sh
-RUN PACKAGES_FILE=/workspace/packages.json OUT_QMD_DIR=/out/opt/kubeclaw/qmd-bin /workspace/install-qmd.sh
+RUN PACKAGES_FILE=/workspace/packages.json OUT_QMD_PREFIX=/out/opt/kubeclaw/qmd OUT_QMD_DIR=/out/opt/kubeclaw/qmd-bin /workspace/install-qmd.sh
 
 FROM ${OPENCLAW_IMAGE}
 USER root
@@ -42,6 +42,7 @@ RUN npm install --prefix /opt/kubeclaw/deps json5@2.2.3 --no-save --no-audit --n
 COPY --from=tools-builder /out/opt/kubeclaw/bin /opt/kubeclaw/bin
 COPY --from=tools-builder /out/opt/kubeclaw/npm-global /opt/kubeclaw/npm-global
 COPY --from=go-builder /out/opt/kubeclaw/bin /opt/kubeclaw/bin
+COPY --from=qmd-builder /out/opt/kubeclaw/qmd /opt/kubeclaw/qmd
 COPY --from=qmd-builder /out/opt/kubeclaw/qmd-bin /opt/kubeclaw/qmd-bin
 
 COPY images/kubeclaw/scripts/bootstrap.sh /opt/kubeclaw/bin/bootstrap.sh
