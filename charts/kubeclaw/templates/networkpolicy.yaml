@@ -16,6 +16,7 @@ spec:
   podSelector:
     matchLabels:
       {{- include "kubeclaw.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: gateway
   policyTypes:
     - Ingress
     {{- if not .Values.networkPolicy.egress.allowAll }}
@@ -43,11 +44,46 @@ spec:
   # Requires networkPolicy.egress.allowAll: false.
   egress:
     # Allow DNS resolution (required for most workloads).
+    {{- if .Values.egressFilter.enabled }}
+    # dns-init runs before /etc/resolv.conf is rewritten to the egress-filter
+    # Service, so it must still reach cluster DNS (CoreDNS) to resolve the
+    # egress-filter Service name.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Gateway pods use the egress-filter Service as nameserver (port 53),
+    # which forwards to Blocky on container port 5353. Some CNIs enforce
+    # policies post-DNAT, so allow both service and target ports.
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "kubeclaw.egressFilterSelectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 5353
+        - protocol: TCP
+          port: 5353
+    {{- else }}
     - ports:
         - protocol: UDP
           port: 53
         - protocol: TCP
           port: 53
+    {{- end }}
     # Allow HTTPS egress (add/remove as needed).
     - ports:
         - protocol: TCP
