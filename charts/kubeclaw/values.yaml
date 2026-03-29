@@ -16,7 +16,7 @@ image:
   # Set to a sha256 digest when you want strict immutability.
   digest: "sha256:f20eb88feefd4c41ce41c193698bfb53c67d23ded80510100e55e21df630723a"
   # Pull policy: Always | IfNotPresent | Never
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
 
 # Image pull secrets for private registries.
 # imagePullSecrets:
