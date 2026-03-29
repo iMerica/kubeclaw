@@ -39,7 +39,7 @@ remove_managed_skills() {
   cp "$SKILLS_MANAGED_FILE" "$SKILLS_MANAGED_PREV_FILE"
   while IFS= read -r skill_name; do
     safe_skill_name "$skill_name" || continue
-    rm -rf "$SKILLS_DIR/$skill_name"
+    rm -rf "${SKILLS_DIR:?}/${skill_name:?}"
   done < "$SKILLS_MANAGED_FILE"
 }
 
