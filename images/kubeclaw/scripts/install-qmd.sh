@@ -110,12 +110,11 @@ EOF
 
 cat > "$OUT_QMD_DIR/qmd.js" <<'EOF'
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+const { spawnSync } = require("node:child_process");
+const path = require("node:path");
 
-const scriptDir = dirname(fileURLToPath(import.meta.url));
-const qmdCli = resolve(scriptDir, "../qmd/node_modules/.bin/qmd");
+const scriptDir = __dirname;
+const qmdCli = path.resolve(scriptDir, "../qmd/node_modules/.bin/qmd");
 const result = spawnSync(qmdCli, process.argv.slice(2), { stdio: "inherit" });
 
 if (result.error) {
