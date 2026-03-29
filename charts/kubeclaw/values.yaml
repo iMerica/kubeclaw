@@ -14,9 +14,9 @@ image:
   tag: "latest"
   # Optional immutable digest for supply chain pinning.
   # Set to a sha256 digest when you want strict immutability.
-  digest: "sha256:831cdb06d4441a4cdfaa86942f67c5b6279085844b7730a1f0ab625f63cb709e"
+  digest: ""
   # Pull policy: Always | IfNotPresent | Never
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 # Image pull secrets for private registries.
 # imagePullSecrets:
