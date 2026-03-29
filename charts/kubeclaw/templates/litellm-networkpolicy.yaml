@@ -39,15 +39,33 @@ spec:
           port: 4000
 
   egress:
-    # DNS resolution. When the egress filter is enabled, point to Blocky on
-    # port 5353 so LiteLLM's DNS queries are filtered by the same threat-intel
-    # blocklists and country TLD rules as the Gateway.
+    # DNS resolution via CoreDNS (kube-dns). LiteLLM pods use the cluster
+    # resolver by default, so this rule is required for upstream hostname lookups.
     {{- if .Values.egressFilter.enabled }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    # Also allow DNS to the egress-filter pods for clusters that route DNS
+    # through Blocky or enforce policies after service DNAT.
     - to:
         - podSelector:
             matchLabels:
               app.kubernetes.io/component: egress-filter
       ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
         - protocol: UDP
           port: 5353
         - protocol: TCP
