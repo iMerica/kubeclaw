@@ -39,13 +39,13 @@ metadata="$(EXPECTED_INTEGRITY="$expected_integrity" node -e '
   }
 
   const encoded = pkg.replace("/", "%2f");
-  const url = `https://registry.npmjs.org/${encoded}/${version}`;
+  const url = "https://registry.npmjs.org/" + encoded + "/" + version;
   https.get(url, { headers: { "User-Agent": "kubeclaw-image-build" } }, (res) => {
     const chunks = [];
     res.on("data", (c) => chunks.push(c));
     res.on("end", () => {
       if (res.statusCode !== 200) {
-        process.stderr.write(`failed to fetch ${url}: status ${res.statusCode}\n`);
+        process.stderr.write("failed to fetch " + url + ": status " + String(res.statusCode) + "\n");
         process.exit(1);
       }
 
