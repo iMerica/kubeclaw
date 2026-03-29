@@ -39,13 +39,13 @@ metadata="$(EXPECTED_INTEGRITY="$expected_integrity" node -e '
   }
 
   const encoded = pkg.replace("/", "%2f");
-  const url = `https://registry.npmjs.org/${encoded}/${version}`;
+  const url = "https://registry.npmjs.org/" + encoded + "/" + version;
   https.get(url, { headers: { "User-Agent": "kubeclaw-image-build" } }, (res) => {
     const chunks = [];
     res.on("data", (c) => chunks.push(c));
     res.on("end", () => {
       if (res.statusCode !== 200) {
-        process.stderr.write(`failed to fetch ${url}: status ${res.statusCode}\n`);
+        process.stderr.write("failed to fetch " + url + ": status " + String(res.statusCode) + "\n");
         process.exit(1);
       }
 
@@ -108,6 +108,27 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 exec "$SCRIPT_DIR/../qmd/node_modules/.bin/qmd" "$@"
 EOF
 
+cat > "$OUT_QMD_DIR/qmd.js" <<'EOF'
+#!/usr/bin/env node
+const { spawnSync } = require("node:child_process");
+const path = require("node:path");
+
+const scriptDir = __dirname;
+const qmdCli = path.resolve(scriptDir, "../qmd/node_modules/.bin/qmd");
+const result = spawnSync(qmdCli, process.argv.slice(2), { stdio: "inherit" });
+
+if (result.error) {
+  process.stderr.write(`${result.error.message}\n`);
+  process.exit(1);
+}
+
+if (typeof result.status === "number") {
+  process.exit(result.status);
+}
+
+process.exit(1);
+EOF
+
 node -e '
   const pkgRoot = process.argv[1];
   const required = ["fast-glob", "better-sqlite3", "node-llama-cpp", "sqlite-vec", "yaml", "zod"];
@@ -117,5 +138,6 @@ node -e '
 ' "$OUT_QMD_PREFIX/node_modules/@tobilu/qmd"
 
 "$qmd_bin" --help >/dev/null
-chmod 0555 "$OUT_QMD_DIR/qmd" 2>/dev/null || true
+chmod 0555 "$OUT_QMD_DIR/qmd" "$OUT_QMD_DIR/qmd.js" 2>/dev/null || true
 "$OUT_QMD_DIR/qmd" --help >/dev/null
+node "$OUT_QMD_DIR/qmd.js" --help >/dev/null

@@ -113,21 +113,6 @@ func (c *Client) ReleaseExists(releaseName string) bool {
 	return cmd.Run() == nil
 }
 
-func (c *Client) ShowChartVersion(chartRef string) (string, error) {
-	args := []string{"show", "chart", chartRef}
-	cmd := exec.Command("helm", args...)
-	out, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("helm show chart failed: %w", err)
-	}
-	for _, line := range strings.Split(string(out), "\n") {
-		if strings.HasPrefix(line, "version:") {
-			return strings.TrimSpace(strings.TrimPrefix(line, "version:")), nil
-		}
-	}
-	return "unknown", nil
-}
-
 func (c *Client) run(ctx context.Context, args ...string) error {
 	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()

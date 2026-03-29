@@ -572,9 +572,6 @@ prompt "OpenClaw storage volume size" "$PERSISTENCE_SIZE" PERSISTENCE_SIZE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 section "Review"
 
-# Fetch chart version from OCI registry
-CHART_VERSION=$(helm show chart "$CHART_REF" 2>/dev/null | grep '^version:' | awk '{print $2}' || echo "unknown")
-
 # Table helper
 row() {
   printf "  %s%-24s%s %s\n" "${DIM}" "$1" "${RESET}" "$2"
@@ -582,7 +579,7 @@ row() {
 
 row "Namespace:" "$NAMESPACE"
 row "Release:" "$RELEASE"
-row "Chart:" "$CHART_REF (v${CHART_VERSION})"
+row "Chart:" "$CHART_REF"
 row "LLM Provider:" "${LLM_PROVIDER:-none}"
 row "Gateway Token:" "${OPENCLAW_GATEWAY_TOKEN:0:12}..."
 row "LiteLLM Key:" "${LITELLM_MASTERKEY:0:12}..."

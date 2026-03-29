@@ -530,8 +530,6 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	// ── Review ────────────────────────────────────────────────────────────
 	fmt.Println(tui.RenderSection("Review", 80))
 
-	chartVersion, _ := helmPkg.NewClient(cfg.Namespace, kubeconfig).ShowChartVersion(config.ChartRef)
-
 	tsStatus := tui.Error.Render("disabled")
 	if cfg.TailscaleEnabled {
 		tsStatus = tui.Success.Render("enabled")
@@ -551,7 +549,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	pairs := [][]string{
 		{"Namespace:", cfg.Namespace},
 		{"Release:", cfg.ReleaseName},
-		{"Chart:", fmt.Sprintf("%s (v%s)", config.ChartRef, chartVersion)},
+		{"Chart:", config.ChartRef},
 		{"LLM Provider:", providerLabel(cfg.LLMProvider)},
 		{"Gateway Token:", cfg.GatewayToken[:min(16, len(cfg.GatewayToken))] + "..."},
 		{"LiteLLM Key:", cfg.LiteLLMMasterKey[:min(12, len(cfg.LiteLLMMasterKey))] + "..."},

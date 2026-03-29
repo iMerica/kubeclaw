@@ -158,7 +158,7 @@ All values are documented inline in [`charts/kubeclaw/values.yaml`](charts/kubec
 
 Full configuration reference, advanced examples, and per-feature setup: **[Install Guide](docs/oss/README.md)** &middot; [kubeclaw.ai/docs](https://kubeclaw.ai/docs)
 
-Image pinning policy: each chart release is validated against a candidate image, then the chart defaults are updated to the exact `image.tag` + `image.digest` before publishing.
+Image pinning policy: on each `v*` release, CI builds and publishes the release image, then automatically pins chart defaults to the exact `image.tag` + `image.digest` before publishing the chart. The installers pull the latest chart and use those pinned defaults automatically.
 
 
 ## What You Get

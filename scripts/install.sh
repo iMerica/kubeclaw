@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Installs (or upgrades) the kubeclaw Helm chart.
+# Installs (or upgrades) the kubeclaw Helm chart from OCI.
 # Just run: ./scripts/install.sh
 #
 # All variables have defaults below — edit them in-place for your environment.
@@ -17,6 +17,9 @@ trap cleanup EXIT
 # --- Configuration (edit these or override via environment) -----------------
 RELEASE="${RELEASE:-kubeclaw}"
 NAMESPACE="${NAMESPACE:-kubeclaw}"
+
+# Chart source: installers pull the latest chart by default.
+CHART_REF="${CHART_REF:-oci://ghcr.io/imerica/kubeclaw}"
 
 # Gateway auth token (secret.data.OPENCLAW_GATEWAY_TOKEN)
 OPENCLAW_GATEWAY_TOKEN="${OPENCLAW_GATEWAY_TOKEN:-changeme}"
@@ -38,8 +41,6 @@ GITHUB_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
 # Optional: path to a custom values file layered on top of chart defaults
 VALUES_FILE="${VALUES_FILE:-}"
 # ----------------------------------------------------------------------------
-
-CHART_DIR="$(cd "$(dirname "$0")/../charts/kubeclaw" && pwd)"
 
 # --- Preflight checks ---
 for cmd in helm kubectl; do
@@ -64,7 +65,7 @@ if [[ -z "${TS_AUTHKEY}" ]]; then
 fi
 
 HELM_ARGS=(
-  upgrade --install "${RELEASE}" "${CHART_DIR}"
+  upgrade --install "${RELEASE}" "${CHART_REF}"
   --namespace "${NAMESPACE}"
   --set "secret.create=true"
   --set "secret.data.OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}"
@@ -91,7 +92,7 @@ fi
 echo "=== KubeClaw Install ==="
 echo "Release:   ${RELEASE}"
 echo "Namespace: ${NAMESPACE}"
-echo "Chart:     ${CHART_DIR}"
+echo "Chart:     ${CHART_REF}"
 echo "Tailscale: ${TS_AUTHKEY:0:12}***"
 if [[ -n "${GITHUB_TOKEN}" ]]; then
   echo "GitHub:    ${GITHUB_TOKEN:0:12}***"
@@ -100,8 +101,11 @@ else
 fi
 echo ""
 
-echo ">>> Updating chart dependencies..."
-helm dependency update "${CHART_DIR}" --skip-refresh 2>/dev/null || helm dependency build "${CHART_DIR}"
+# For local chart directories, ensure dependencies are present.
+if [[ "${CHART_REF}" != oci://* ]] && [[ -d "${CHART_REF}" ]] && [[ -f "${CHART_REF}/Chart.yaml" ]]; then
+  echo ">>> Resolving local chart dependencies..."
+  helm dependency update "${CHART_REF}" --skip-refresh 2>/dev/null || helm dependency build "${CHART_REF}"
+fi
 
 # --- Install / upgrade ---
 echo ">>> Installing/upgrading release '${RELEASE}'..."

@@ -52,6 +52,94 @@ jobs:
             exit 1
           fi
 
+      - name: Compute image metadata
+        id: image_meta
+        run: |
+          owner_lc=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          short_sha=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          release_tag="${{ steps.version.outputs.version }}"
+          echo "repository=ghcr.io/${owner_lc}/kubeclaw" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=${short_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GHCR for image push
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push release image
+        id: image_build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: images/kubeclaw/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ steps.image_meta.outputs.repository }}:${{ steps.image_meta.outputs.release_tag }}
+            ${{ steps.image_meta.outputs.repository }}:${{ steps.image_meta.outputs.sha_tag }}
+            ${{ steps.image_meta.outputs.repository }}:latest
+
+      - name: Pin chart image to release artifact
+        env:
+          IMAGE_TAG: ${{ steps.image_meta.outputs.release_tag }}
+          IMAGE_DIGEST: ${{ steps.image_build.outputs.digest }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          image_tag = os.environ["IMAGE_TAG"]
+          image_digest = os.environ["IMAGE_DIGEST"]
+
+          chart_path = Path("charts/kubeclaw/Chart.yaml")
+          chart_text = chart_path.read_text()
+          updated_chart = re.sub(
+              r'^appVersion:\s*".*"$',
+              f'appVersion: "{image_tag}"',
+              chart_text,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if updated_chart == chart_text:
+              raise SystemExit("failed to update appVersion in charts/kubeclaw/Chart.yaml")
+          chart_path.write_text(updated_chart)
+
+          values_path = Path("charts/kubeclaw/values.yaml")
+          values_text = values_path.read_text()
+          updated_values = re.sub(
+              r'^  tag:\s*".*"$',
+              f'  tag: "{image_tag}"',
+              values_text,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          updated_values = re.sub(
+              r'^  digest:\s*".*"$',
+              f'  digest: "{image_digest}"',
+              updated_values,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if updated_values == values_text:
+              raise SystemExit("failed to update image tag/digest in charts/kubeclaw/values.yaml")
+          values_path.write_text(updated_values)
+          PY
+
+      - name: Show pinned chart image
+        run: |
+          awk 'NR>=1 && NR<=20 {print}' charts/kubeclaw/Chart.yaml
+          awk 'NR>=1 && NR<=30 {print}' charts/kubeclaw/values.yaml
+
       - name: Add Helm repos
         run: ./scripts/helm-repos.sh
 
@@ -65,7 +153,6 @@ jobs:
         run: |
           mkdir -p .cr-release-packages
           helm package charts/kubeclaw \
-            --app-version "${{ steps.version.outputs.version }}" \
             --destination .cr-release-packages
           ls -la .cr-release-packages/
 
@@ -87,6 +174,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # The release job updates chart files in-place for packaging. Reset them
+          # before switching to gh-pages to avoid checkout conflicts.
+          git checkout -- charts/kubeclaw/Chart.yaml charts/kubeclaw/values.yaml
 
           # Checkout or create gh-pages branch
           git fetch origin gh-pages 2>/dev/null || true
