@@ -39,16 +39,14 @@ spec:
           port: 4000
 
   egress:
-    # DNS resolution via CoreDNS (kube-dns). LiteLLM pods use the cluster
-    # resolver by default, so this rule is required for upstream hostname lookups.
+    # DNS resolution via cluster DNS in kube-system. LiteLLM pods use the
+    # cluster resolver by default, so this rule is required for upstream
+    # hostname lookups.
     {{- if .Values.egressFilter.enabled }}
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: kube-system
-          podSelector:
-            matchLabels:
-              k8s-app: kube-dns
       ports:
         - protocol: UDP
           port: 53

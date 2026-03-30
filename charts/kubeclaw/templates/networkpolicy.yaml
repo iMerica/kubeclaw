@@ -46,15 +46,12 @@ spec:
     # Allow DNS resolution (required for most workloads).
     {{- if .Values.egressFilter.enabled }}
     # dns-init runs before /etc/resolv.conf is rewritten to the egress-filter
-    # Service, so it must still reach cluster DNS (CoreDNS) to resolve the
+    # Service, so it must still reach cluster DNS in kube-system to resolve the
     # egress-filter Service name.
     - to:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: kube-system
-          podSelector:
-            matchLabels:
-              k8s-app: kube-dns
       ports:
         - protocol: UDP
           port: 53

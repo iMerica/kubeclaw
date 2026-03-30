@@ -565,10 +565,11 @@ egressFilter:
       timeoutSeconds: 2
 
   # Upstream DNS servers Blocky forwards allowed queries to.
-  # Default: kube-dns at the standard ClusterIP. Adjust if your cluster differs.
+  # Default: kube-dns Service DNS name (portable across clusters that do not use
+  # the default 10.96.0.10 ClusterIP).
   upstreamDns:
     default:
-      - 10.96.0.10
+      - kube-dns.kube-system.svc.cluster.local
     # DNS-over-HTTPS upstreams (optional, for external resolution):
     # external:
     #   - https://1.1.1.1/dns-query
