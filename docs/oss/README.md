@@ -375,6 +375,8 @@ The chart ships with:
 - **Tools**: CLI/tooling baked into the image from `images/kubeclaw/packages.json`
 - **CLIs**: `gh`, `jira`, `linear`, `asana`, and `trello` preinstalled by default
 
+Note: the Skills Store UI focuses on store-linked/workspace installs. Baked SkillStacks are local file skills synced into `~/.openclaw/skills` and merged into `openclaw.json` under `skills.entries` during bootstrap.
+
 Tool/package customization lives in `images/kubeclaw/packages.json`. See `images/kubeclaw/README.md` for the build-time package workflow.
 
 #### GitHub
