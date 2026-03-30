@@ -4,10 +4,10 @@
 class Kubeclaw < Formula
   desc "CLI for managing KubeClaw Helm chart installations on Kubernetes"
   homepage "https://kubeclaw.ai"
-  url "https://github.com/iMerica/kubeclaw/archive/refs/tags/v0.1.9-cli.0.tar.gz"
-  sha256 "43e2768ff497c6684493b241bac839a8ee53953916b97704b6ee49d1511da943"
+  url "https://github.com/iMerica/kubeclaw/archive/refs/tags/v0.1.10-cli.0.tar.gz"
+  sha256 "62c6ca7f767b4f37e0ced0d13bd58e2f1ae4de07be64aba9730c5a0b6ff76dce"
   license "Apache-2.0"
-  version "0.1.9-cli.0"
+  version "0.1.10-cli.0"
 
   depends_on "go" => :build
 
