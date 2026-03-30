@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -88,6 +90,76 @@ func WaitPodReady(ctx context.Context, client kubernetes.Interface, namespace, p
 		time.Sleep(2 * time.Second)
 	}
 	return fmt.Errorf("pod %s not ready after %s", podName, timeout)
+}
+
+func WaitPodsReady(ctx context.Context, client kubernetes.Interface, namespace, labelSelector string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		pods, err := client.CoreV1().Pods(namespace).List(reqCtx, metav1.ListOptions{LabelSelector: labelSelector})
+		cancel()
+		if err == nil && podsReady(pods.Items) {
+			return nil
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
+	reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	pods, err := client.CoreV1().Pods(namespace).List(reqCtx, metav1.ListOptions{LabelSelector: labelSelector})
+	if err != nil {
+		return fmt.Errorf("pods for selector %q not ready after %s", labelSelector, timeout)
+	}
+
+	var nonReady []string
+	for _, pod := range pods.Items {
+		if isPodReadyOrCompleted(pod) {
+			continue
+		}
+		nonReady = append(nonReady, fmt.Sprintf("%s(%s)", pod.Name, pod.Status.Phase))
+	}
+	if len(nonReady) == 0 {
+		return fmt.Errorf("pods for selector %q not ready after %s", labelSelector, timeout)
+	}
+
+	return fmt.Errorf("pods for selector %q not ready after %s: %s", labelSelector, timeout, strings.Join(nonReady, ", "))
+}
+
+func podsReady(pods []corev1.Pod) bool {
+	if len(pods) == 0 {
+		return false
+	}
+	for _, pod := range pods {
+		if !isPodReadyOrCompleted(pod) {
+			return false
+		}
+	}
+	return true
+}
+
+func isPodReadyOrCompleted(pod corev1.Pod) bool {
+	if pod.DeletionTimestamp != nil {
+		return false
+	}
+	if pod.Status.Phase == corev1.PodSucceeded {
+		return true
+	}
+	if pod.Status.Phase != corev1.PodRunning {
+		return false
+	}
+	for _, cond := range pod.Status.Conditions {
+		if cond.Type == corev1.PodReady {
+			return cond.Status == corev1.ConditionTrue
+		}
+	}
+	return false
 }
 
 func ExecShell(namespace, podName, container string) error {

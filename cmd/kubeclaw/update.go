@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/charmbracelet/huh"
 	"github.com/iMerica/kubeclaw/internal/config"
 	"github.com/iMerica/kubeclaw/internal/helm"
+	"github.com/iMerica/kubeclaw/internal/kube"
 	"github.com/iMerica/kubeclaw/internal/tui"
 	"github.com/spf13/cobra"
 )
@@ -22,6 +24,10 @@ var updateCmd = &cobra.Command{
 		fmt.Println()
 
 		helmClient := helm.NewClient(namespace, kubeconfig)
+		kubeClient, _, err := kube.NewClient(kubeconfig)
+		if err != nil {
+			return fmt.Errorf("cannot create Kubernetes client: %w", err)
+		}
 
 		if !helmClient.ReleaseExists(release) {
 			fmt.Printf("  %s Release %q not found in namespace %q\n",
@@ -93,7 +99,7 @@ var updateCmd = &cobra.Command{
 			return nil
 		}
 
-		err := tui.RunWithSpinner(ctx, "Upgrading release...", func(ctx context.Context) error {
+		err = tui.RunWithSpinner(ctx, "Applying release changes...", func(ctx context.Context) error {
 			return helmClient.Upgrade(ctx, release, config.ChartRef, sets, true)
 		})
 		if errors.Is(err, tui.ErrInterrupted) {
@@ -103,6 +109,19 @@ var updateCmd = &cobra.Command{
 		}
 		if err != nil {
 			return fmt.Errorf("upgrade failed: %w", err)
+		}
+
+		selector := fmt.Sprintf("app.kubernetes.io/instance=%s", release)
+		err = tui.RunWithSpinner(ctx, "Waiting for release pods to become ready...", func(ctx context.Context) error {
+			return kube.WaitPodsReady(ctx, kubeClient, namespace, selector, 3*time.Minute)
+		})
+		if errors.Is(err, tui.ErrInterrupted) {
+			fmt.Printf("\n  Interrupted. The release update has been applied.\n")
+			fmt.Printf("  Check with: kubectl get pods -n %s -l %q\n\n", namespace, selector)
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("release updated but pods are not ready: %w", err)
 		}
 
 		fmt.Printf("\n  %s Update complete.\n\n", tui.Success.Render("✔"))
