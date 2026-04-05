@@ -103,36 +103,38 @@ jobs:
 
           chart_path = Path("charts/kubeclaw/Chart.yaml")
           chart_text = chart_path.read_text()
-          updated_chart = re.sub(
+          updated_chart, chart_updates = re.subn(
               r'^appVersion:\s*".*"$',
               f'appVersion: "{image_tag}"',
               chart_text,
               count=1,
               flags=re.MULTILINE,
           )
-          if updated_chart == chart_text:
+          if chart_updates == 0:
               raise SystemExit("failed to update appVersion in charts/kubeclaw/Chart.yaml")
-          chart_path.write_text(updated_chart)
+          if updated_chart != chart_text:
+              chart_path.write_text(updated_chart)
 
           values_path = Path("charts/kubeclaw/values.yaml")
           values_text = values_path.read_text()
-          updated_values = re.sub(
+          updated_values, tag_updates = re.subn(
               r'^  tag:\s*".*"$',
               f'  tag: "{image_tag}"',
               values_text,
               count=1,
               flags=re.MULTILINE,
           )
-          updated_values = re.sub(
+          updated_values, digest_updates = re.subn(
               r'^  digest:\s*".*"$',
               f'  digest: "{image_digest}"',
               updated_values,
               count=1,
               flags=re.MULTILINE,
           )
-          if updated_values == values_text:
+          if tag_updates == 0 or digest_updates == 0:
               raise SystemExit("failed to update image tag/digest in charts/kubeclaw/values.yaml")
-          values_path.write_text(updated_values)
+          if updated_values != values_text:
+              values_path.write_text(updated_values)
           PY
 
       - name: Show pinned chart image
