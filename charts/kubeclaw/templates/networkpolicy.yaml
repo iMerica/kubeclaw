@@ -85,6 +85,18 @@ spec:
     - ports:
         - protocol: TCP
           port: 443
+    {{- if .Values.chromium.enabled }}
+    # Allow egress to the Chromium pod on CDP port.
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: chromium
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/name: {{ include "kubeclaw.name" . }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.chromium.cdpPort | default 9222 }}
+    {{- end }}
     {{- if .Values.litellm.enabled }}
     # Allow egress to the LiteLLM proxy pod on port 4000.
     - to:
