@@ -1,4 +1,4 @@
-ARG OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.3.23-2@sha256:dda9f4b94761e87864c901cf34ee858daf89fa1deed9dcb671e8845a6b24062e
+ARG OPENCLAW_IMAGE=ghcr.io/openclaw/openclaw:2026.6.10@sha256:af7ea052cf216f581fb18fabada01552356c53717461c0399b623cba7ecad4b1
 
 FROM node:24 AS tools-builder
 ARG TARGETARCH
