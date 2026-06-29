@@ -27,7 +27,7 @@ spec:
       {{- end }}
       containers:
         - name: otel-collector
-          image: {{ .Values.observability.nodeCollector.image.repository }}:{{ .Values.observability.nodeCollector.image.tag }}
+          image: {{ .Values.observability.nodeCollector.image.repository }}:{{ .Values.observability.nodeCollector.image.tag }}{{ if .Values.observability.nodeCollector.image.digest }}@{{ .Values.observability.nodeCollector.image.digest }}{{ end }}
           imagePullPolicy: {{ .Values.observability.nodeCollector.image.pullPolicy }}
           args:
             - --config=/etc/otel/otel-config.yaml

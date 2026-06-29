@@ -27,7 +27,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: otel-collector
-          image: {{ .Values.observability.clusterCollector.image.repository }}:{{ .Values.observability.clusterCollector.image.tag }}
+          image: {{ .Values.observability.clusterCollector.image.repository }}:{{ .Values.observability.clusterCollector.image.tag }}{{ if .Values.observability.clusterCollector.image.digest }}@{{ .Values.observability.clusterCollector.image.digest }}{{ end }}
           imagePullPolicy: {{ .Values.observability.clusterCollector.image.pullPolicy }}
           args:
             - --config=/etc/otel/otel-config.yaml

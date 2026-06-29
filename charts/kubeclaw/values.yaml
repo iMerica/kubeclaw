@@ -10,11 +10,15 @@
 image:
   # REQUIRED: Docker image repository for the OpenClaw Gateway.
   repository: ghcr.io/imerica/kubeclaw
-  # REQUIRED: Release tag produced by the image build workflow.
-  tag: "2026.6.10"
-  # Optional immutable digest for supply chain pinning.
-  # Set to a sha256 digest when you want strict immutability.
-  digest: ""
+  # REQUIRED: Immutable sha tag produced by the image build workflow.
+  # CI-managed: the build workflow rewrites tag + digest on every push to the
+  # default branch so the chart always pins an existing, reproducible image.
+  # Never set this to "latest" — deployments must be deterministic.
+  tag: "3faeb9b"
+  # REQUIRED: Immutable image digest for supply chain pinning. The container
+  # runtime resolves the pull by this digest, so the image is byte-for-byte
+  # reproducible regardless of tag movement. CI keeps this in sync with tag.
+  digest: "sha256:ddee40d27d22141390b7d8e8621c980189280a2e67aeb87a4a8d3c3a8b885dcb"
   # Pull policy: Always | IfNotPresent | Never
   pullPolicy: IfNotPresent
 
@@ -656,6 +660,8 @@ backup:
   image:
     repository: rclone/rclone
     tag: "1.68"
+    # Immutable image digest (supply chain hardening). Pull resolves by digest.
+    digest: "sha256:74c51b8817e5431bd6d7ed27cb2a50d8ee78d77f6807b72a41ef6f898845942b"
     pullPolicy: IfNotPresent
   # Cron schedule (default: daily at 2am UTC).
   schedule: "0 2 * * *"
@@ -698,6 +704,8 @@ tailscale:
     image:
       repository: tailscale/tailscale
       tag: "v1.78.1"
+      # Immutable image digest (supply chain hardening). Pull resolves by digest.
+      digest: "sha256:d00e735ed066b4e8a2d0acace57a5fcd8e04d2e26493275bc9df2c1f59732167"
       pullPolicy: IfNotPresent
     # Tailscale auth key (inline). One of authKey or authKeySecretName is
     # required when ssh.enabled=true (enforced by values.schema.json).
@@ -757,6 +765,8 @@ observability:
     image:
       repository: otel/opentelemetry-collector-contrib
       tag: "0.120.0"
+      # Immutable image digest (supply chain hardening). Pull resolves by digest.
+      digest: "sha256:85ac41c2db88d0df9bd6145e608a3cb023f5d8443868adbfbbf66efb51087917"
       pullPolicy: IfNotPresent
     resources:
       requests:
@@ -776,6 +786,8 @@ observability:
     image:
       repository: otel/opentelemetry-collector-contrib
       tag: "0.120.0"
+      # Immutable image digest (supply chain hardening). Pull resolves by digest.
+      digest: "sha256:85ac41c2db88d0df9bd6145e608a3cb023f5d8443868adbfbbf66efb51087917"
       pullPolicy: IfNotPresent
     resources:
       requests:

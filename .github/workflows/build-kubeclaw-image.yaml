@@ -7,8 +7,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   build-and-push:
@@ -19,6 +23,8 @@ jobs:
       digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
 
       - name: Set image metadata
         id: meta
@@ -62,3 +68,52 @@ jobs:
           echo "  --set image.repository=${{ steps.meta.outputs.image }}"
           echo "  --set image.tag=${{ steps.meta.outputs.tag }}"
           echo "  --set image.digest=${{ steps.build.outputs.digest }}"
+
+      - name: Pin image to chart values
+        env:
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          image_tag = os.environ["IMAGE_TAG"]
+          image_digest = os.environ["IMAGE_DIGEST"]
+
+          values_path = Path("charts/kubeclaw/values.yaml")
+          values_text = values_path.read_text()
+          updated_values, tag_updates = re.subn(
+              r'^  tag:\s*".*"$',
+              f'  tag: "{image_tag}"',
+              values_text,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          updated_values, digest_updates = re.subn(
+              r'^  digest:\s*".*"$',
+              f'  digest: "{image_digest}"',
+              updated_values,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          if tag_updates == 0 or digest_updates == 0:
+              raise SystemExit("failed to update image tag/digest in charts/kubeclaw/values.yaml")
+          if updated_values != values_text:
+              values_path.write_text(updated_values)
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add charts/kubeclaw/values.yaml
+          if git diff --cached --quiet; then
+            echo "values.yaml already pinned — nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore: pin image to ${{ steps.meta.outputs.tag }} [skip ci]"
+          # Rebase onto the latest master in case it moved during the build,
+          # then push. Either default branch name works (main or master).
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          git pull --rebase origin "${DEFAULT_BRANCH}"
+          git push origin "HEAD:${DEFAULT_BRANCH}"

@@ -62,7 +62,7 @@ spec:
             allowPrivilegeEscalation: false
       containers:
         - name: backup
-          image: "{{ .Values.backup.image.repository }}:{{ .Values.backup.image.tag }}"
+          image: "{{ .Values.backup.image.repository }}:{{ .Values.backup.image.tag }}{{ if .Values.backup.image.digest }}@{{ .Values.backup.image.digest }}{{ end }}"
           imagePullPolicy: {{ .Values.backup.image.pullPolicy }}
           command:
             - /bin/sh

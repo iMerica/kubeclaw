@@ -291,7 +291,7 @@ spec:
         # -------------------------------------------------------------------------
         {{- if .Values.tailscale.ssh.enabled }}
         - name: tailscale
-          image: {{ .Values.tailscale.ssh.image.repository }}:{{ .Values.tailscale.ssh.image.tag }}
+          image: {{ .Values.tailscale.ssh.image.repository }}:{{ .Values.tailscale.ssh.image.tag }}{{ if .Values.tailscale.ssh.image.digest }}@{{ .Values.tailscale.ssh.image.digest }}{{ end }}
           imagePullPolicy: {{ .Values.tailscale.ssh.image.pullPolicy }}
           env:
             - name: TS_AUTHKEY
